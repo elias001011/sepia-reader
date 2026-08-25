@@ -22,6 +22,10 @@ class _SettingsSheetState extends State<SettingsSheet> {
   bool _testing = false;
   DateTime? _lastSyncAt;
 
+  /// Set when the user turned syncing off and chose to erase the server's
+  /// copy; acted on when the settings are saved.
+  bool _wipeServerOnSave = false;
+
   @override
   void initState() {
     super.initState();
@@ -56,6 +60,60 @@ class _SettingsSheetState extends State<SettingsSheet> {
           ? context.l10n.syncTestOk(result.documentCount)
           : context.l10n.syncTestFailed(result.error ?? '?');
     });
+  }
+
+  /// Handles the sync switch. Turning it off asks what should happen to the
+  /// copy that lives on the server — the local library is never at stake, so
+  /// the question is deliberately about the remote side only.
+  Future<void> _onSyncToggled(bool value) async {
+    final wasEnabled = _draft.syncEnabled;
+    setState(() => _draft = _draft.copyWith(syncEnabled: value));
+    if (!wasEnabled || value) {
+      setState(() => _wipeServerOnSave = false);
+      return;
+    }
+    final wipe = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(dialogContext.l10n.syncDisabledTitle),
+        content: Text(dialogContext.l10n.syncDisabledBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(dialogContext.l10n.syncWipeFromServer),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(dialogContext.l10n.syncKeepOnServer),
+          ),
+        ],
+      ),
+    );
+    if (mounted) setState(() => _wipeServerOnSave = wipe ?? false);
+  }
+
+  Future<void> _save() async {
+    final draft = _draft.copyWith(
+      syncServerUrl: _serverUrlController.text.trim(),
+    );
+    var wipeFailed = false;
+    if (_wipeServerOnSave) {
+      // Must happen while syncing is still enabled, otherwise the request has
+      // no server to go to.
+      wipeFailed = !await widget.controller.clearServerCopy();
+    }
+    await widget.controller.updateSettings(draft);
+    if (!mounted) return;
+    if (_wipeServerOnSave) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            wipeFailed ? context.l10n.syncWipeFailed : context.l10n.syncWipeDone,
+          ),
+        ),
+      );
+    }
+    Navigator.pop(context);
   }
 
   String get _syncSummary {
@@ -205,8 +263,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
                   title: Text(context.l10n.syncWithServer),
                   subtitle: Text(context.l10n.syncWithServerDescription),
                   value: _draft.syncEnabled,
-                  onChanged: (value) =>
-                      setState(() => _draft = _draft.copyWith(syncEnabled: value)),
+                  onChanged: _onSyncToggled,
                 ),
                 const SizedBox(height: 8),
                 TextField(
@@ -248,14 +305,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
-                    onPressed: () async {
-                      await widget.controller.updateSettings(
-                        _draft.copyWith(
-                          syncServerUrl: _serverUrlController.text.trim(),
-                        ),
-                      );
-                      if (context.mounted) Navigator.pop(context);
-                    },
+                    onPressed: _save,
                     icon: const Icon(Icons.check_rounded),
                     label: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 12),

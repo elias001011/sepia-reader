@@ -8,7 +8,9 @@ import '../models/bookmark.dart';
 import '../models/folder_import.dart';
 import '../models/library_document.dart';
 import '../models/library_folder.dart';
+import '../models/syncable.dart';
 import '../services/storage_service.dart';
+import '../services/sync_merge.dart';
 
 class AppController extends ChangeNotifier {
   AppController({StorageService? storage})
@@ -21,7 +23,7 @@ class AppController extends ChangeNotifier {
   AppSettings _settings = const AppSettings();
 
   List<LibraryDocument> get documents {
-    final sorted = List<LibraryDocument>.from(_documents)
+    final sorted = live(_documents)
       ..sort((a, b) {
         if (a.isFavorite != b.isFavorite) return a.isFavorite ? -1 : 1;
         return b.updatedAt.compareTo(a.updatedAt);
@@ -32,7 +34,7 @@ class AppController extends ChangeNotifier {
   AppSettings get settings => _settings;
 
   List<LibraryFolder> get folders {
-    final sorted = List<LibraryFolder>.from(_folders)
+    final sorted = live(_folders)
       ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     return List.unmodifiable(sorted);
   }
@@ -47,7 +49,10 @@ class AppController extends ChangeNotifier {
 
   List<ReadingBookmark> bookmarksForDocument(String documentId) {
     final matches = _bookmarks
-        .where((bookmark) => bookmark.documentId == documentId)
+        .where(
+          (bookmark) =>
+              bookmark.documentId == documentId && !bookmark.isDeleted,
+        )
         .toList()
       ..sort((a, b) => a.scrollFraction.compareTo(b.scrollFraction));
     return List.unmodifiable(matches);
@@ -58,7 +63,9 @@ class AppController extends ChangeNotifier {
     _folders.addAll(await _storage.loadFolders());
     _documents.addAll(await _storage.loadDocuments());
     _bookmarks.addAll(await _storage.loadBookmarks());
-    if (_documents.isEmpty) {
+    // "Empty" means no *live* documents: a library whose documents were all
+    // deleted should still get the welcome document back.
+    if (live(_documents).isEmpty) {
       final now = DateTime.now();
       final isEnglish = _usesEnglish;
       _documents.add(
@@ -106,7 +113,7 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> updateDocument(LibraryDocument document) async {
-    final index = _documents.indexWhere((item) => item.id == document.id);
+    final index = _liveDocumentIndex(document.id);
     if (index == -1) return;
     _documents[index] = document.copyWith(updatedAt: DateTime.now());
     await _persistDocuments();
@@ -114,7 +121,7 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> renameDocument(String id, String name) async {
-    final index = _documents.indexWhere((document) => document.id == id);
+    final index = _liveDocumentIndex(id);
     if (index == -1) return;
     final document = _documents[index];
     final suffix = '.${document.extension}';
@@ -133,18 +140,31 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> deleteDocument(String id) async {
-    _documents.removeWhere((document) => document.id == id);
-    final hadBookmarks = _bookmarks.any(
-      (bookmark) => bookmark.documentId == id,
+    final index = _liveDocumentIndex(id);
+    if (index == -1) return;
+    final now = DateTime.now();
+    // Keep the record as a tombstone so the deletion reaches other devices,
+    // but drop the body: a deleted long document should not keep sitting in
+    // the synced payload for the whole retention window.
+    _documents[index] = _documents[index].copyWith(
+      content: '',
+      updatedAt: now,
+      deletedAt: now,
     );
-    _bookmarks.removeWhere((bookmark) => bookmark.documentId == id);
+    var hadBookmarks = false;
+    for (var i = 0; i < _bookmarks.length; i++) {
+      final bookmark = _bookmarks[i];
+      if (bookmark.documentId != id || bookmark.isDeleted) continue;
+      _bookmarks[i] = bookmark.copyWith(updatedAt: now, deletedAt: now);
+      hadBookmarks = true;
+    }
     await _persistDocuments();
     if (hadBookmarks) await _persistBookmarks();
     notifyListeners();
   }
 
   Future<void> toggleFavorite(String id) async {
-    final index = _documents.indexWhere((document) => document.id == id);
+    final index = _liveDocumentIndex(id);
     if (index == -1) return;
     _documents[index] = _documents[index].copyWith(
       isFavorite: !_documents[index].isFavorite,
@@ -164,7 +184,7 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> renameFolder(String id, String name) async {
-    final index = _folders.indexWhere((folder) => folder.id == id);
+    final index = _liveFolderIndex(id);
     final cleanName = _cleanFolderName(name);
     if (index == -1 || cleanName.isEmpty) return;
     _folders[index] = _folders[index].copyWith(
@@ -180,9 +200,7 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> moveDocument(String documentId, String? folderId) async {
-    final index = _documents.indexWhere(
-      (document) => document.id == documentId,
-    );
+    final index = _liveDocumentIndex(documentId);
     if (index == -1) return;
     _documents[index] = _documents[index].copyWith(
       folderId: folderId,
@@ -194,13 +212,19 @@ class AppController extends ChangeNotifier {
   }
 
   Future<bool> deleteEmptyFolder(String id) async {
-    final index = _folders.indexWhere((folder) => folder.id == id);
+    final index = _liveFolderIndex(id);
+    // Only live children count: a folder whose documents were all deleted is
+    // empty, even though their tombstones still name it as their parent.
     if (index == -1 ||
-        _folders.any((folder) => folder.parentId == id) ||
-        _documents.any((document) => document.folderId == id)) {
+        live(_folders).any((folder) => folder.parentId == id) ||
+        live(_documents).any((document) => document.folderId == id)) {
       return false;
     }
-    _folders.removeAt(index);
+    final now = DateTime.now();
+    _folders[index] = _folders[index].copyWith(
+      updatedAt: now,
+      deletedAt: now,
+    );
     await _persistFolders();
     notifyListeners();
     return true;
@@ -258,19 +282,21 @@ class AppController extends ChangeNotifier {
   }
 
   LibraryDocument? documentById(String id) {
-    try {
-      return _documents.firstWhere((document) => document.id == id);
-    } catch (_) {
-      return null;
-    }
+    final index = _liveDocumentIndex(id);
+    return index == -1 ? null : _documents[index];
   }
 
+  /// Index into the raw list, skipping tombstones so a stale screen cannot
+  /// revive a document that was deleted elsewhere.
+  int _liveDocumentIndex(String id) =>
+      _documents.indexWhere((document) => document.id == id && !document.isDeleted);
+
+  int _liveFolderIndex(String id) =>
+      _folders.indexWhere((folder) => folder.id == id && !folder.isDeleted);
+
   LibraryFolder? folderById(String id) {
-    try {
-      return _folders.firstWhere((folder) => folder.id == id);
-    } catch (_) {
-      return null;
-    }
+    final index = _liveFolderIndex(id);
+    return index == -1 ? null : _folders[index];
   }
 
   List<LibraryFolder> folderPath(String? folderId) {
@@ -291,7 +317,7 @@ class AppController extends ChangeNotifier {
     var changed = true;
     while (changed) {
       changed = false;
-      for (final folder in _folders) {
+      for (final folder in live(_folders)) {
         if (folder.parentId != null &&
             ids.contains(folder.parentId) &&
             ids.add(folder.id)) {
@@ -299,7 +325,7 @@ class AppController extends ChangeNotifier {
         }
       }
     }
-    return _documents
+    return live(_documents)
         .where((document) => ids.contains(document.folderId))
         .length;
   }
@@ -323,7 +349,15 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> removeBookmark(String id) async {
-    _bookmarks.removeWhere((bookmark) => bookmark.id == id);
+    final index = _bookmarks.indexWhere(
+      (bookmark) => bookmark.id == id && !bookmark.isDeleted,
+    );
+    if (index == -1) return;
+    final now = DateTime.now();
+    _bookmarks[index] = _bookmarks[index].copyWith(
+      updatedAt: now,
+      deletedAt: now,
+    );
     await _persistBookmarks();
     notifyListeners();
   }
@@ -346,6 +380,16 @@ class AppController extends ChangeNotifier {
   /// Probes a server address on behalf of the settings screen.
   Future<SyncTestResult> testSyncConnection(String serverUrl) =>
       _storage.testConnection(serverUrl);
+
+  /// Erases the server's copy of the library, using the sync settings that
+  /// are still in force. Must be called *before* sync is turned off, and
+  /// reports whether it actually succeeded.
+  Future<bool> clearServerCopy() => _storage.clearServer(
+    SyncConfig(
+      enabled: _settings.syncEnabled,
+      serverUrl: _settings.syncServerUrl,
+    ),
+  );
 
   /// Timestamp of the last successful exchange with the server, if any.
   Future<DateTime?> lastSyncAt() => _storage.loadLastSyncAt();
@@ -434,7 +478,7 @@ class AppController extends ChangeNotifier {
     String? parentId, {
     String? exceptId,
   }) {
-    final names = _folders
+    final names = live(_folders)
         .where((folder) => folder.parentId == parentId && folder.id != exceptId)
         .map((folder) => folder.name.toLowerCase())
         .toSet();

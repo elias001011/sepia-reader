@@ -265,5 +265,11 @@
         "type": "String"
       }
     }
-  }
+  },
+  "syncDisabledTitle": "Syncing turned off",
+  "syncDisabledBody": "Your library stays complete on this device. What about the copy on the server?",
+  "syncKeepOnServer": "Keep on server",
+  "syncWipeFromServer": "Erase from server",
+  "syncWipeFailed": "Syncing is off, but the copy on the server could not be erased. It is still there.",
+  "syncWipeDone": "Server copy erased."
 }

@@ -9,6 +9,8 @@ import '../models/app_settings.dart';
 import '../models/bookmark.dart';
 import '../models/library_document.dart';
 import '../models/library_folder.dart';
+import '../models/syncable.dart';
+import 'sync_merge.dart';
 
 /// Locally-stored sync preferences.
 ///
@@ -17,7 +19,7 @@ import '../models/library_folder.dart';
 /// (locking it out of ever syncing again) or silently repoint it at another
 /// host. The local copy is always authoritative.
 class SyncConfig {
-  const SyncConfig({this.enabled = true, this.serverUrl = ''});
+  const SyncConfig({this.enabled = false, this.serverUrl = ''});
   final bool enabled;
   final String serverUrl;
 
@@ -26,8 +28,11 @@ class SyncConfig {
     'syncServerUrl': serverUrl,
   };
 
+  /// Defaults to off: a freshly installed copy of an open-source, local-first
+  /// app should not assume a server exists. Devices that already stored a
+  /// preference keep it, since the key is present in their saved payload.
   factory SyncConfig.fromJson(Map<String, dynamic> json) => SyncConfig(
-    enabled: json['syncEnabled'] as bool? ?? true,
+    enabled: json['syncEnabled'] as bool? ?? false,
     serverUrl: json['syncServerUrl'] as String? ?? '',
   );
 }
@@ -86,10 +91,15 @@ class StorageService {
 
   /// Resolves an API path against the configured server, or returns null
   /// when syncing is off (in which case the app runs fully local).
+  ///
+  /// An empty address means "wherever this app was served from", which only
+  /// has a meaning on the web. In an installed app `Uri.base` is a file
+  /// location, not an origin, so an empty address there would produce a
+  /// request that can never succeed — treat it as "not configured" instead.
   Uri? _resolve(String path, SyncConfig config) {
     if (!config.enabled) return null;
     final base = config.serverUrl.trim();
-    if (base.isEmpty) return Uri.base.resolve(path);
+    if (base.isEmpty) return kIsWeb ? Uri.base.resolve(path) : null;
     final normalized = base.endsWith('/')
         ? base.substring(0, base.length - 1)
         : base;
@@ -143,7 +153,13 @@ class StorageService {
       SyncConfig(enabled: true, serverUrl: serverUrl),
     );
     if (uri == null) {
-      return (ok: false, documentCount: 0, error: 'URL inválida');
+      return (
+        ok: false,
+        documentCount: 0,
+        error: serverUrl.trim().isEmpty
+            ? 'Informe o endereço do servidor'
+            : 'URL inválida',
+      );
     }
     try {
       final response = await http.get(uri).timeout(_networkTimeout);
@@ -164,33 +180,68 @@ class StorageService {
     }
   }
 
-  Future<List<LibraryDocument>> loadDocuments() async {
+  /// Reconciles one collection with the server, record by record.
+  ///
+  /// Replacing the local copy with whichever side was fetched last used to
+  /// lose data: a device that had been offline for a week had its edits
+  /// overwritten by the server's older copy, and two devices editing
+  /// different documents clobbered each other. Merging per record and
+  /// pushing the result back makes both sides converge instead.
+  Future<List<T>> _loadMerged<T extends SyncableRecord>({
+    required String key,
+    required String path,
+    required List<T> Function(List<dynamic>) decode,
+    required Map<String, dynamic> Function(T) encode,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
-    final localRaw = prefs.getString(_documentsKey);
-    final local = _decodeDocumentsRaw(localRaw);
-    final remote = await _fetchJson('/api/documents');
-    if (remote is List) {
-      if (remote.isNotEmpty || local.isEmpty) {
-        await prefs.setString(_documentsKey, jsonEncode(remote));
-        return _decodeDocuments(remote);
-      }
-      // Server has nothing yet but this device already has a library: don't
-      // let an unsynced/empty server silently wipe local data. Seed the
-      // server from what we have instead.
-      _pushJson('/api/documents', local.map((d) => d.toJson()).toList());
-      return local;
+    final local = _decodeListRaw(prefs.getString(key), decode);
+    final remoteRaw = await _fetchJson(path);
+    final remote = remoteRaw is List ? _decodeList(remoteRaw, decode) : null;
+
+    final merged = purgeExpiredTombstones(
+      remote == null ? local : mergeById(local, remote),
+    );
+    final encoded = merged.map(encode).toList();
+    await prefs.setString(key, jsonEncode(encoded));
+
+    // Only write back when the server's copy actually differs, so a start-up
+    // that changed nothing does not cost a needless upload.
+    if (remoteRaw is List && jsonEncode(remoteRaw) != jsonEncode(encoded)) {
+      _pushJson(path, encoded);
     }
-    return local;
+    return merged;
   }
 
-  List<LibraryDocument> _decodeDocumentsRaw(String? raw) {
+  List<T> _decodeListRaw<T>(
+    String? raw,
+    List<T> Function(List<dynamic>) decode,
+  ) {
     if (raw == null) return [];
     try {
-      return _decodeDocuments(jsonDecode(raw) as List<dynamic>);
+      return _decodeList(jsonDecode(raw) as List<dynamic>, decode);
     } catch (_) {
       return [];
     }
   }
+
+  List<T> _decodeList<T>(
+    List<dynamic> raw,
+    List<T> Function(List<dynamic>) decode,
+  ) {
+    try {
+      return decode(raw);
+    } catch (error) {
+      debugPrint('sepia: could not decode payload: $error');
+      return [];
+    }
+  }
+
+  Future<List<LibraryDocument>> loadDocuments() => _loadMerged(
+    key: _documentsKey,
+    path: '/api/documents',
+    decode: _decodeDocuments,
+    encode: (document) => document.toJson(),
+  );
 
   List<LibraryDocument> _decodeDocuments(List<dynamic> raw) => raw
       .map(
@@ -230,30 +281,12 @@ class StorageService {
     return _withLocalSyncConfig(parsed);
   }
 
-  Future<List<LibraryFolder>> loadFolders() async {
-    final prefs = await SharedPreferences.getInstance();
-    final localRaw = prefs.getString(_foldersKey);
-    final local = _decodeFoldersRaw(localRaw);
-    final remote = await _fetchJson('/api/folders');
-    if (remote is List) {
-      if (remote.isNotEmpty || local.isEmpty) {
-        await prefs.setString(_foldersKey, jsonEncode(remote));
-        return _decodeFolders(remote);
-      }
-      _pushJson('/api/folders', local.map((f) => f.toJson()).toList());
-      return local;
-    }
-    return local;
-  }
-
-  List<LibraryFolder> _decodeFoldersRaw(String? raw) {
-    if (raw == null) return [];
-    try {
-      return _decodeFolders(jsonDecode(raw) as List<dynamic>);
-    } catch (_) {
-      return [];
-    }
-  }
+  Future<List<LibraryFolder>> loadFolders() => _loadMerged(
+    key: _foldersKey,
+    path: '/api/folders',
+    decode: _decodeFolders,
+    encode: (folder) => folder.toJson(),
+  );
 
   List<LibraryFolder> _decodeFolders(List<dynamic> raw) => raw
       .map(
@@ -262,30 +295,12 @@ class StorageService {
       )
       .toList();
 
-  Future<List<ReadingBookmark>> loadBookmarks() async {
-    final prefs = await SharedPreferences.getInstance();
-    final localRaw = prefs.getString(_bookmarksKey);
-    final local = _decodeBookmarksRaw(localRaw);
-    final remote = await _fetchJson('/api/bookmarks');
-    if (remote is List) {
-      if (remote.isNotEmpty || local.isEmpty) {
-        await prefs.setString(_bookmarksKey, jsonEncode(remote));
-        return _decodeBookmarks(remote);
-      }
-      _pushJson('/api/bookmarks', local.map((b) => b.toJson()).toList());
-      return local;
-    }
-    return local;
-  }
-
-  List<ReadingBookmark> _decodeBookmarksRaw(String? raw) {
-    if (raw == null) return [];
-    try {
-      return _decodeBookmarks(jsonDecode(raw) as List<dynamic>);
-    } catch (_) {
-      return [];
-    }
-  }
+  Future<List<ReadingBookmark>> loadBookmarks() => _loadMerged(
+    key: _bookmarksKey,
+    path: '/api/bookmarks',
+    decode: _decodeBookmarks,
+    encode: (bookmark) => bookmark.toJson(),
+  );
 
   List<ReadingBookmark> _decodeBookmarks(List<dynamic> raw) => raw
       .map(
@@ -330,11 +345,12 @@ class StorageService {
     _pushJson('/api/folders', json);
   }
 
-  /// Forces an unconditional pull from the server, bypassing the
-  /// don't-overwrite-local-with-empty-remote safety used by [loadDocuments]
-  /// et al. Used for an explicit user-triggered "force sync" action, where
-  /// an empty remote response is meaningful (e.g. after clearing the
-  /// library on another device) rather than a sign of an unsynced server.
+  /// Reconciles every collection with the server on demand, behind the
+  /// pull-to-refresh gesture.
+  ///
+  /// This deliberately merges rather than overwriting local state: a
+  /// deletion made on another device now travels as a tombstone, so there is
+  /// no longer any reason to let a remote copy replace local work wholesale.
   Future<
     ({
       List<LibraryDocument> documents,
@@ -344,47 +360,51 @@ class StorageService {
     })
   >
   forcePull() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    final remoteDocuments = await _fetchJson('/api/documents');
-    final documents = remoteDocuments is List
-        ? _decodeDocuments(remoteDocuments)
-        : _decodeDocumentsRaw(prefs.getString(_documentsKey));
-    if (remoteDocuments is List) {
-      await prefs.setString(_documentsKey, jsonEncode(remoteDocuments));
-    }
-
-    final remoteFolders = await _fetchJson('/api/folders');
-    final folders = remoteFolders is List
-        ? _decodeFolders(remoteFolders)
-        : _decodeFoldersRaw(prefs.getString(_foldersKey));
-    if (remoteFolders is List) {
-      await prefs.setString(_foldersKey, jsonEncode(remoteFolders));
-    }
-
-    final remoteBookmarks = await _fetchJson('/api/bookmarks');
-    final bookmarks = remoteBookmarks is List
-        ? _decodeBookmarks(remoteBookmarks)
-        : _decodeBookmarksRaw(prefs.getString(_bookmarksKey));
-    if (remoteBookmarks is List) {
-      await prefs.setString(_bookmarksKey, jsonEncode(remoteBookmarks));
-    }
-
-    final remoteSettings = await _fetchJson('/api/settings');
-    AppSettings settings;
-    if (remoteSettings is Map && remoteSettings.isNotEmpty) {
-      final map = Map<String, dynamic>.from(remoteSettings);
-      await prefs.setString(_settingsKey, jsonEncode(map));
-      settings = await _withLocalSyncConfig(AppSettings.fromJson(map));
-    } else {
-      settings = await loadSettings();
-    }
-
+    final documents = await loadDocuments();
+    final folders = await loadFolders();
+    final bookmarks = await loadBookmarks();
+    final settings = await loadSettings();
     return (
       documents: documents,
       folders: folders,
       bookmarks: bookmarks,
       settings: settings,
     );
+  }
+
+  /// Erases the server's copy of the library, used when the user turns sync
+  /// off and asks for the remote copy to go with it.
+  ///
+  /// Takes the config explicitly because it must run while syncing is still
+  /// enabled, before the new (disabled) preferences are stored. Returns
+  /// whether every write landed, so the caller can be honest about a server
+  /// that could not be reached instead of claiming a deletion that never
+  /// happened.
+  Future<bool> clearServer(SyncConfig config) async {
+    Future<bool> put(String path, Object body) async {
+      final uri = _resolve(path, config);
+      if (uri == null) return false;
+      try {
+        final response = await http
+            .put(
+              uri,
+              headers: const {'Content-Type': 'application/json'},
+              body: jsonEncode(body),
+            )
+            .timeout(_networkTimeout);
+        return response.statusCode == 200;
+      } catch (error) {
+        debugPrint('sepia: clearing $path failed: $error');
+        return false;
+      }
+    }
+
+    final results = await Future.wait([
+      put('/api/documents', const []),
+      put('/api/folders', const []),
+      put('/api/bookmarks', const []),
+      put('/api/settings', const <String, dynamic>{}),
+    ]);
+    return results.every((ok) => ok);
   }
 }

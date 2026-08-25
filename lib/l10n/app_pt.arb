@@ -265,5 +265,11 @@
         "type": "String"
       }
     }
-  }
+  },
+  "syncDisabledTitle": "Sincronização desligada",
+  "syncDisabledBody": "Sua biblioteca continua completa neste aparelho. E a cópia no servidor?",
+  "syncKeepOnServer": "Manter no servidor",
+  "syncWipeFromServer": "Apagar do servidor",
+  "syncWipeFailed": "Sincronização desligada, mas não foi possível apagar a cópia no servidor. Ela continua lá.",
+  "syncWipeDone": "Cópia do servidor apagada."
 }
