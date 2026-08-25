@@ -853,6 +853,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Go to bookmark'**
   String get goToBookmark;
+
+  /// No description provided for @syncSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync'**
+  String get syncSection;
+
+  /// No description provided for @syncWithServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync with the server'**
+  String get syncWithServer;
+
+  /// No description provided for @syncWithServerDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Keeps the library identical on every device that opens this server.'**
+  String get syncWithServerDescription;
+
+  /// No description provided for @syncServerAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Server address'**
+  String get syncServerAddress;
+
+  /// No description provided for @syncServerAddressHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty: use the address the app was opened from'**
+  String get syncServerAddressHint;
+
+  /// No description provided for @syncTestConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Test connection'**
+  String get syncTestConnection;
+
+  /// No description provided for @syncTesting.
+  ///
+  /// In en, this message translates to:
+  /// **'Testing…'**
+  String get syncTesting;
+
+  /// No description provided for @syncTestOk.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Connected. 1 document on the server.} other{Connected. {count} documents on the server.}}'**
+  String syncTestOk(int count);
+
+  /// No description provided for @syncTestFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed: {error}'**
+  String syncTestFailed(String error);
+
+  /// No description provided for @syncOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync is off'**
+  String get syncOff;
+
+  /// No description provided for @syncNever.
+  ///
+  /// In en, this message translates to:
+  /// **'Not synced yet'**
+  String get syncNever;
+
+  /// No description provided for @syncLast.
+  ///
+  /// In en, this message translates to:
+  /// **'Last sync: {time}'**
+  String syncLast(String time);
 }
 
 class _AppLocalizationsDelegate
