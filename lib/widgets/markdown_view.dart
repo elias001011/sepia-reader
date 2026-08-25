@@ -46,14 +46,24 @@ class DocumentView extends StatelessWidget {
     return ColoredBox(
       color: readerBackground,
       child: SelectionArea(
-        child: SingleChildScrollView(
-          controller: scrollController,
-          padding: padding,
-          child: Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: settings.readerWidth),
-              child: document.isMarkdown
-                  ? MarkdownBody(
+        child: document.isMarkdown
+            ? Padding(
+                padding: EdgeInsets.only(left: padding.left, right: padding.right),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: settings.readerWidth),
+                    child: Markdown(
+                      // `Markdown` (unlike `MarkdownBody`) renders through a
+                      // real ListView/Sliver, so only on-screen blocks are
+                      // built/laid out/painted. MarkdownBody eagerly builds
+                      // everything into a single Column with no viewport
+                      // culling, which is what made big documents (~16k
+                      // words) drop to ~15 FPS in reading mode.
+                      controller: scrollController,
+                      padding: EdgeInsets.only(
+                        top: padding.top,
+                        bottom: padding.bottom,
+                      ),
                       data: document.content,
                       selectable: false,
                       softLineBreak: true,
@@ -148,8 +158,17 @@ class DocumentView extends StatelessWidget {
                           ),
                         ),
                       ),
-                    )
-                  : SelectableText.rich(
+                    ),
+                  ),
+                ),
+              )
+            : SingleChildScrollView(
+                controller: scrollController,
+                padding: padding,
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: settings.readerWidth),
+                    child: SelectableText.rich(
                       isCodeExtension(document.extension)
                           ? highlightedSpan(
                               document.content,
@@ -159,9 +178,9 @@ class DocumentView extends StatelessWidget {
                             )
                           : TextSpan(text: document.content, style: base),
                     ),
-            ),
-          ),
-        ),
+                  ),
+                ),
+              ),
       ),
     );
   }
