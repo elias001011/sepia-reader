@@ -1,0 +1,25 @@
+name: App
+
+on:
+  push:
+    branches: [app]
+  pull_request:
+    branches: [app]
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - run: flutter build apk --release
+      - uses: actions/upload-artifact@v7
+        with:
+          name: sepia-android
+          path: build/app/outputs/flutter-apk/app-release.apk
