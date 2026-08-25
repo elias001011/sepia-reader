@@ -21,6 +21,7 @@ class AppSettings {
     this.ttsEnabled = true,
     this.ttsEngine = 'system',
     this.ttsVoiceId = '',
+    this.ttsNeuralVoiceId = '',
     this.ttsRate = 1,
     this.ttsPitch = 1,
   });
@@ -62,9 +63,14 @@ class AppSettings {
   /// values are reserved for the locally-run neural engine.
   final String ttsEngine;
 
-  /// Engine-specific voice identifier; empty means "whatever the engine
-  /// picks for the current language".
+  /// Platform-voice identifier; empty means "whatever the engine picks for
+  /// the current language".
   final String ttsVoiceId;
+
+  /// Which downloaded neural voice to use, from [neuralVoices]. Kept apart
+  /// from [ttsVoiceId] so switching engines back and forth does not lose
+  /// either choice.
+  final String ttsNeuralVoiceId;
 
   /// Speaking speed as a multiplier, 1.0 being the voice's natural pace.
   final double ttsRate;
@@ -92,6 +98,7 @@ class AppSettings {
     bool? ttsEnabled,
     String? ttsEngine,
     String? ttsVoiceId,
+    String? ttsNeuralVoiceId,
     double? ttsRate,
     double? ttsPitch,
   }) => AppSettings(
@@ -115,6 +122,7 @@ class AppSettings {
     ttsEnabled: ttsEnabled ?? this.ttsEnabled,
     ttsEngine: ttsEngine ?? this.ttsEngine,
     ttsVoiceId: ttsVoiceId ?? this.ttsVoiceId,
+    ttsNeuralVoiceId: ttsNeuralVoiceId ?? this.ttsNeuralVoiceId,
     ttsRate: ttsRate ?? this.ttsRate,
     ttsPitch: ttsPitch ?? this.ttsPitch,
   );
@@ -139,6 +147,7 @@ class AppSettings {
     'ttsEnabled': ttsEnabled,
     'ttsEngine': ttsEngine,
     'ttsVoiceId': ttsVoiceId,
+    'ttsNeuralVoiceId': ttsNeuralVoiceId,
     'ttsRate': ttsRate,
     'ttsPitch': ttsPitch,
   };
@@ -168,6 +177,7 @@ class AppSettings {
       ttsEnabled: json['ttsEnabled'] as bool? ?? true,
       ttsEngine: json['ttsEngine'] as String? ?? 'system',
       ttsVoiceId: json['ttsVoiceId'] as String? ?? '',
+      ttsNeuralVoiceId: json['ttsNeuralVoiceId'] as String? ?? '',
       ttsRate: (json['ttsRate'] as num? ?? 1).toDouble().clamp(0.5, 2.0),
       ttsPitch: (json['ttsPitch'] as num? ?? 1).toDouble().clamp(0.5, 2.0),
     );

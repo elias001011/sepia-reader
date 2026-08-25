@@ -9,7 +9,7 @@ import 'package:sepia_reader/services/tts/tts_playback.dart';
 /// A speech engine that records what it was asked to say and only finishes an
 /// utterance when the test says so, so the queue's behaviour mid-sentence is
 /// observable.
-class FakeEngine implements TtsEngine {
+class FakeEngine extends TtsEngine {
   final spoken = <String>[];
   final configured = <({String? voiceId, double rate, double pitch})>[];
   int prepareCalls = 0;
@@ -34,6 +34,11 @@ class FakeEngine implements TtsEngine {
     required double rate,
     required double pitch,
   }) async => configured.add((voiceId: voiceId, rate: rate, pitch: pitch));
+
+  final primed = <String>[];
+
+  @override
+  Future<void> prime(String text) async => primed.add(text);
 
   @override
   Future<void> speak(String text) async {
@@ -234,6 +239,28 @@ void main() {
       greaterThan(chapterTwo.startChunk),
       reason: 'moving on to the next sentence moves the follow-along anchor',
     );
+  });
+
+  test('a próxima fala é preparada enquanto a atual toca', () async {
+    final engine = FakeEngine();
+    final controller = TtsPlaybackController(engine: engine);
+    final sections = sectionsOf(fic());
+
+    await controller.start(
+      document: fic(),
+      section: sections.first,
+      voiceId: null,
+      rate: 1,
+      pitch: 1,
+    );
+    // The first sentence is still playing, and the second is already being
+    // rendered — which is what keeps a neural voice from pausing between
+    // every sentence.
+    expect(engine.spoken.last, 'Capítulo um');
+    expect(engine.primed, contains('Primeira frase do um.'));
+
+    await engine.finishUtterance();
+    expect(engine.primed, contains('Segunda frase do um.'));
   });
 
   test('parar libera o motor e zera o estado', () async {

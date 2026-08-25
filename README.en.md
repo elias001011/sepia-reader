@@ -6,22 +6,48 @@ A calm, local-first Markdown library, reader, and editor built with Flutter. Sé
 
 ## Features
 
-- Local library with search, favorites, folders, nested folders, and word counts.
-- Create `.md` and `.txt` documents at the root or directly inside a folder.
-- Rename and move documents between folders or back to the library root.
-- Import individual files, drag and drop them in the browser, or import whole folders while preserving compatible files and nested paths, up to 5 MB per file.
-- Responsive editor with shortcuts for headings, bold, italic, quotes, lists, links, and code.
-- Session-scoped undo/redo through the UI, `Ctrl/Cmd+Z`, `Ctrl+Y`, or `Ctrl/Cmd+Shift+Z`.
-- Markdown preview with tables, quotes, and fenced code blocks, with contrast independent from the app theme.
-- Syntax highlighting for Dart, JavaScript, TypeScript, JSON, YAML, HTML, CSS, Python, Java, Kotlin, Swift, shell, SQL, and XML.
-- Distraction-free reading mode with compact controls, locked editing, and optional auto-hide.
-- Merriweather and the Sépia palette by default, plus Artifact, Paper, and Night presets.
-- Configurable font, size, line height, page width, background, and text colors.
-- Material 3 theme with light, dark, AMOLED, and system modes, plus configurable light and dark backgrounds.
-- Reading colors can follow the app theme or remain independently customized.
-- Brazilian Portuguese and English UI, with an option to follow the system locale.
-- Local persistence and export in the document's original format.
-- Web, Android, and iOS targets from one Flutter codebase.
+### Reading
+- reading mode that locks editing, uses compact controls, and can hide them automatically;
+- Merriweather and the Sépia theme by default, with Artifact, Paper, and Night presets;
+- configurable font, size, line height, width, background, and text colour;
+- bookmarks anchored to the passage rather than to a scroll position — they do not drift when the document changes size;
+- full Markdown: headings, emphasis, strikethrough, lists, task lists, nested quotes, aligned tables, links (reference-style included), images, footnotes, and code blocks;
+- a dedicated code viewer with line numbers, separate from the prose reader;
+- `.html` preview, with the source one tap away;
+- large documents are virtualized: only what is on screen is built.
+
+### Listening
+- read-aloud, with a chapter (`#`/`##`) picker to start from, "carry on from where I stopped", pause, skip, and speed control;
+- the page scrolls along with the voice;
+- three voice tiers:
+  - **system voice** — ultra light, uses what Android or the browser already has, nothing to download;
+  - **Piper** (~80 MB) — a neural voice that runs well on any device;
+  - **Kokoro** (~400 MB) — more natural, for devices with space and memory to spare;
+- both neural tiers run offline on the device through sherpa-onnx: no text leaves the device, no API and no key;
+- voices are downloaded on demand, with progress, cancellation, resumable downloads, and removal;
+- Markdown syntax is never read out loud — tables become prose, code and diagrams are skipped.
+
+### Writing
+- responsive editor with shortcuts for headings, bold, italic, quotes, lists, links, and code;
+- per-session undo/redo through the interface, `Ctrl/Cmd+Z`, `Ctrl+Y`, or `Ctrl/Cmd+Shift+Z`;
+- large documents are edited in parts, following the text's own chapters, so typing stays responsive — the saved file remains whole;
+- syntax highlighting for Dart, JavaScript, TypeScript, JSON, YAML, HTML, CSS, Python, Java, Kotlin, Swift, shell, SQL, and XML.
+
+### Keeping
+- local library with search, favourites, folders, subfolders, and word counts;
+- create `.md` and `.txt` at the root or inside a folder;
+- rename and move documents between folders and back to the root;
+- multiple import, by drag and drop in the browser or from whole folders, preserving the hierarchy, with a 5 MB per-file limit;
+- files that are not text (`.docx`, `.pdf`, images) are turned away even when renamed — the check is on the bytes, not the extension;
+- folder deletion with a confirmation that takes subfolders and documents with it;
+- optional syncing with your own server, with pull-to-refresh in the library;
+- local persistence and export of the original file.
+
+### Everywhere
+- Material 3 light, dark, AMOLED, or system theme, with custom light and dark backgrounds;
+- an option for reading to follow the app colours entirely or use its own palette;
+- interface localized in Brazilian Portuguese and English, with a follow-the-system option;
+- web, Android, and iOS builds from the same Flutter codebase (neural voices are native-only).
 
 ## Web storage and self-hosting
 
@@ -40,11 +66,14 @@ The release archive bundles Flutter's rendering runtime, Inter, Merriweather, Lo
 3. Under **Domain management**, choose the desired address, such as `sepia-md.netlify.app`.
 
 The generated folder already contains `_headers` and `_redirects` for WebAssembly, static routing, and an origin-only content policy.
-- optional read-aloud in reading mode, with a chapter (`#`/`##`) picker to start from, pause/skip/speed controls, using the native Android or browser voice (no download, no API, no internet);
+- read-aloud in reading mode, with a chapter (`#`/`##`) picker to start from, "carry on from where I stopped", pause, skip and speed control;
+- three voice tiers: the native Android/browser voice (ultra light, nothing to download), **Piper** (~80 MB, runs well on any device) and **Kokoro** (~400 MB, more natural), both running offline on the device itself through sherpa-onnx — no text leaves the device, no API and no key;
+- neural voices downloaded on demand, with progress, cancellation, resumable downloads and removal;
+- reading-mode bookmarks anchored to the passage rather than to a scroll position;
 - dedicated code viewer with line numbers, separate from the prose reader;
-- simple `.html` preview in reading mode, with the source one tap away;
-- large documents are edited in parts (the text's own chapters), keeping typing responsive without changing the saved file;
-- files that are not text (`.docx`, `.pdf`, images) are turned away on import, even when renamed;
+- `.html` preview in reading mode, with the source one tap away;
+- large documents edited in parts (the text's own chapters), keeping typing responsive without changing the saved file;
+- files that are not text (`.docx`, `.pdf`, images) turned away on import, even when renamed;
 - folder deletion with a confirmation that takes subfolders and documents with it;
 - optional syncing with your own server, with pull-to-refresh in the library;
 
@@ -74,20 +103,28 @@ flutter run -d android
 
 ```bash
 bash tool/build_web.sh
-flutter build apk --release
-flutter build apk --release --target-platform android-arm64
+flutter build apk --release --split-per-abi   # one APK per architecture
+flutter build apk --release                   # universal, all of them
 ```
+
+The web script bundles the Flutter runtime, the Inter, Merriweather, Lora, and Roboto Mono fonts, and the Noto fallbacks for emoji and symbols into `build/web` itself; the app depends on neither Google Fonts nor a CDN at runtime.
+
+Neural voices run through `sherpa_onnx`, which ships native libraries for every Android architecture. That is what `--split-per-abi` is for: an `arm64-v8a` APK carries only the library its own device needs, while the universal one carries all of them. The voice models are **not** in the APK — the app downloads them on demand from its settings.
+
+Files are stored locally on the device/browser with `shared_preferences`. Sépia does not send content to any server.
 
 ## Releases
 
-Semantic version tags automatically publish a GitHub Release containing a universal Android APK, a smaller modern-device `arm64-v8a` APK, the self-hostable web archive, and SHA-256 checksums:
+Semantic tags automatically publish a GitHub Release with one APK per architecture, a universal APK, the static web bundle, and SHA-256 checksums:
 
 ```bash
 git tag v1.2.0
 git push origin v1.2.0
 ```
 
-The ARM64 APK is recommended for most modern devices; the universal APK remains available for compatibility. Both currently use the development signing configuration and are intended for direct installation and testing. Configure a permanent signing key and prefer an Android App Bundle before Play Store distribution.
+**Download `arm64-v8a`** — it is the architecture of virtually every current Android phone, and the smallest APK. `armeabi-v7a` serves older devices, `x86_64` serves emulators, and the universal build exists only as a compatibility fallback: it is considerably larger because it carries the native libraries for every architecture at once.
+
+All of them use the current development signing key and are meant for direct installation and testing. Before distributing through the Play Store, set up a permanent signing key and prefer an Android App Bundle — Play itself then delivers only each device's ABI.
 
 ## Privacy and persistence
 

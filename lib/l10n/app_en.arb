@@ -316,9 +316,9 @@
   "ttsEnableDescription": "Adds a listen button to reading mode.",
   "ttsEngineLabel": "Voice",
   "ttsEngineSystem": "System voice",
-  "ttsEngineSystemDescription": "Uses the voice Android or your browser already has. Nothing to download, works offline.",
-  "ttsEngineNeural": "Local neural model (in progress)",
-  "ttsEngineNeuralDescription": "A far more natural voice, running on the device itself. Not available in this version yet — follow along at github.com/elias001011/sepia-reader/issues/1.",
+  "ttsEngineSystemDescription": "Ultra light: uses the voice Android or your browser already has. Nothing to download, no storage used, works offline.",
+  "ttsEngineNeural": "On-device neural voice",
+  "ttsEngineNeuralDescription": "Far more natural. Runs offline on the device itself, with no API and without sending your text anywhere — but a voice has to be downloaded first.",
   "ttsVoice": "Voice",
   "ttsVoiceAuto": "Choose automatically",
   "ttsRate": "Speed",
@@ -393,5 +393,56 @@
         "type": "String"
       }
     }
-  }
+  },
+  "ttsEngineNeuralUnavailableWeb": "In the browser only the system voice works: the neural voice needs to run natively. Use the Android app for that.",
+  "ttsNeuralVoices": "Neural voices",
+  "ttsManageVoices": "Download voices",
+  "ttsVoicesTitle": "Voices to download",
+  "ttsVoicesDescription": "Download once and use offline forever. It is stored on the device and can be removed whenever you like.",
+  "ttsVoiceInstall": "Download",
+  "ttsVoiceRemove": "Remove",
+  "ttsVoiceInstalled": "Installed",
+  "ttsVoiceUse": "Use",
+  "ttsVoiceInUse": "In use",
+  "ttsVoiceDownloading": "Downloading… {percent}%",
+  "@ttsVoiceDownloading": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "ttsVoiceCancel": "Cancel",
+  "ttsVoiceSize": "{size} MB",
+  "@ttsVoiceSize": {
+    "placeholders": {
+      "size": {
+        "type": "int"
+      }
+    }
+  },
+  "ttsVoiceInstallFailed": "Could not download the voice: {error}",
+  "@ttsVoiceInstallFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "ttsVoiceRemoveConfirm": "Remove “{name}”? The files leave the device and can be downloaded again later.",
+  "@ttsVoiceRemoveConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ttsVoiceHeavy": "Large model: needs plenty of space and memory. On a weaker phone, prefer the Piper voices.",
+  "ttsNoNeuralVoice": "No neural voice installed yet.",
+  "ttsPitchUnsupported": "Neural voices play as they were recorded; pitch does not apply to them.",
+  "ttsTierSystem": "Ultra light · system voice",
+  "ttsTierLight": "Light",
+  "ttsTierBest": "Best",
+  "ttsTierLightHint": "Piper · runs well on any device",
+  "ttsTierBestHint": "Kokoro · more natural, wants more space and memory"
 }

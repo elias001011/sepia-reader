@@ -50,6 +50,19 @@ abstract class TtsEngine {
   /// was interrupted by [stop]).
   Future<void> speak(String text);
 
+  /// Optional hint that [text] is likely to be spoken next.
+  ///
+  /// A backend that synthesises audio before it can play it — every neural
+  /// one — uses this to work ahead while the current sentence is still
+  /// playing, which is the difference between continuous reading and a gap
+  /// before every sentence. Backends that speak directly ignore it.
+  Future<void> prime(String text) async {}
+
+  /// Whether [configure]'s `pitch` means anything to this engine. Neural
+  /// models render a voice as it was trained; only the platform voices can
+  /// be re-pitched.
+  bool get supportsPitch => true;
+
   Future<void> stop();
 
   /// Releases whatever the engine was holding. Playback must be startable

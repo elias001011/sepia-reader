@@ -10,8 +10,12 @@ import '../services/document_io.dart';
 import '../services/document_kind.dart';
 import '../services/document_sections.dart';
 import '../services/html_preview.dart';
+import '../services/tts/neural_tts_engine.dart';
 import '../services/tts/system_tts_engine.dart';
+import '../services/tts/tts_engine.dart';
 import '../services/tts/tts_playback.dart';
+import '../services/tts/voice_catalog.dart';
+import '../services/tts/voice_store.dart';
 import '../state/app_controller.dart';
 import '../widgets/markdown_view.dart';
 import 'bookmarks_sheet.dart';
@@ -89,6 +93,11 @@ class _EditorScreenState extends State<EditorScreen> {
   /// coming later, its model) has no business staying resident while
   /// somebody is only reading.
   TtsPlaybackController? _tts;
+  final VoiceStore _voiceStore = VoiceStore();
+
+  /// Identifies which backend the player currently holds, so a settings
+  /// change swaps it instead of silently reading in the old voice.
+  String? _engineKey;
 
   /// `.html` is shown as a rendered preview by default, with the source one
   /// tap away. The conversion is memoised because it walks the whole file.
@@ -276,8 +285,46 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 
   TtsPlaybackController get _speech =>
-      _tts ??= TtsPlaybackController(engine: SystemTtsEngine())
+      _tts ??= TtsPlaybackController(engine: _buildEngine())
         ..addListener(_onSpeechChanged);
+
+  /// The backend the current settings ask for.
+  ///
+  /// Falls back to the platform voice whenever the neural one cannot serve:
+  /// on the web, where there is no native inference, and when no voice has
+  /// been downloaded yet. Silence would be the wrong answer to "read this
+  /// to me"; a plainer voice is not.
+  TtsEngine _buildEngine() {
+    final settings = widget.controller.settings;
+    if (settings.ttsEngine == 'neural' && _voiceStore.isSupported) {
+      final voice = neuralVoiceById(settings.ttsNeuralVoiceId);
+      if (voice != null) {
+        return NeuralTtsEngine(voice: voice, store: _voiceStore);
+      }
+    }
+    return SystemTtsEngine();
+  }
+
+  String get _wantedEngineKey {
+    final settings = widget.controller.settings;
+    return settings.ttsEngine == 'neural' && _voiceStore.isSupported
+        ? 'neural:${settings.ttsNeuralVoiceId}'
+        : 'system';
+  }
+
+  Future<void> _ensureEngine() async {
+    final wanted = _wantedEngineKey;
+    if (_tts == null) {
+      // Touching the getter builds the player with the right backend
+      // already; swapping it immediately afterwards would only churn.
+      _engineKey = wanted;
+      _speech;
+      return;
+    }
+    if (_engineKey == wanted) return;
+    _engineKey = wanted;
+    await _tts!.useEngine(_buildEngine());
+  }
 
   /// Keeps the page under the voice: when the reader moves on to a chunk
   /// that is not the one on screen, scroll to it.
@@ -328,6 +375,7 @@ class _EditorScreenState extends State<EditorScreen> {
     DocumentSection section,
   ) async {
     final settings = widget.controller.settings;
+    await _ensureEngine();
     await _speech.start(
       document: document,
       section: section,

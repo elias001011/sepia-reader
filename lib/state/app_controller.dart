@@ -563,19 +563,44 @@ Um lugar calmo para **ler, escrever e guardar** seus textos.
 
 ## Comece por aqui
 
-- Importe arquivos `.md`, `.txt` ou arquivos de código.
-- Crie um Markdown diretamente na biblioteca.
-- Ajuste fonte, tamanho, largura e cores para a sua leitura.
-- Ative o **modo leitura** para ocultar as ferramentas e bloquear edições.
+- Importe arquivos `.md`, `.txt`, `.html` ou arquivos de código.
+- Crie um Markdown direto na biblioteca, em qualquer pasta.
+- Ajuste fonte, tamanho, entrelinha, largura e cores da leitura.
+- Ative o **modo leitura** para esconder as ferramentas e travar a edição.
 - Exporte seu texto quando quiser — ele continua sendo seu.
 
 > A melhor interface de leitura é aquela que desaparece quando o texto começa.
+
+## Ouvir em vez de ler
+
+No modo leitura, o botão de fone lê o documento em voz alta.
+
+- Se o texto tem títulos `#` ou `##`, dá para escolher **de qual capítulo começar** — ou continuar de onde você parou.
+- A voz padrão é a do próprio Android ou do navegador: não baixa nada e funciona sem internet.
+- Em **Configurações → Leitura em voz alta** dá para mudar a **velocidade**, trocar de voz, e baixar uma **voz neural** que roda no próprio aparelho, sem mandar seu texto para servidor nenhum.
+
+## Marcadores
+
+Ainda no modo leitura, marque onde você parou e volte depois pela lista de marcadores. A marcação fica presa ao trecho do texto, não a uma posição de rolagem — ela não escorrega quando o documento muda de tamanho.
+
+## Documentos grandes
+
+Textos muito longos são editados **por partes**, seguindo os capítulos do próprio arquivo, para a digitação não travar. O arquivo salvo continua inteiro, e o modo leitura mostra tudo de uma vez.
+
+## O que ele entende
+
+Títulos, **negrito**, *itálico*, ~~riscado~~, listas, tarefas, citações, tabelas, links, imagens, notas de rodapé e código com destaque de sintaxe:
 
 ```dart
 void main() {
   print('Olá, Sépia!');
 }
 ```
+
+| Atalho | O que faz |
+|---|---|
+| Puxar a biblioteca para baixo | Sincroniza com o servidor |
+| Tocar no título | Renomeia o documento |
 
 Boa leitura. ☕
 ''';
@@ -586,19 +611,44 @@ A calm place to **read, write, and keep** your texts.
 
 ## Start here
 
-- Import `.md`, `.txt`, or source-code files.
-- Create a Markdown document directly in the library.
-- Adjust the font, size, width, and colors for your reading.
+- Import `.md`, `.txt`, `.html`, or source-code files.
+- Create a Markdown document straight in the library, in any folder.
+- Adjust the font, size, line height, width, and colours for your reading.
 - Turn on **reading mode** to hide the tools and lock editing.
 - Export your text whenever you want — it remains yours.
 
 > The best reading interface disappears when the text begins.
+
+## Listen instead of reading
+
+In reading mode, the headphone button reads the document out loud.
+
+- If the text has `#` or `##` headings, you can pick **which chapter to start from** — or carry on from where you stopped.
+- The default voice is the one Android or your browser already has: nothing to download, and it works offline.
+- Under **Settings → Read aloud** you can change the **speed**, switch voices, and download a **neural voice** that runs on the device itself, without sending your text to any server.
+
+## Bookmarks
+
+Still in reading mode, mark where you stopped and come back later from the bookmark list. A bookmark is anchored to the passage, not to a scroll position — it does not drift when the document changes size.
+
+## Long documents
+
+Very long texts are edited **in parts**, following the file's own chapters, so typing stays responsive. The saved file remains whole, and reading mode shows all of it at once.
+
+## What it understands
+
+Headings, **bold**, *italic*, ~~strikethrough~~, lists, tasks, quotes, tables, links, images, footnotes, and code with syntax highlighting:
 
 ```dart
 void main() {
   print('Hello, Sépia!');
 }
 ```
+
+| Shortcut | What it does |
+|---|---|
+| Pull the library down | Syncs with the server |
+| Tap the title | Renames the document |
 
 Enjoy your reading. ☕
 ''';
