@@ -25,124 +25,153 @@ class _SettingsSheetState extends State<SettingsSheet> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(
           24,
           12,
           24,
           24 + MediaQuery.viewInsetsOf(context).bottom,
         ),
-        child: SizedBox(
-          width: 520,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    context.l10n.appAppearance,
-                    style: Theme.of(context).textTheme.headlineSmall
-                        ?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close_rounded),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                context.l10n.appAppearanceDescription,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 24),
-              Text(
-                context.l10n.theme,
-                style: Theme.of(context).textTheme.labelLarge,
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: SegmentedButton<ThemeMode>(
-                  segments: [
-                    ButtonSegment(
-                      value: ThemeMode.light,
-                      label: Text(context.l10n.light),
-                      icon: const Icon(Icons.light_mode_outlined),
+        child: Center(
+          child: SizedBox(
+            width: 520,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      context.l10n.appAppearance,
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.w700),
                     ),
-                    ButtonSegment(
-                      value: ThemeMode.system,
-                      label: Text(context.l10n.system),
-                      icon: const Icon(Icons.brightness_auto_outlined),
-                    ),
-                    ButtonSegment(
-                      value: ThemeMode.dark,
-                      label: Text(context.l10n.dark),
-                      icon: const Icon(Icons.dark_mode_outlined),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close_rounded),
                     ),
                   ],
-                  selected: {_draft.themeMode},
-                  onSelectionChanged: (value) => setState(
-                    () => _draft = _draft.copyWith(themeMode: value.first),
-                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              DropdownButtonFormField<String>(
-                initialValue: _draft.localeCode,
-                decoration: InputDecoration(labelText: context.l10n.language),
-                items: [
-                  DropdownMenuItem(
-                    value: 'system',
-                    child: Text(context.l10n.system),
-                  ),
-                  DropdownMenuItem(
-                    value: 'pt_BR',
-                    child: Text(context.l10n.portugueseBrazil),
-                  ),
-                  DropdownMenuItem(
-                    value: 'en',
-                    child: Text(context.l10n.english),
-                  ),
-                ],
-                onChanged: (value) =>
-                    setState(() => _draft = _draft.copyWith(localeCode: value)),
-              ),
-              const SizedBox(height: 10),
-              ColorField(
-                label: context.l10n.primaryColor,
-                value: _draft.seedColor,
-                onChanged: (value) =>
-                    setState(() => _draft = _draft.copyWith(seedColor: value)),
-              ),
-              ColorField(
-                label: context.l10n.lightThemeBackground,
-                value: _draft.appBackground,
-                onChanged: (value) => setState(
-                  () => _draft = _draft.copyWith(appBackground: value),
+                const SizedBox(height: 8),
+                Text(
+                  context.l10n.appAppearanceDescription,
+                  style: Theme.of(context).textTheme.bodyMedium,
                 ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: () async {
-                    await widget.controller.updateSettings(_draft);
-                    if (context.mounted) Navigator.pop(context);
+                const SizedBox(height: 24),
+                DropdownButtonFormField<String>(
+                  initialValue: _themeChoice,
+                  decoration: InputDecoration(labelText: context.l10n.theme),
+                  items: [
+                    DropdownMenuItem(
+                      value: 'light',
+                      child: Text(context.l10n.light),
+                    ),
+                    DropdownMenuItem(
+                      value: 'system',
+                      child: Text(context.l10n.system),
+                    ),
+                    DropdownMenuItem(
+                      value: 'dark',
+                      child: Text(context.l10n.dark),
+                    ),
+                    DropdownMenuItem(
+                      value: 'amoled',
+                      child: Text(context.l10n.amoled),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) _setTheme(value);
                   },
-                  icon: const Icon(Icons.check_rounded),
-                  label: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: Text(context.l10n.saveAppearance),
+                ),
+                const SizedBox(height: 20),
+                DropdownButtonFormField<String>(
+                  initialValue: _draft.localeCode,
+                  decoration: InputDecoration(labelText: context.l10n.language),
+                  items: [
+                    DropdownMenuItem(
+                      value: 'system',
+                      child: Text(context.l10n.system),
+                    ),
+                    DropdownMenuItem(
+                      value: 'pt_BR',
+                      child: Text(context.l10n.portugueseBrazil),
+                    ),
+                    DropdownMenuItem(
+                      value: 'en',
+                      child: Text(context.l10n.english),
+                    ),
+                  ],
+                  onChanged: (value) => setState(
+                    () => _draft = _draft.copyWith(localeCode: value),
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 10),
+                ColorField(
+                  label: context.l10n.primaryColor,
+                  value: _draft.seedColor,
+                  onChanged: (value) => setState(
+                    () => _draft = _draft.copyWith(seedColor: value),
+                  ),
+                ),
+                ColorField(
+                  label: context.l10n.lightThemeBackground,
+                  value: _draft.appBackground,
+                  onChanged: (value) => setState(
+                    () => _draft = _draft.copyWith(appBackground: value),
+                  ),
+                ),
+                ColorField(
+                  label: context.l10n.darkThemeBackground,
+                  value: _draft.darkAppBackground,
+                  onChanged: (value) => setState(
+                    () => _draft = _draft.copyWith(darkAppBackground: value),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  context.l10n.readerThemeHint,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () async {
+                      await widget.controller.updateSettings(_draft);
+                      if (context.mounted) Navigator.pop(context);
+                    },
+                    icon: const Icon(Icons.check_rounded),
+                    label: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Text(context.l10n.saveAppearance),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+
+  String get _themeChoice =>
+      _draft.amoledTheme ? 'amoled' : _draft.themeMode.name;
+
+  void _setTheme(String choice) => setState(() {
+    _draft = switch (choice) {
+      'light' => _draft.copyWith(
+        themeMode: ThemeMode.light,
+        amoledTheme: false,
+      ),
+      'dark' => _draft.copyWith(themeMode: ThemeMode.dark, amoledTheme: false),
+      'amoled' => _draft.copyWith(
+        themeMode: ThemeMode.dark,
+        amoledTheme: true,
+        readerFollowsTheme: true,
+      ),
+      _ => _draft.copyWith(themeMode: ThemeMode.system, amoledTheme: false),
+    };
+  });
 }
