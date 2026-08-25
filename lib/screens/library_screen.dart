@@ -73,7 +73,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
       body: SafeArea(
         child: Stack(
           children: [
-            CustomScrollView(
+            RefreshIndicator(
+              onRefresh: widget.controller.forceSync,
+              child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
                 SliverToBoxAdapter(child: _topBar(context)),
                 if (_isImportingFolder || _isImportingFiles)
@@ -166,6 +169,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   ),
                 ),
               ],
+              ),
             ),
             if (_isDraggingFiles) _dropOverlay(context),
           ],

@@ -294,6 +294,23 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Explicit user-triggered "force sync": pulls documents, folders and
+  /// settings from the server unconditionally (an empty response is taken
+  /// at face value here, unlike the cautious startup load) and replaces the
+  /// in-memory state with it. Wired to the pull-to-refresh gesture on the
+  /// library screen.
+  Future<void> forceSync() async {
+    final result = await _storage.forcePull();
+    _documents
+      ..clear()
+      ..addAll(result.documents);
+    _folders
+      ..clear()
+      ..addAll(result.folders);
+    _settings = result.settings;
+    notifyListeners();
+  }
+
   Future<void> _persistDocuments() => _storage.saveDocuments(_documents);
 
   Future<void> _persistFolders() => _storage.saveFolders(_folders);
