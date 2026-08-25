@@ -376,15 +376,37 @@ class _EditorScreenState extends State<EditorScreen> {
   ) async {
     final settings = widget.controller.settings;
     await _ensureEngine();
-    await _speech.start(
+
+    Future<void> run() => _speech.start(
       document: document,
       section: section,
       voiceId: settings.ttsVoiceId.isEmpty ? null : settings.ttsVoiceId,
       rate: settings.ttsRate,
       pitch: settings.ttsPitch,
     );
+
+    await run();
     if (!mounted) return;
-    final controller = _tts!;
+    var controller = _tts!;
+
+    // A neural voice depends on a downloaded model, native inference and the
+    // device's audio output — three things that can be missing or broken in
+    // ways this app cannot fix. Silence is the wrong answer to "read this to
+    // me"; falling back to the platform voice and saying so is not.
+    if (controller.error != null && _engineKey != 'system') {
+      debugPrint('sepia: neural voice failed, falling back: ${controller.error}');
+      _engineKey = 'system';
+      await controller.useEngine(SystemTtsEngine());
+      await run();
+      if (!mounted) return;
+      controller = _tts!;
+      if (controller.error == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.ttsFellBackToSystem)),
+        );
+      }
+    }
+
     if (controller.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(context.l10n.ttsFailed(controller.error!))),

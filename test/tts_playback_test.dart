@@ -263,6 +263,35 @@ void main() {
     expect(engine.primed, contains('Segunda frase do um.'));
   });
 
+  test('um motor que não sobe reporta erro em vez de ficar mudo', () async {
+    final controller = TtsPlaybackController(engine: BrokenEngine());
+    final sections = sectionsOf(fic());
+    await controller.start(
+      document: fic(),
+      section: sections.first,
+      voiceId: null,
+      rate: 1,
+      pitch: 1,
+    );
+    expect(controller.error, isNotNull);
+    expect(controller.isActive, isFalse);
+
+    // And the player can be handed a working engine and carry on, which is
+    // what the reader does when a neural voice fails: fall back, not fail.
+    final engine = FakeEngine();
+    await controller.useEngine(engine);
+    await controller.start(
+      document: fic(),
+      section: sections.first,
+      voiceId: null,
+      rate: 1,
+      pitch: 1,
+    );
+    expect(controller.error, isNull);
+    expect(controller.isPlaying, isTrue);
+    expect(engine.spoken, isNotEmpty);
+  });
+
   test('parar libera o motor e zera o estado', () async {
     final engine = FakeEngine();
     final controller = TtsPlaybackController(engine: engine);
@@ -280,4 +309,30 @@ void main() {
     expect(engine.releaseCalls, 1);
     expect(engine.isSpeaking, isFalse);
   });
+}
+
+/// An engine that cannot start — the shape of a neural voice whose model is
+/// missing, whose native library will not load, or whose audio output is
+/// unavailable.
+class BrokenEngine extends TtsEngine {
+  @override
+  String get label => 'broken';
+  @override
+  Future<bool> isAvailable() async => false;
+  @override
+  Future<void> prepare() async => throw StateError('no model');
+  @override
+  Future<List<TtsVoice>> availableVoices() async => const [];
+  @override
+  Future<void> configure({
+    String? voiceId,
+    required double rate,
+    required double pitch,
+  }) async {}
+  @override
+  Future<void> speak(String text) async {}
+  @override
+  Future<void> stop() async {}
+  @override
+  Future<void> release() async {}
 }

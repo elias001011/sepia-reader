@@ -812,4 +812,8 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get ttsTierBestHint =>
       'Kokoro · more natural, wants more space and memory';
+
+  @override
+  String get ttsFellBackToSystem =>
+      'The neural voice could not be used right now; reading with the system voice.';
 }

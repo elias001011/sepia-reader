@@ -1399,6 +1399,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Kokoro · more natural, wants more space and memory'**
   String get ttsTierBestHint;
+
+  /// No description provided for @ttsFellBackToSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'The neural voice could not be used right now; reading with the system voice.'**
+  String get ttsFellBackToSystem;
 }
 
 class _AppLocalizationsDelegate

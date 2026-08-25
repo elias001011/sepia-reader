@@ -444,5 +444,6 @@
   "ttsTierLight": "Leve",
   "ttsTierBest": "Melhor",
   "ttsTierLightHint": "Piper · roda bem em qualquer aparelho",
-  "ttsTierBestHint": "Kokoro · voz mais natural, pede mais espaço e memória"
+  "ttsTierBestHint": "Kokoro · voz mais natural, pede mais espaço e memória",
+  "ttsFellBackToSystem": "A voz neural não pôde ser usada agora; lendo com a voz do sistema."
 }
