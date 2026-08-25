@@ -40,6 +40,13 @@ The release archive bundles Flutter's rendering runtime, Inter, Merriweather, Lo
 3. Under **Domain management**, choose the desired address, such as `sepia-md.netlify.app`.
 
 The generated folder already contains `_headers` and `_redirects` for WebAssembly, static routing, and an origin-only content policy.
+- optional read-aloud in reading mode, with a chapter (`#`/`##`) picker to start from, pause/skip/speed controls, using the native Android or browser voice (no download, no API, no internet);
+- dedicated code viewer with line numbers, separate from the prose reader;
+- simple `.html` preview in reading mode, with the source one tap away;
+- large documents are edited in parts (the text's own chapters), keeping typing responsive without changing the saved file;
+- files that are not text (`.docx`, `.pdf`, images) are turned away on import, even when renamed;
+- folder deletion with a confirmation that takes subfolders and documents with it;
+- optional syncing with your own server, with pull-to-refresh in the library;
 
 ## Branches
 

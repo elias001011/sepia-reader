@@ -32,6 +32,16 @@
 
   <title>Sépia</title>
   <link rel="manifest" href="manifest.json">
+  <style>
+    /*
+      Without this, dragging down at the top of the library hands the gesture
+      to the browser's own pull-to-refresh, which reloads the whole PWA —
+      the app's RefreshIndicator (force sync) never gets to run. `contain`
+      keeps the overscroll inside the Flutter view so the in-app spinner
+      shows and syncing happens without a page reload.
+    */
+    html, body { margin: 0; height: 100%; overscroll-behavior-y: contain; }
+  </style>
 </head>
 <body style="margin:0;background:#2B211D">
   <!--

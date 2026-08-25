@@ -13,11 +13,11 @@ class AppLocalizationsPt extends AppLocalizations {
   String get appTitle => 'Sépia';
 
   @override
-  String get appAppearance => 'Aparência do app';
+  String get appAppearance => 'Configurações';
 
   @override
   String get appAppearanceDescription =>
-      'Defina o tema Material usado na biblioteca e no editor.';
+      'Tema, idioma, sincronização e leitura em voz alta. O botão no fim salva tudo o que está nesta tela.';
 
   @override
   String get theme => 'Tema';
@@ -64,7 +64,7 @@ class AppLocalizationsPt extends AppLocalizations {
       'No modo leitura, oculta os controles após alguns instantes ou ao rolar. Toque no topo para exibi-los.';
 
   @override
-  String get saveAppearance => 'Salvar aparência';
+  String get saveAppearance => 'Salvar';
 
   @override
   String get readerSettings => 'Ajustes de leitura';
@@ -510,11 +510,11 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
-  String get syncDisabledTitle => 'Sincronização desligada';
+  String get syncDisabledTitle => 'Desligar a sincronização';
 
   @override
   String get syncDisabledBody =>
-      'Sua biblioteca continua completa neste aparelho. E a cópia no servidor?';
+      'A partir de agora este aparelho para de enviar e receber mudanças. A biblioteca que está aqui continua inteira, aconteça o que acontecer.\n\nFalta decidir o que fazer com a cópia que já está no servidor:\n\n• Manter no servidor — a cópia fica lá, intacta. Outros aparelhos que sincronizam continuam com ela, e se você religar a sincronização aqui as duas partes voltam a se juntar.\n\n• Apagar do servidor — a cópia do servidor é esvaziada agora. Os outros aparelhos que sincronizam vão receber essa exclusão e ficar sem esses documentos também. Este aparelho não perde nada.';
 
   @override
   String get syncKeepOnServer => 'Manter no servidor';
@@ -528,4 +528,206 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get syncWipeDone => 'Cópia do servidor apagada.';
+
+  @override
+  String get syncPullDone => 'Biblioteca sincronizada com o servidor.';
+
+  @override
+  String get syncPullFailed =>
+      'Não foi possível falar com o servidor. Sua biblioteca local está intacta.';
+
+  @override
+  String get syncPullDisabled =>
+      'A sincronização está desligada. Ligue nas configurações para usar este gesto.';
+
+  @override
+  String deleteFolderTitle(String name) {
+    return 'Excluir “$name”?';
+  }
+
+  @override
+  String get deleteFolderEmptyBody => 'A pasta está vazia. Ela será excluída.';
+
+  @override
+  String deleteFolderBody(int documents, int subfolders) {
+    String _temp0 = intl.Intl.pluralLogic(
+      documents,
+      locale: localeName,
+      other: '$documents documentos',
+      one: '1 documento',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      subfolders,
+      locale: localeName,
+      other: '$subfolders subpastas',
+      one: '1 subpasta',
+      zero: 'nenhuma subpasta',
+    );
+    return 'Isto exclui também $_temp0 e $_temp1. Não dá para desfazer.';
+  }
+
+  @override
+  String folderDeleted(String name) {
+    return '“$name” foi excluída.';
+  }
+
+  @override
+  String unsupportedBinaryFiles(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count arquivos foram recusados: não são texto (por exemplo .docx ou .pdf).',
+      one: '1 arquivo foi recusado: não é texto (por exemplo .docx ou .pdf).',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get ttsSection => 'Leitura em voz alta';
+
+  @override
+  String get ttsEnable => 'Ativar a leitura em voz alta';
+
+  @override
+  String get ttsEnableDescription =>
+      'Adiciona um botão de ouvir no modo leitura.';
+
+  @override
+  String get ttsEngineLabel => 'Voz';
+
+  @override
+  String get ttsEngineSystem => 'Voz do sistema';
+
+  @override
+  String get ttsEngineSystemDescription =>
+      'Usa a voz que o Android ou o navegador já tem. Não baixa nada e funciona offline.';
+
+  @override
+  String get ttsEngineNeural => 'Modelo neural local (em preparação)';
+
+  @override
+  String get ttsEngineNeuralDescription =>
+      'Voz bem mais natural, rodando no próprio aparelho. Ainda não disponível nesta versão — acompanhe em github.com/elias001011/sepia-reader/issues/1.';
+
+  @override
+  String get ttsVoice => 'Voz';
+
+  @override
+  String get ttsVoiceAuto => 'Escolher automaticamente';
+
+  @override
+  String get ttsRate => 'Velocidade';
+
+  @override
+  String get ttsPitch => 'Tom';
+
+  @override
+  String get ttsPreview => 'Ouvir uma amostra';
+
+  @override
+  String get ttsPreviewText => 'Esta é a voz que vai ler seus documentos.';
+
+  @override
+  String get ttsNoVoices => 'Nenhuma voz encontrada neste aparelho.';
+
+  @override
+  String get ttsLoadingVoices => 'Procurando vozes…';
+
+  @override
+  String get ttsListen => 'Ouvir';
+
+  @override
+  String get ttsChooseChapter => 'Ouvir a partir de';
+
+  @override
+  String get ttsWholeDocument => 'Ler o documento inteiro';
+
+  @override
+  String get ttsNoChapters =>
+      'Este documento não tem capítulos (#/##), então dá para ouvir ele inteiro.';
+
+  @override
+  String ttsChapterCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count capítulos',
+      one: '1 capítulo',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get ttsFromHere => 'Começar de onde parei';
+
+  @override
+  String get ttsStop => 'Parar';
+
+  @override
+  String get ttsPause => 'Pausar';
+
+  @override
+  String get ttsResume => 'Continuar';
+
+  @override
+  String get ttsPrevious => 'Trecho anterior';
+
+  @override
+  String get ttsNext => 'Próximo trecho';
+
+  @override
+  String ttsFailed(String error) {
+    return 'A leitura em voz alta falhou: $error';
+  }
+
+  @override
+  String get ttsNothingToRead => 'Não há texto para ler nesta parte.';
+
+  @override
+  String ttsProgress(int current, int total) {
+    return '$current de $total';
+  }
+
+  @override
+  String get viewerSource => 'Código';
+
+  @override
+  String get viewerPreview => 'Prévia';
+
+  @override
+  String get viewerCodeLabel => 'Visualizador de código';
+
+  @override
+  String get appearanceSection => 'Aparência';
+
+  @override
+  String get editSectionTitle => 'Editando por partes';
+
+  @override
+  String editSectionPosition(int current, int total) {
+    return '$current/$total';
+  }
+
+  @override
+  String get editSectionHint =>
+      'Documento grande: o editor carrega uma parte por vez para não travar. O documento inteiro continua salvo e o modo leitura mostra tudo.';
+
+  @override
+  String get editSectionPrevious => 'Parte anterior';
+
+  @override
+  String get editSectionNext => 'Próxima parte';
+
+  @override
+  String get editSectionChoose => 'Escolher a parte';
+
+  @override
+  String get editWholeDocument =>
+      'Editar o documento inteiro (pode ficar lento)';
+
+  @override
+  String editSectionPart(String number) {
+    return 'Parte $number';
+  }
 }

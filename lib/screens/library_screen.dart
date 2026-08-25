@@ -8,6 +8,7 @@ import '../models/document_drop.dart';
 import '../models/library_document.dart';
 import '../models/library_folder.dart';
 import '../services/document_drop.dart';
+import '../services/document_kind.dart';
 import '../services/document_io.dart';
 import '../services/folder_importer.dart';
 import '../state/app_controller.dart';
@@ -74,7 +75,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         child: Stack(
           children: [
             RefreshIndicator(
-              onRefresh: widget.controller.forceSync,
+              onRefresh: _forceSync,
               child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
@@ -624,11 +625,64 @@ class _LibraryScreenState extends State<LibraryScreen> {
     }
   }
 
-  Future<void> _deleteFolder(LibraryFolder folder) async {
-    final deleted = await widget.controller.deleteEmptyFolder(folder.id);
-    if (!mounted || deleted) return;
+  /// Pull-to-refresh. Reports the outcome, because a spinner that just
+  /// stops looks identical whether the server answered, timed out, or was
+  /// never contacted at all.
+  Future<void> _forceSync() async {
+    final result = await widget.controller.forceSync();
+    if (!mounted) return;
+    final message = switch (result) {
+      SyncRunResult.done => context.l10n.syncPullDone,
+      SyncRunResult.failed => context.l10n.syncPullFailed,
+      SyncRunResult.disabled => context.l10n.syncPullDisabled,
+    };
     ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(context.l10n.folderNotEmpty)));
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// Deleting a folder used to be refused outright while anything was
+  /// inside it, which just made the user empty it by hand first. Warn about
+  /// what goes with it, then do the whole thing.
+  Future<void> _deleteFolder(LibraryFolder folder) async {
+    final contents = widget.controller.folderContents(folder.id);
+    final subfolders = contents.folderIds.length - 1;
+    final documents = contents.documents.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(dialogContext.l10n.deleteFolderTitle(folder.name)),
+        content: Text(
+          documents == 0 && subfolders == 0
+              ? dialogContext.l10n.deleteFolderEmptyBody
+              : dialogContext.l10n.deleteFolderBody(documents, subfolders),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(dialogContext.l10n.cancel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(dialogContext).colorScheme.error,
+              foregroundColor: Theme.of(dialogContext).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(dialogContext.l10n.delete),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await widget.controller.deleteFolder(folder.id);
+    if (!mounted) return;
+    if (_currentFolderId != null &&
+        contents.folderIds.contains(_currentFolderId)) {
+      setState(() => _currentFolderId = folder.parentId);
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.l10n.folderDeleted(folder.name))),
+    );
   }
 
   Future<void> _moveDocument(LibraryDocument document) async {
@@ -839,9 +893,24 @@ class _LibraryScreenState extends State<LibraryScreen> {
     }
   }
 
+  /// Number of files the last import turned away because their bytes were
+  /// not text, kept so the result message can say so specifically.
+  int _lastBinaryRejections = 0;
+
   Future<int> _importDocumentFiles(List<DroppedDocumentFile> files) async {
     var imported = 0;
+    _lastBinaryRejections = 0;
     for (final file in files) {
+      // The extension allowlist is not enough on its own: a picker filter is
+      // only a hint the user can override, Android content URIs do not
+      // always carry a usable name, and renaming a .docx to .txt walks
+      // straight past it. One of those landing in the library used to
+      // produce a document full of replacement characters that also broke
+      // the reader.
+      if (isBinaryPayload(file.bytes)) {
+        _lastBinaryRejections++;
+        continue;
+      }
       final parts = file.name.split('.');
       final extension = parts.length > 1
           ? parts.removeLast().toLowerCase()
@@ -859,10 +928,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   void _showImportResult(int imported, int skipped) {
+    final binary = _lastBinaryRejections;
+    skipped += binary;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          imported == 0
+          imported == 0 && binary > 0
+              ? context.l10n.unsupportedBinaryFiles(binary)
+              : imported == 0
               ? context.l10n.noCompatibleFiles
               : skipped == 0
               ? context.l10n.importedCount(imported)
@@ -878,17 +951,18 @@ class _LibraryScreenState extends State<LibraryScreen> {
     try {
       final selection = await pickDocumentFolder();
       if (selection == null || !mounted) return;
-      final imported = await widget.controller.importFolder(
+      final result = await widget.controller.importFolder(
         selection,
         parentId: _currentFolderId,
       );
       if (!mounted) return;
+      final skipped = selection.skippedFiles + result.rejected;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            imported == 0
+            result.imported == 0
                 ? context.l10n.noCompatibleFiles
-                : context.l10n.folderImported(imported, selection.skippedFiles),
+                : context.l10n.folderImported(result.imported, skipped),
           ),
         ),
       );

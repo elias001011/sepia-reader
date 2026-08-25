@@ -22,6 +22,13 @@ Leitor, biblioteca e editor de Markdown feito em Flutter. O Sépia foi pensado p
 - interface localizada em português do Brasil e inglês, com opção de seguir o sistema;
 - persistência local e exportação do arquivo original;
 - versões web, Android e iOS a partir da mesma base Flutter.
+- leitura em voz alta opcional no modo leitura, com escolha do capítulo (`#`/`##`) por onde começar, controles de pausa, avanço e velocidade, usando a voz nativa do Android ou do navegador (sem download, sem API, sem internet);
+- visualizador dedicado para código, com numeração de linhas, separado do leitor de prosa;
+- prévia simples de arquivos `.html` no modo leitura, com o código a um toque de distância;
+- documentos grandes são editados por partes (capítulos do próprio texto), mantendo a digitação fluida sem alterar o arquivo salvo;
+- arquivos que não são texto (`.docx`, `.pdf`, imagens) são recusados na importação, mesmo renomeados;
+- exclusão de pastas com confirmação, levando junto subpastas e documentos;
+- sincronização opcional com um servidor próprio, com puxar-para-atualizar na biblioteca;
 
 ## Branches
 

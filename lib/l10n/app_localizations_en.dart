@@ -13,11 +13,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appTitle => 'Sépia';
 
   @override
-  String get appAppearance => 'App appearance';
+  String get appAppearance => 'Settings';
 
   @override
   String get appAppearanceDescription =>
-      'Choose the Material theme used by the library and editor.';
+      'Theme, language, syncing and reading aloud. The button at the end saves everything on this screen.';
 
   @override
   String get theme => 'Theme';
@@ -64,7 +64,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'In reading mode, hide controls after a moment or while scrolling. Tap the top to show them.';
 
   @override
-  String get saveAppearance => 'Save appearance';
+  String get saveAppearance => 'Save';
 
   @override
   String get readerSettings => 'Reading settings';
@@ -509,11 +509,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get syncDisabledTitle => 'Syncing turned off';
+  String get syncDisabledTitle => 'Turn syncing off';
 
   @override
   String get syncDisabledBody =>
-      'Your library stays complete on this device. What about the copy on the server?';
+      'From now on this device stops sending and receiving changes. The library that is here stays whole, whatever you choose.\n\nWhat is left to decide is the copy already on the server:\n\n• Keep on server — the copy stays there, untouched. Other devices that sync keep it, and if you turn syncing back on here the two sides merge again.\n\n• Erase from server — the server copy is emptied now. Other devices that sync will receive that deletion and lose those documents too. This device loses nothing.';
 
   @override
   String get syncKeepOnServer => 'Keep on server';
@@ -527,4 +527,207 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get syncWipeDone => 'Server copy erased.';
+
+  @override
+  String get syncPullDone => 'Library synced with the server.';
+
+  @override
+  String get syncPullFailed =>
+      'Could not reach the server. Your local library is untouched.';
+
+  @override
+  String get syncPullDisabled =>
+      'Syncing is off. Turn it on in settings to use this gesture.';
+
+  @override
+  String deleteFolderTitle(String name) {
+    return 'Delete “$name”?';
+  }
+
+  @override
+  String get deleteFolderEmptyBody =>
+      'The folder is empty. It will be deleted.';
+
+  @override
+  String deleteFolderBody(int documents, int subfolders) {
+    String _temp0 = intl.Intl.pluralLogic(
+      documents,
+      locale: localeName,
+      other: '$documents documents',
+      one: '1 document',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      subfolders,
+      locale: localeName,
+      other: '$subfolders subfolders',
+      one: '1 subfolder',
+      zero: 'no subfolders',
+    );
+    return 'This also deletes $_temp0 and $_temp1. This cannot be undone.';
+  }
+
+  @override
+  String folderDeleted(String name) {
+    return '“$name” was deleted.';
+  }
+
+  @override
+  String unsupportedBinaryFiles(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count files were turned away: they are not text (for example .docx or .pdf).',
+      one:
+          '1 file was turned away: it is not text (for example .docx or .pdf).',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get ttsSection => 'Read aloud';
+
+  @override
+  String get ttsEnable => 'Enable reading aloud';
+
+  @override
+  String get ttsEnableDescription => 'Adds a listen button to reading mode.';
+
+  @override
+  String get ttsEngineLabel => 'Voice';
+
+  @override
+  String get ttsEngineSystem => 'System voice';
+
+  @override
+  String get ttsEngineSystemDescription =>
+      'Uses the voice Android or your browser already has. Nothing to download, works offline.';
+
+  @override
+  String get ttsEngineNeural => 'Local neural model (in progress)';
+
+  @override
+  String get ttsEngineNeuralDescription =>
+      'A far more natural voice, running on the device itself. Not available in this version yet — follow along at github.com/elias001011/sepia-reader/issues/1.';
+
+  @override
+  String get ttsVoice => 'Voice';
+
+  @override
+  String get ttsVoiceAuto => 'Choose automatically';
+
+  @override
+  String get ttsRate => 'Speed';
+
+  @override
+  String get ttsPitch => 'Pitch';
+
+  @override
+  String get ttsPreview => 'Play a sample';
+
+  @override
+  String get ttsPreviewText =>
+      'This is the voice that will read your documents.';
+
+  @override
+  String get ttsNoVoices => 'No voices found on this device.';
+
+  @override
+  String get ttsLoadingVoices => 'Looking for voices…';
+
+  @override
+  String get ttsListen => 'Listen';
+
+  @override
+  String get ttsChooseChapter => 'Listen from';
+
+  @override
+  String get ttsWholeDocument => 'Read the whole document';
+
+  @override
+  String get ttsNoChapters =>
+      'This document has no chapters (#/##), so you can listen to all of it.';
+
+  @override
+  String ttsChapterCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count chapters',
+      one: '1 chapter',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get ttsFromHere => 'Start where I left off';
+
+  @override
+  String get ttsStop => 'Stop';
+
+  @override
+  String get ttsPause => 'Pause';
+
+  @override
+  String get ttsResume => 'Continue';
+
+  @override
+  String get ttsPrevious => 'Previous passage';
+
+  @override
+  String get ttsNext => 'Next passage';
+
+  @override
+  String ttsFailed(String error) {
+    return 'Reading aloud failed: $error';
+  }
+
+  @override
+  String get ttsNothingToRead => 'There is no text to read in this part.';
+
+  @override
+  String ttsProgress(int current, int total) {
+    return '$current of $total';
+  }
+
+  @override
+  String get viewerSource => 'Source';
+
+  @override
+  String get viewerPreview => 'Preview';
+
+  @override
+  String get viewerCodeLabel => 'Code viewer';
+
+  @override
+  String get appearanceSection => 'Appearance';
+
+  @override
+  String get editSectionTitle => 'Editing in parts';
+
+  @override
+  String editSectionPosition(int current, int total) {
+    return '$current/$total';
+  }
+
+  @override
+  String get editSectionHint =>
+      'Large document: the editor loads one part at a time so typing stays fast. The whole document is still saved, and reading mode shows all of it.';
+
+  @override
+  String get editSectionPrevious => 'Previous part';
+
+  @override
+  String get editSectionNext => 'Next part';
+
+  @override
+  String get editSectionChoose => 'Choose part';
+
+  @override
+  String get editWholeDocument => 'Edit the whole document (may be slow)';
+
+  @override
+  String editSectionPart(String number) {
+    return 'Part $number';
+  }
 }

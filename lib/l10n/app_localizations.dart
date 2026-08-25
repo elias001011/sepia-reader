@@ -107,13 +107,13 @@ abstract class AppLocalizations {
   /// No description provided for @appAppearance.
   ///
   /// In en, this message translates to:
-  /// **'App appearance'**
+  /// **'Settings'**
   String get appAppearance;
 
   /// No description provided for @appAppearanceDescription.
   ///
   /// In en, this message translates to:
-  /// **'Choose the Material theme used by the library and editor.'**
+  /// **'Theme, language, syncing and reading aloud. The button at the end saves everything on this screen.'**
   String get appAppearanceDescription;
 
   /// No description provided for @theme.
@@ -203,7 +203,7 @@ abstract class AppLocalizations {
   /// No description provided for @saveAppearance.
   ///
   /// In en, this message translates to:
-  /// **'Save appearance'**
+  /// **'Save'**
   String get saveAppearance;
 
   /// No description provided for @readerSettings.
@@ -929,13 +929,13 @@ abstract class AppLocalizations {
   /// No description provided for @syncDisabledTitle.
   ///
   /// In en, this message translates to:
-  /// **'Syncing turned off'**
+  /// **'Turn syncing off'**
   String get syncDisabledTitle;
 
   /// No description provided for @syncDisabledBody.
   ///
   /// In en, this message translates to:
-  /// **'Your library stays complete on this device. What about the copy on the server?'**
+  /// **'From now on this device stops sending and receiving changes. The library that is here stays whole, whatever you choose.\n\nWhat is left to decide is the copy already on the server:\n\n• Keep on server — the copy stays there, untouched. Other devices that sync keep it, and if you turn syncing back on here the two sides merge again.\n\n• Erase from server — the server copy is emptied now. Other devices that sync will receive that deletion and lose those documents too. This device loses nothing.'**
   String get syncDisabledBody;
 
   /// No description provided for @syncKeepOnServer.
@@ -961,6 +961,306 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Server copy erased.'**
   String get syncWipeDone;
+
+  /// No description provided for @syncPullDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Library synced with the server.'**
+  String get syncPullDone;
+
+  /// No description provided for @syncPullFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach the server. Your local library is untouched.'**
+  String get syncPullFailed;
+
+  /// No description provided for @syncPullDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing is off. Turn it on in settings to use this gesture.'**
+  String get syncPullDisabled;
+
+  /// No description provided for @deleteFolderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete “{name}”?'**
+  String deleteFolderTitle(String name);
+
+  /// No description provided for @deleteFolderEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The folder is empty. It will be deleted.'**
+  String get deleteFolderEmptyBody;
+
+  /// No description provided for @deleteFolderBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This also deletes {documents, plural, =1{1 document} other{{documents} documents}} and {subfolders, plural, =0{no subfolders} =1{1 subfolder} other{{subfolders} subfolders}}. This cannot be undone.'**
+  String deleteFolderBody(int documents, int subfolders);
+
+  /// No description provided for @folderDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'“{name}” was deleted.'**
+  String folderDeleted(String name);
+
+  /// No description provided for @unsupportedBinaryFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 file was turned away: it is not text (for example .docx or .pdf).} other{{count} files were turned away: they are not text (for example .docx or .pdf).}}'**
+  String unsupportedBinaryFiles(int count);
+
+  /// No description provided for @ttsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Read aloud'**
+  String get ttsSection;
+
+  /// No description provided for @ttsEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable reading aloud'**
+  String get ttsEnable;
+
+  /// No description provided for @ttsEnableDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Adds a listen button to reading mode.'**
+  String get ttsEnableDescription;
+
+  /// No description provided for @ttsEngineLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice'**
+  String get ttsEngineLabel;
+
+  /// No description provided for @ttsEngineSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'System voice'**
+  String get ttsEngineSystem;
+
+  /// No description provided for @ttsEngineSystemDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Uses the voice Android or your browser already has. Nothing to download, works offline.'**
+  String get ttsEngineSystemDescription;
+
+  /// No description provided for @ttsEngineNeural.
+  ///
+  /// In en, this message translates to:
+  /// **'Local neural model (in progress)'**
+  String get ttsEngineNeural;
+
+  /// No description provided for @ttsEngineNeuralDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'A far more natural voice, running on the device itself. Not available in this version yet — follow along at github.com/elias001011/sepia-reader/issues/1.'**
+  String get ttsEngineNeuralDescription;
+
+  /// No description provided for @ttsVoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice'**
+  String get ttsVoice;
+
+  /// No description provided for @ttsVoiceAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose automatically'**
+  String get ttsVoiceAuto;
+
+  /// No description provided for @ttsRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Speed'**
+  String get ttsRate;
+
+  /// No description provided for @ttsPitch.
+  ///
+  /// In en, this message translates to:
+  /// **'Pitch'**
+  String get ttsPitch;
+
+  /// No description provided for @ttsPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Play a sample'**
+  String get ttsPreview;
+
+  /// No description provided for @ttsPreviewText.
+  ///
+  /// In en, this message translates to:
+  /// **'This is the voice that will read your documents.'**
+  String get ttsPreviewText;
+
+  /// No description provided for @ttsNoVoices.
+  ///
+  /// In en, this message translates to:
+  /// **'No voices found on this device.'**
+  String get ttsNoVoices;
+
+  /// No description provided for @ttsLoadingVoices.
+  ///
+  /// In en, this message translates to:
+  /// **'Looking for voices…'**
+  String get ttsLoadingVoices;
+
+  /// No description provided for @ttsListen.
+  ///
+  /// In en, this message translates to:
+  /// **'Listen'**
+  String get ttsListen;
+
+  /// No description provided for @ttsChooseChapter.
+  ///
+  /// In en, this message translates to:
+  /// **'Listen from'**
+  String get ttsChooseChapter;
+
+  /// No description provided for @ttsWholeDocument.
+  ///
+  /// In en, this message translates to:
+  /// **'Read the whole document'**
+  String get ttsWholeDocument;
+
+  /// No description provided for @ttsNoChapters.
+  ///
+  /// In en, this message translates to:
+  /// **'This document has no chapters (#/##), so you can listen to all of it.'**
+  String get ttsNoChapters;
+
+  /// No description provided for @ttsChapterCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 chapter} other{{count} chapters}}'**
+  String ttsChapterCount(int count);
+
+  /// No description provided for @ttsFromHere.
+  ///
+  /// In en, this message translates to:
+  /// **'Start where I left off'**
+  String get ttsFromHere;
+
+  /// No description provided for @ttsStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get ttsStop;
+
+  /// No description provided for @ttsPause.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get ttsPause;
+
+  /// No description provided for @ttsResume.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get ttsResume;
+
+  /// No description provided for @ttsPrevious.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous passage'**
+  String get ttsPrevious;
+
+  /// No description provided for @ttsNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next passage'**
+  String get ttsNext;
+
+  /// No description provided for @ttsFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading aloud failed: {error}'**
+  String ttsFailed(String error);
+
+  /// No description provided for @ttsNothingToRead.
+  ///
+  /// In en, this message translates to:
+  /// **'There is no text to read in this part.'**
+  String get ttsNothingToRead;
+
+  /// No description provided for @ttsProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'{current} of {total}'**
+  String ttsProgress(int current, int total);
+
+  /// No description provided for @viewerSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Source'**
+  String get viewerSource;
+
+  /// No description provided for @viewerPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get viewerPreview;
+
+  /// No description provided for @viewerCodeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Code viewer'**
+  String get viewerCodeLabel;
+
+  /// No description provided for @appearanceSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get appearanceSection;
+
+  /// No description provided for @editSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Editing in parts'**
+  String get editSectionTitle;
+
+  /// No description provided for @editSectionPosition.
+  ///
+  /// In en, this message translates to:
+  /// **'{current}/{total}'**
+  String editSectionPosition(int current, int total);
+
+  /// No description provided for @editSectionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Large document: the editor loads one part at a time so typing stays fast. The whole document is still saved, and reading mode shows all of it.'**
+  String get editSectionHint;
+
+  /// No description provided for @editSectionPrevious.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous part'**
+  String get editSectionPrevious;
+
+  /// No description provided for @editSectionNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next part'**
+  String get editSectionNext;
+
+  /// No description provided for @editSectionChoose.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose part'**
+  String get editSectionChoose;
+
+  /// No description provided for @editWholeDocument.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit the whole document (may be slow)'**
+  String get editWholeDocument;
+
+  /// No description provided for @editSectionPart.
+  ///
+  /// In en, this message translates to:
+  /// **'Part {number}'**
+  String editSectionPart(String number);
 }
 
 class _AppLocalizationsDelegate
