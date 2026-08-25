@@ -1,9 +1,102 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:highlight/highlight.dart' as hl;
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../models/app_settings.dart';
 import '../models/library_document.dart';
+
+/// Splits a document's content into the same fixed, index-addressable chunks
+/// used both to render it (via [ScrollablePositionedList]) and to anchor
+/// bookmarks. An index into this list is stable regardless of how much of
+/// the list has actually been laid out, unlike a scroll-pixel fraction — see
+/// [splitMarkdownBlocks] and [splitPlainTextChunks] for why that matters.
+List<String> chunksForDocument(LibraryDocument document) =>
+    document.isMarkdown
+    ? splitMarkdownBlocks(document.content)
+    : splitPlainTextChunks(document.content);
+
+final _fence = RegExp(r'^(```|~~~)');
+final _listOrQuote = RegExp(r'^(\s*([-*+]|\d+[.)])\s+|\s*>)');
+
+/// Splits markdown source into block-level chunks separated by blank lines,
+/// without ever cutting inside a fenced code block, and without treating a
+/// blank line inside a loose list or a multi-paragraph blockquote as a real
+/// separator (a line before or after the blank that looks like a list/quote
+/// continuation keeps the block together).
+List<String> splitMarkdownBlocks(String content) {
+  final lines = content.split('\n');
+  final blocks = <String>[];
+  final current = <String>[];
+  var inFence = false;
+  String? fenceMarker;
+  var pendingBlanks = 0;
+
+  void flush() {
+    if (current.isNotEmpty) {
+      blocks.add(current.join('\n'));
+      current.clear();
+    }
+  }
+
+  for (final line in lines) {
+    final fenceMatch = _fence.firstMatch(line.trimLeft());
+    if (fenceMatch != null &&
+        (!inFence || line.trimLeft().startsWith(fenceMarker!))) {
+      inFence = !inFence;
+      fenceMarker = inFence ? fenceMatch.group(1) : null;
+      current.add(line);
+      pendingBlanks = 0;
+      continue;
+    }
+    if (inFence) {
+      current.add(line);
+      continue;
+    }
+    if (line.trim().isEmpty) {
+      pendingBlanks++;
+      continue;
+    }
+    if (pendingBlanks > 0) {
+      // Only the line *after* the blank decides whether it continues the
+      // block: a list/quote marker or an indented continuation keeps a
+      // loose list or multi-paragraph quote together, but a plain new
+      // paragraph after a list must start its own block, even though the
+      // list item before the blank line also matches this pattern.
+      final continues =
+          _listOrQuote.hasMatch(line) ||
+          line.startsWith('  ') ||
+          line.startsWith('\t');
+      if (!continues) {
+        flush();
+      } else {
+        current.addAll(List.filled(pendingBlanks, ''));
+      }
+      pendingBlanks = 0;
+    }
+    current.add(line);
+  }
+  flush();
+  return blocks.isEmpty ? [''] : blocks;
+}
+
+/// Number of source lines rendered per chunk for plain-text/code documents.
+const int _chunkLines = 120;
+
+/// Splits plain-text/code source into fixed-size line chunks. Highlighting a
+/// construct that spans a chunk boundary (a long block comment or string)
+/// can lose its colour after the boundary — an accepted trade-off for
+/// virtualizing files of any size and giving every document, large or
+/// small, the same index-addressable chunks that bookmarks rely on.
+List<String> splitPlainTextChunks(String content) {
+  final lines = content.split('\n');
+  final chunks = <String>[];
+  for (var i = 0; i < lines.length; i += _chunkLines) {
+    final end = (i + _chunkLines).clamp(0, lines.length);
+    chunks.add(lines.sublist(i, end).join('\n'));
+  }
+  return chunks.isEmpty ? [''] : chunks;
+}
 
 class DocumentView extends StatelessWidget {
   const DocumentView({
@@ -11,12 +104,14 @@ class DocumentView extends StatelessWidget {
     required this.document,
     required this.settings,
     this.padding = const EdgeInsets.symmetric(horizontal: 28, vertical: 44),
-    this.scrollController,
+    this.itemScrollController,
+    this.itemPositionsListener,
   });
   final LibraryDocument document;
   final AppSettings settings;
   final EdgeInsets padding;
-  final ScrollController? scrollController;
+  final ItemScrollController? itemScrollController;
+  final ItemPositionsListener? itemPositionsListener;
 
   @override
   Widget build(BuildContext context) {
@@ -43,273 +138,132 @@ class DocumentView extends StatelessWidget {
       fontSize: settings.readerFontSize,
       height: settings.readerLineHeight,
     );
+    final chunks = chunksForDocument(document);
+    final markdownStyle = MarkdownStyleSheet(
+      p: base,
+      a: base.copyWith(
+        color: accent,
+        decoration: TextDecoration.underline,
+        decorationColor: accent,
+      ),
+      h1: base.copyWith(
+        fontSize: settings.readerFontSize * 2,
+        fontWeight: FontWeight.w800,
+        height: 1.2,
+      ),
+      h2: base.copyWith(
+        fontSize: settings.readerFontSize * 1.55,
+        fontWeight: FontWeight.w700,
+        height: 1.25,
+      ),
+      h3: base.copyWith(
+        fontSize: settings.readerFontSize * 1.25,
+        fontWeight: FontWeight.w700,
+        height: 1.3,
+      ),
+      h4: base.copyWith(fontWeight: FontWeight.w700),
+      h5: base.copyWith(fontWeight: FontWeight.w700),
+      h6: base.copyWith(fontWeight: FontWeight.w700),
+      strong: base.copyWith(fontWeight: FontWeight.w800),
+      em: base.copyWith(fontStyle: FontStyle.italic),
+      del: base.copyWith(
+        decoration: TextDecoration.lineThrough,
+        decorationColor: readerText,
+      ),
+      img: base,
+      checkbox: base.copyWith(color: accent),
+      blockquote: base.copyWith(
+        color: readerText.withValues(alpha: .82),
+        fontStyle: FontStyle.italic,
+      ),
+      blockquoteDecoration: BoxDecoration(
+        border: Border(left: BorderSide(color: accent, width: 4)),
+        color: panelColor,
+      ),
+      blockquotePadding: const EdgeInsets.fromLTRB(20, 12, 16, 12),
+      code: TextStyle(
+        fontFamily: 'Roboto Mono',
+        color: readerText,
+        backgroundColor: panelColor,
+        fontSize: settings.readerFontSize * .76,
+        height: 1.55,
+      ),
+      codeblockDecoration: BoxDecoration(
+        color: readerText.withValues(alpha: .075),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: readerText.withValues(alpha: .14)),
+      ),
+      codeblockPadding: const EdgeInsets.all(18),
+      listBullet: base.copyWith(color: accent, fontWeight: FontWeight.bold),
+      tableHead: base.copyWith(fontWeight: FontWeight.w800),
+      tableBody: base.copyWith(fontSize: settings.readerFontSize * .86),
+      tableBorder: TableBorder.all(color: readerText.withValues(alpha: .22)),
+      tableCellsDecoration: BoxDecoration(color: panelColor),
+      tableHeadCellsDecoration: BoxDecoration(color: strongerPanelColor),
+      tableCellsPadding: const EdgeInsets.all(10),
+      horizontalRuleDecoration: BoxDecoration(
+        border: Border(top: BorderSide(color: readerText.withValues(alpha: .25))),
+      ),
+    );
+    final syntaxHighlighter = SepiaSyntaxHighlighter(baseColor: readerText);
+
+    Widget itemFor(int index) {
+      final chunk = chunks[index];
+      if (document.isMarkdown) {
+        return MarkdownBody(
+          data: chunk,
+          selectable: false,
+          softLineBreak: true,
+          syntaxHighlighter: syntaxHighlighter,
+          styleSheet: markdownStyle,
+        );
+      }
+      return Text.rich(
+        isCodeExtension(document.extension)
+            ? highlightedSpan(
+                chunk,
+                document.extension,
+                readerText,
+                settings.readerFontSize,
+              )
+            : TextSpan(text: chunk, style: base),
+      );
+    }
+
     return ColoredBox(
       color: readerBackground,
       child: SelectionArea(
-        child: document.isMarkdown
-            ? Padding(
-                padding: EdgeInsets.only(left: padding.left, right: padding.right),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: settings.readerWidth),
-                    child: Markdown(
-                      // `Markdown` (unlike `MarkdownBody`) renders through a
-                      // real ListView/Sliver, so only on-screen blocks are
-                      // built/laid out/painted. MarkdownBody eagerly builds
-                      // everything into a single Column with no viewport
-                      // culling, which is what made big documents (~16k
-                      // words) drop to ~15 FPS in reading mode.
-                      controller: scrollController,
-                      padding: EdgeInsets.only(
-                        top: padding.top,
-                        bottom: padding.bottom,
-                      ),
-                      data: document.content,
-                      selectable: false,
-                      softLineBreak: true,
-                      syntaxHighlighter: SepiaSyntaxHighlighter(
-                        baseColor: readerText,
-                      ),
-                      styleSheet: MarkdownStyleSheet(
-                        p: base,
-                        a: base.copyWith(
-                          color: accent,
-                          decoration: TextDecoration.underline,
-                          decorationColor: accent,
-                        ),
-                        h1: base.copyWith(
-                          fontSize: settings.readerFontSize * 2,
-                          fontWeight: FontWeight.w800,
-                          height: 1.2,
-                        ),
-                        h2: base.copyWith(
-                          fontSize: settings.readerFontSize * 1.55,
-                          fontWeight: FontWeight.w700,
-                          height: 1.25,
-                        ),
-                        h3: base.copyWith(
-                          fontSize: settings.readerFontSize * 1.25,
-                          fontWeight: FontWeight.w700,
-                          height: 1.3,
-                        ),
-                        h4: base.copyWith(fontWeight: FontWeight.w700),
-                        h5: base.copyWith(fontWeight: FontWeight.w700),
-                        h6: base.copyWith(fontWeight: FontWeight.w700),
-                        strong: base.copyWith(fontWeight: FontWeight.w800),
-                        em: base.copyWith(fontStyle: FontStyle.italic),
-                        del: base.copyWith(
-                          decoration: TextDecoration.lineThrough,
-                          decorationColor: readerText,
-                        ),
-                        img: base,
-                        checkbox: base.copyWith(color: accent),
-                        blockquote: base.copyWith(
-                          color: readerText.withValues(alpha: .82),
-                          fontStyle: FontStyle.italic,
-                        ),
-                        blockquoteDecoration: BoxDecoration(
-                          border: Border(
-                            left: BorderSide(color: accent, width: 4),
-                          ),
-                          color: panelColor,
-                        ),
-                        blockquotePadding: const EdgeInsets.fromLTRB(
-                          20,
-                          12,
-                          16,
-                          12,
-                        ),
-                        code: TextStyle(
-                          fontFamily: 'Roboto Mono',
-                          color: readerText,
-                          backgroundColor: panelColor,
-                          fontSize: settings.readerFontSize * .76,
-                          height: 1.55,
-                        ),
-                        codeblockDecoration: BoxDecoration(
-                          color: readerText.withValues(alpha: .075),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: readerText.withValues(alpha: .14),
-                          ),
-                        ),
-                        codeblockPadding: const EdgeInsets.all(18),
-                        listBullet: base.copyWith(
-                          color: accent,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        tableHead: base.copyWith(fontWeight: FontWeight.w800),
-                        tableBody: base.copyWith(
-                          fontSize: settings.readerFontSize * .86,
-                        ),
-                        tableBorder: TableBorder.all(
-                          color: readerText.withValues(alpha: .22),
-                        ),
-                        tableCellsDecoration: BoxDecoration(color: panelColor),
-                        tableHeadCellsDecoration: BoxDecoration(
-                          color: strongerPanelColor,
-                        ),
-                        tableCellsPadding: const EdgeInsets.all(10),
-                        horizontalRuleDecoration: BoxDecoration(
-                          border: Border(
-                            top: BorderSide(
-                              color: readerText.withValues(alpha: .25),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              )
-            : document.content.length > _virtualizeThreshold
-            ? _VirtualizedPlainText(
-                content: document.content,
-                extension: document.extension,
-                baseStyle: base,
-                readerText: readerText,
-                fontSize: settings.readerFontSize,
-                padding: padding,
-                maxWidth: settings.readerWidth,
-                scrollController: scrollController,
-              )
-            : SingleChildScrollView(
-                controller: scrollController,
-                padding: padding,
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: settings.readerWidth),
-                    child: SelectableText.rich(
-                      isCodeExtension(document.extension)
-                          ? highlightedSpan(
-                              document.content,
-                              document.extension,
-                              readerText,
-                              settings.readerFontSize,
-                            )
-                          : TextSpan(text: document.content, style: base),
-                    ),
-                  ),
-                ),
+        child: Padding(
+          padding: EdgeInsets.only(left: padding.left, right: padding.right),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: settings.readerWidth),
+              // Each document chunk (a markdown block, or a fixed-size line
+              // range for plain text/code) is its own list item. Unlike the
+              // old single MarkdownBody/SelectableText — which built the
+              // whole document into one non-culling widget, dropping large
+              // documents (~16k words) to ~15 FPS in reading mode —
+              // ScrollablePositionedList only builds on-screen items, *and*
+              // gives every chunk a stable integer index that bookmarks can
+              // jump to directly. That index never drifts: a pixel-fraction
+              // anchor computed against this list's scroll extent would,
+              // because that extent is only an estimate extrapolated from
+              // whichever chunks happen to be realized right now, and it
+              // measurably shifts (~20% in testing) between a freshly opened
+              // document and one that has been scrolled through.
+              child: ScrollablePositionedList.builder(
+                itemScrollController: itemScrollController,
+                itemPositionsListener: itemPositionsListener,
+                padding: EdgeInsets.only(top: padding.top, bottom: padding.bottom),
+                itemCount: chunks.length,
+                itemBuilder: (context, index) => itemFor(index),
               ),
-      ),
-    );
-  }
-}
-
-/// Above this size the plain-text/code reader switches to a virtualized,
-/// lazily highlighted view. Smaller files keep the simpler single-span path,
-/// which preserves continuous text selection across the whole document.
-const int _virtualizeThreshold = 50000;
-
-/// Number of source lines rendered per chunk.
-const int _chunkLines = 120;
-
-/// Virtualized reader for large plain-text and source files.
-///
-/// The eager path builds one span for the entire file (running the syntax
-/// highlighter over all of it) inside a non-culling scroll view — the same
-/// shape that made large markdown documents crawl. Here the file is split
-/// into chunks rendered through a `ListView.builder`, so only on-screen
-/// chunks are built, highlighted and painted; results are memoized so
-/// scrolling back is free.
-///
-/// Trade-off: highlighting runs per chunk, so a construct spanning a chunk
-/// boundary (a very long block comment or string) can lose its colour after
-/// the boundary, and selection cannot extend into chunks that have been
-/// scrolled out of the tree. Both only apply above the size threshold.
-class _VirtualizedPlainText extends StatefulWidget {
-  const _VirtualizedPlainText({
-    required this.content,
-    required this.extension,
-    required this.baseStyle,
-    required this.readerText,
-    required this.fontSize,
-    required this.padding,
-    required this.maxWidth,
-    this.scrollController,
-  });
-
-  final String content;
-  final String extension;
-  final TextStyle baseStyle;
-  final Color readerText;
-  final double fontSize;
-  final EdgeInsets padding;
-  final double maxWidth;
-  final ScrollController? scrollController;
-
-  @override
-  State<_VirtualizedPlainText> createState() => _VirtualizedPlainTextState();
-}
-
-class _VirtualizedPlainTextState extends State<_VirtualizedPlainText> {
-  late List<String> _chunks;
-  final Map<int, TextSpan> _spans = {};
-
-  @override
-  void initState() {
-    super.initState();
-    _chunks = _split(widget.content);
-  }
-
-  @override
-  void didUpdateWidget(_VirtualizedPlainText oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.content != oldWidget.content ||
-        widget.extension != oldWidget.extension ||
-        widget.baseStyle != oldWidget.baseStyle ||
-        widget.readerText != oldWidget.readerText ||
-        widget.fontSize != oldWidget.fontSize) {
-      _chunks = _split(widget.content);
-      _spans.clear();
-    }
-  }
-
-  static List<String> _split(String content) {
-    final lines = content.split('\n');
-    final chunks = <String>[];
-    for (var i = 0; i < lines.length; i += _chunkLines) {
-      final end = (i + _chunkLines).clamp(0, lines.length);
-      chunks.add(lines.sublist(i, end).join('\n'));
-    }
-    return chunks.isEmpty ? [''] : chunks;
-  }
-
-  TextSpan _spanFor(int index) => _spans.putIfAbsent(index, () {
-    final chunk = _chunks[index];
-    if (!isCodeExtension(widget.extension)) {
-      return TextSpan(text: chunk, style: widget.baseStyle);
-    }
-    return highlightedSpan(
-      chunk,
-      widget.extension,
-      widget.readerText,
-      widget.fontSize,
-    );
-  });
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: EdgeInsets.only(
-      left: widget.padding.left,
-      right: widget.padding.right,
-    ),
-    child: Center(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: widget.maxWidth),
-        child: ListView.builder(
-          controller: widget.scrollController,
-          padding: EdgeInsets.only(
-            top: widget.padding.top,
-            bottom: widget.padding.bottom,
+            ),
           ),
-          itemCount: _chunks.length,
-          itemBuilder: (context, index) => Text.rich(_spanFor(index)),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 TextStyle readerTextStyle(AppSettings settings) => TextStyle(

@@ -4,7 +4,8 @@ class ReadingBookmark implements SyncableRecord {
   const ReadingBookmark({
     required this.id,
     required this.documentId,
-    required this.scrollFraction,
+    required this.chunkIndex,
+    this.alignment = 0,
     required this.excerpt,
     required this.createdAt,
     DateTime? updatedAt,
@@ -14,7 +15,17 @@ class ReadingBookmark implements SyncableRecord {
   @override
   final String id;
   final String documentId;
-  final double scrollFraction;
+
+  /// Index into the same chunk list [chunksForDocument] produces for the
+  /// reading view — a stable integer, not a fraction of an estimated scroll
+  /// extent. See markdown_view.dart for why the extent estimate isn't
+  /// trustworthy enough to anchor a bookmark to.
+  final int chunkIndex;
+
+  /// Where within the chunk's viewport position to align when jumping to it
+  /// (0 = chunk's top edge at the viewport's top edge), mirroring
+  /// [ItemScrollController.scrollTo]'s `alignment` parameter.
+  final double alignment;
   final String excerpt;
   final DateTime createdAt;
 
@@ -33,7 +44,8 @@ class ReadingBookmark implements SyncableRecord {
       ReadingBookmark(
         id: id,
         documentId: documentId,
-        scrollFraction: scrollFraction,
+        chunkIndex: chunkIndex,
+        alignment: alignment,
         excerpt: excerpt,
         createdAt: createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
@@ -43,19 +55,28 @@ class ReadingBookmark implements SyncableRecord {
   Map<String, dynamic> toJson() => {
     'id': id,
     'documentId': documentId,
-    'scrollFraction': scrollFraction,
+    'chunkIndex': chunkIndex,
+    'alignment': alignment,
     'excerpt': excerpt,
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
     if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
   };
 
+  /// Throws if [json] is missing `chunkIndex` — notably, bookmarks written
+  /// by the older `scrollFraction`-based format, which the caller
+  /// (`StorageService._decodeBookmarks`) drops individually rather than
+  /// letting one bad record fail the whole list. There is no reasonable way
+  /// to convert a pixel fraction into a chunk index (the mapping between
+  /// them was exactly what wasn't stable), and no production data depended
+  /// on preserving them.
   factory ReadingBookmark.fromJson(Map<String, dynamic> json) {
     final createdAt = DateTime.parse(json['createdAt'] as String);
     return ReadingBookmark(
       id: json['id'] as String,
       documentId: json['documentId'] as String,
-      scrollFraction: (json['scrollFraction'] as num).toDouble(),
+      chunkIndex: json['chunkIndex'] as int,
+      alignment: (json['alignment'] as num? ?? 0).toDouble(),
       excerpt: json['excerpt'] as String,
       createdAt: createdAt,
       updatedAt: switch (json['updatedAt']) {
