@@ -58,7 +58,6 @@
   "moveTo": "Move to…",
   "moveDocument": "Move document",
   "openFolder": "Open folder",
-  "folderNotEmpty": "This folder is not empty. Move or delete its contents first.",
   "noCompatibleFiles": "No compatible files were found in this folder.",
   "folderCount": "{count, plural, =0{no folders} =1{1 folder} other{{count} folders}}",
   "@folderCount": {
@@ -314,7 +313,6 @@
   "ttsSection": "Read aloud",
   "ttsEnable": "Enable reading aloud",
   "ttsEnableDescription": "Adds a listen button to reading mode.",
-  "ttsEngineLabel": "Voice",
   "ttsEngineSystem": "System voice",
   "ttsEngineSystemDescription": "Ultra light: uses the voice Android or your browser already has. Nothing to download, no storage used, works offline.",
   "ttsEngineNeural": "On-device neural voice",
@@ -367,9 +365,7 @@
   },
   "viewerSource": "Source",
   "viewerPreview": "Preview",
-  "viewerCodeLabel": "Code viewer",
   "appearanceSection": "Appearance",
-  "editSectionTitle": "Editing in parts",
   "editSectionPosition": "{current}/{total}",
   "@editSectionPosition": {
     "placeholders": {
@@ -395,7 +391,6 @@
     }
   },
   "ttsEngineNeuralUnavailableWeb": "In the browser only the system voice works: the neural voice needs to run natively. Use the Android app for that.",
-  "ttsNeuralVoices": "Neural voices",
   "ttsManageVoices": "Download voices",
   "ttsVoicesTitle": "Voices to download",
   "ttsVoicesDescription": "Download once and use offline forever. It is stored on the device and can be removed whenever you like.",
@@ -439,8 +434,6 @@
   },
   "ttsVoiceHeavy": "Large model: needs plenty of space and memory. On a weaker phone, prefer the Piper voices.",
   "ttsNoNeuralVoice": "No neural voice installed yet.",
-  "ttsPitchUnsupported": "Neural voices play as they were recorded; pitch does not apply to them.",
-  "ttsTierSystem": "Ultra light · system voice",
   "ttsTierLight": "Light",
   "ttsTierBest": "Best",
   "ttsTierLightHint": "Piper · runs well on any device",

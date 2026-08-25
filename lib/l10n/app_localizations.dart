@@ -446,12 +446,6 @@ abstract class AppLocalizations {
   /// **'Open folder'**
   String get openFolder;
 
-  /// No description provided for @folderNotEmpty.
-  ///
-  /// In en, this message translates to:
-  /// **'This folder is not empty. Move or delete its contents first.'**
-  String get folderNotEmpty;
-
   /// No description provided for @noCompatibleFiles.
   ///
   /// In en, this message translates to:
@@ -1028,12 +1022,6 @@ abstract class AppLocalizations {
   /// **'Adds a listen button to reading mode.'**
   String get ttsEnableDescription;
 
-  /// No description provided for @ttsEngineLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Voice'**
-  String get ttsEngineLabel;
-
   /// No description provided for @ttsEngineSystem.
   ///
   /// In en, this message translates to:
@@ -1202,23 +1190,11 @@ abstract class AppLocalizations {
   /// **'Preview'**
   String get viewerPreview;
 
-  /// No description provided for @viewerCodeLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Code viewer'**
-  String get viewerCodeLabel;
-
   /// No description provided for @appearanceSection.
   ///
   /// In en, this message translates to:
   /// **'Appearance'**
   String get appearanceSection;
-
-  /// No description provided for @editSectionTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Editing in parts'**
-  String get editSectionTitle;
 
   /// No description provided for @editSectionPosition.
   ///
@@ -1267,12 +1243,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'In the browser only the system voice works: the neural voice needs to run natively. Use the Android app for that.'**
   String get ttsEngineNeuralUnavailableWeb;
-
-  /// No description provided for @ttsNeuralVoices.
-  ///
-  /// In en, this message translates to:
-  /// **'Neural voices'**
-  String get ttsNeuralVoices;
 
   /// No description provided for @ttsManageVoices.
   ///
@@ -1363,18 +1333,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No neural voice installed yet.'**
   String get ttsNoNeuralVoice;
-
-  /// No description provided for @ttsPitchUnsupported.
-  ///
-  /// In en, this message translates to:
-  /// **'Neural voices play as they were recorded; pitch does not apply to them.'**
-  String get ttsPitchUnsupported;
-
-  /// No description provided for @ttsTierSystem.
-  ///
-  /// In en, this message translates to:
-  /// **'Ultra light · system voice'**
-  String get ttsTierSystem;
 
   /// No description provided for @ttsTierLight.
   ///
