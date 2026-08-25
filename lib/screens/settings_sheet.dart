@@ -183,6 +183,13 @@ class _SettingsSheetState extends State<SettingsSheet> {
         themeMode: ThemeMode.dark,
         amoledTheme: true,
         readerFollowsTheme: true,
+        // Keep the explicit reader colors in sync with the AMOLED preset
+        // too, not just the follow-theme flag: reader_settings_sheet.dart
+        // flips readerFollowsTheme back to false the moment any reader
+        // ColorField is touched, and it was falling back to whatever stale
+        // (often sepia-brown) colors were stored here before.
+        readerBackground: Colors.black,
+        readerText: const Color(0xFFF5F5F5),
       ),
       _ => _draft.copyWith(themeMode: ThemeMode.system, amoledTheme: false),
     };
