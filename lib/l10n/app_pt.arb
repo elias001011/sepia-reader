@@ -133,5 +133,11 @@
   "@readingMinutes": {"placeholders": {"count": {"type": "int"}}},
   "backToLibrary": "Voltar à biblioteca",
   "adjustments": "Ajustes",
-  "exitReadingMode": "Sair do modo leitura"
+  "exitReadingMode": "Sair do modo leitura",
+  "addBookmark": "Marcar esta posição",
+  "bookmarkAdded": "Marcador adicionado",
+  "bookmarks": "Marcadores",
+  "bookmarksEmpty": "Nenhum marcador ainda. Toque no ícone de marcador na barra de leitura para guardar onde você parou.",
+  "removeBookmark": "Remover marcador",
+  "goToBookmark": "Ir para o marcador"
 }

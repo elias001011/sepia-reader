@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/app_settings.dart';
+import '../models/bookmark.dart';
 import '../models/folder_import.dart';
 import '../models/library_document.dart';
 import '../models/library_folder.dart';
@@ -16,6 +17,7 @@ class AppController extends ChangeNotifier {
   final Uuid _uuid = const Uuid();
   final List<LibraryDocument> _documents = [];
   final List<LibraryFolder> _folders = [];
+  final List<ReadingBookmark> _bookmarks = [];
   AppSettings _settings = const AppSettings();
 
   List<LibraryDocument> get documents {
@@ -43,10 +45,19 @@ class AppController extends ChangeNotifier {
       .where((document) => document.folderId == folderId)
       .toList(growable: false);
 
+  List<ReadingBookmark> bookmarksForDocument(String documentId) {
+    final matches = _bookmarks
+        .where((bookmark) => bookmark.documentId == documentId)
+        .toList()
+      ..sort((a, b) => a.scrollFraction.compareTo(b.scrollFraction));
+    return List.unmodifiable(matches);
+  }
+
   Future<void> initialize() async {
     _settings = await _storage.loadSettings();
     _folders.addAll(await _storage.loadFolders());
     _documents.addAll(await _storage.loadDocuments());
+    _bookmarks.addAll(await _storage.loadBookmarks());
     if (_documents.isEmpty) {
       final now = DateTime.now();
       final isEnglish = _usesEnglish;
@@ -123,7 +134,12 @@ class AppController extends ChangeNotifier {
 
   Future<void> deleteDocument(String id) async {
     _documents.removeWhere((document) => document.id == id);
+    final hadBookmarks = _bookmarks.any(
+      (bookmark) => bookmark.documentId == id,
+    );
+    _bookmarks.removeWhere((bookmark) => bookmark.documentId == id);
     await _persistDocuments();
+    if (hadBookmarks) await _persistBookmarks();
     notifyListeners();
   }
 
@@ -288,6 +304,30 @@ class AppController extends ChangeNotifier {
         .length;
   }
 
+  Future<ReadingBookmark> addBookmark(
+    String documentId, {
+    required double scrollFraction,
+    required String excerpt,
+  }) async {
+    final bookmark = ReadingBookmark(
+      id: _uuid.v4(),
+      documentId: documentId,
+      scrollFraction: scrollFraction.clamp(0.0, 1.0),
+      excerpt: excerpt,
+      createdAt: DateTime.now(),
+    );
+    _bookmarks.add(bookmark);
+    await _persistBookmarks();
+    notifyListeners();
+    return bookmark;
+  }
+
+  Future<void> removeBookmark(String id) async {
+    _bookmarks.removeWhere((bookmark) => bookmark.id == id);
+    await _persistBookmarks();
+    notifyListeners();
+  }
+
   Future<void> updateSettings(AppSettings settings) async {
     _settings = settings;
     await _storage.saveSettings(settings);
@@ -307,6 +347,9 @@ class AppController extends ChangeNotifier {
     _folders
       ..clear()
       ..addAll(result.folders);
+    _bookmarks
+      ..clear()
+      ..addAll(result.bookmarks);
     _settings = result.settings;
     notifyListeners();
   }
@@ -314,6 +357,8 @@ class AppController extends ChangeNotifier {
   Future<void> _persistDocuments() => _storage.saveDocuments(_documents);
 
   Future<void> _persistFolders() => _storage.saveFolders(_folders);
+
+  Future<void> _persistBookmarks() => _storage.saveBookmarks(_bookmarks);
 
   Future<void> _persistLibrary() async {
     await Future.wait([_persistDocuments(), _persistFolders()]);
