@@ -57,6 +57,13 @@ class AppLocalizationsPt extends AppLocalizations {
       'As cores de leitura são independentes, exceto quando “Seguir tema do app” está ativo nos ajustes de leitura.';
 
   @override
+  String get autoHideReaderControls => 'Ocultar controles durante a leitura';
+
+  @override
+  String get autoHideReaderControlsDescription =>
+      'No modo leitura, oculta os controles após alguns instantes ou ao rolar. Toque no topo para exibi-los.';
+
+  @override
   String get saveAppearance => 'Salvar aparência';
 
   @override
@@ -166,6 +173,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get renameFolder => 'Renomear pasta';
 
   @override
+  String get renameDocument => 'Renomear arquivo';
+
+  @override
   String get rename => 'Renomear';
 
   @override
@@ -209,6 +219,18 @@ class AppLocalizationsPt extends AppLocalizations {
   String folderImported(int imported, int skipped) {
     return '$imported arquivos compatíveis importados · $skipped ignorados';
   }
+
+  @override
+  String filesImported(int imported, int skipped) {
+    return '$imported arquivos importados · $skipped ignorados';
+  }
+
+  @override
+  String get dropFilesHere => 'Solte os arquivos para importar';
+
+  @override
+  String get dropFilesHint =>
+      'Markdown, texto ou código · até 5 MB por arquivo';
 
   @override
   String get libraryTitle => 'Biblioteca';

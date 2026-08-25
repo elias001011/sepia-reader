@@ -11,10 +11,12 @@ class DocumentView extends StatelessWidget {
     required this.document,
     required this.settings,
     this.padding = const EdgeInsets.symmetric(horizontal: 28, vertical: 44),
+    this.scrollController,
   });
   final LibraryDocument document;
   final AppSettings settings;
   final EdgeInsets padding;
+  final ScrollController? scrollController;
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +30,14 @@ class DocumentView extends StatelessWidget {
     final accent = settings.readerFollowsTheme
         ? scheme.primary
         : _accent(readerBackground);
+    final panelColor = Color.alphaBlend(
+      readerText.withValues(alpha: .075),
+      readerBackground,
+    );
+    final strongerPanelColor = Color.alphaBlend(
+      readerText.withValues(alpha: .12),
+      readerBackground,
+    );
     final base = readerTextStyle(settings).copyWith(
       color: readerText,
       fontSize: settings.readerFontSize,
@@ -37,6 +47,7 @@ class DocumentView extends StatelessWidget {
       color: readerBackground,
       child: SelectionArea(
         child: SingleChildScrollView(
+          controller: scrollController,
           padding: padding,
           child: Center(
             child: ConstrainedBox(
@@ -72,8 +83,16 @@ class DocumentView extends StatelessWidget {
                           height: 1.3,
                         ),
                         h4: base.copyWith(fontWeight: FontWeight.w700),
+                        h5: base.copyWith(fontWeight: FontWeight.w700),
+                        h6: base.copyWith(fontWeight: FontWeight.w700),
                         strong: base.copyWith(fontWeight: FontWeight.w800),
                         em: base.copyWith(fontStyle: FontStyle.italic),
+                        del: base.copyWith(
+                          decoration: TextDecoration.lineThrough,
+                          decorationColor: readerText,
+                        ),
+                        img: base,
+                        checkbox: base.copyWith(color: accent),
                         blockquote: base.copyWith(
                           color: readerText.withValues(alpha: .82),
                           fontStyle: FontStyle.italic,
@@ -82,7 +101,7 @@ class DocumentView extends StatelessWidget {
                           border: Border(
                             left: BorderSide(color: accent, width: 4),
                           ),
-                          color: readerText.withValues(alpha: .06),
+                          color: panelColor,
                         ),
                         blockquotePadding: const EdgeInsets.fromLTRB(
                           20,
@@ -93,6 +112,7 @@ class DocumentView extends StatelessWidget {
                         code: TextStyle(
                           fontFamily: 'Roboto Mono',
                           color: readerText,
+                          backgroundColor: panelColor,
                           fontSize: settings.readerFontSize * .76,
                           height: 1.55,
                         ),
@@ -114,6 +134,10 @@ class DocumentView extends StatelessWidget {
                         ),
                         tableBorder: TableBorder.all(
                           color: readerText.withValues(alpha: .22),
+                        ),
+                        tableCellsDecoration: BoxDecoration(color: panelColor),
+                        tableHeadCellsDecoration: BoxDecoration(
+                          color: strongerPanelColor,
                         ),
                         tableCellsPadding: const EdgeInsets.all(10),
                         horizontalRuleDecoration: BoxDecoration(

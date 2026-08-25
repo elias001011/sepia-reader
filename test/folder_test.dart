@@ -30,6 +30,9 @@ void main() {
     expect(controller.documentsIn(folder.id).single.id, document.id);
     await controller.renameFolder(folder.id, 'Leituras');
     expect(controller.folderById(folder.id)?.name, 'Leituras');
+    await controller.renameDocument(document.id, 'Capítulo revisado.md');
+    expect(controller.documentById(document.id)?.title, 'Capítulo revisado');
+    expect(controller.documentById(document.id)?.extension, 'md');
 
     await controller.moveDocument(document.id, null);
     expect(controller.documentById(document.id)?.folderId, isNull);
@@ -41,6 +44,7 @@ void main() {
     final restored = AppController();
     await restored.initialize();
     expect(restored.folderById(folder.id)?.name, 'Leituras');
+    expect(restored.documentById(document.id)?.title, 'Capítulo revisado');
     expect(restored.documentById(document.id)?.folderId, isNull);
   });
 
