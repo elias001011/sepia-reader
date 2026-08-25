@@ -98,8 +98,16 @@ class StorageService {
   /// request that can never succeed — treat it as "not configured" instead.
   Uri? _resolve(String path, SyncConfig config) {
     if (!config.enabled) return null;
-    final base = config.serverUrl.trim();
+    var base = config.serverUrl.trim();
     if (base.isEmpty) return kIsWeb ? Uri.base.resolve(path) : null;
+    // People type addresses like "192.168.2.5:8888", without a scheme.
+    // Uri.tryParse rejects that outright — a leading digit isn't a valid
+    // scheme character, so it can't tell "host:port" from "scheme:path" and
+    // just gives up, returning null — which surfaced as "invalid URL" for a
+    // perfectly reachable address. Assume http:// when none is given.
+    if (!RegExp(r'^[a-zA-Z][a-zA-Z0-9+.-]*://').hasMatch(base)) {
+      base = 'http://$base';
+    }
     final normalized = base.endsWith('/')
         ? base.substring(0, base.length - 1)
         : base;
