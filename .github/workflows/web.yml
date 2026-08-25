@@ -13,12 +13,13 @@ jobs:
       - uses: actions/checkout@v7
       - uses: subosito/flutter-action@v2
         with:
+          flutter-version: "3.47.0"
           channel: stable
           cache: true
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
-      - run: flutter build web --release
+      - run: bash tool/build_web.sh
       - uses: actions/upload-artifact@v7
         with:
           name: sepia-web
