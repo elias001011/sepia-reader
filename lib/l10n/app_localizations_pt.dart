@@ -191,10 +191,6 @@ class AppLocalizationsPt extends AppLocalizations {
   String get openFolder => 'Abrir pasta';
 
   @override
-  String get folderNotEmpty =>
-      'Esta pasta não está vazia. Mova ou exclua o conteúdo primeiro.';
-
-  @override
   String get noCompatibleFiles =>
       'Nenhum arquivo compatível foi encontrado nesta pasta.';
 
@@ -594,9 +590,6 @@ class AppLocalizationsPt extends AppLocalizations {
       'Adiciona um botão de ouvir no modo leitura.';
 
   @override
-  String get ttsEngineLabel => 'Voz';
-
-  @override
   String get ttsEngineSystem => 'Voz do sistema';
 
   @override
@@ -696,13 +689,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get viewerPreview => 'Prévia';
 
   @override
-  String get viewerCodeLabel => 'Visualizador de código';
-
-  @override
   String get appearanceSection => 'Aparência';
-
-  @override
-  String get editSectionTitle => 'Editando por partes';
 
   @override
   String editSectionPosition(int current, int total) {
@@ -734,9 +721,6 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get ttsEngineNeuralUnavailableWeb =>
       'No navegador só a voz do sistema funciona: a voz neural precisa rodar nativamente. Use o app Android para isso.';
-
-  @override
-  String get ttsNeuralVoices => 'Vozes neurais';
 
   @override
   String get ttsManageVoices => 'Baixar vozes';
@@ -792,13 +776,6 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get ttsNoNeuralVoice => 'Nenhuma voz neural instalada ainda.';
-
-  @override
-  String get ttsPitchUnsupported =>
-      'As vozes neurais são reproduzidas como foram gravadas; o tom não se aplica a elas.';
-
-  @override
-  String get ttsTierSystem => 'Ultra leve · voz do sistema';
 
   @override
   String get ttsTierLight => 'Leve';
