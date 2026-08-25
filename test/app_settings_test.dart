@@ -48,10 +48,22 @@ void main() {
     expect(restored.syncServerUrl, 'http://192.168.2.5:8888');
   });
 
-  test('sincronização vem ligada e na mesma origem por padrão', () {
+  test('sincronização vem desligada por padrão', () {
     final restored = AppSettings.fromJson(const {});
 
-    expect(restored.syncEnabled, isTrue);
+    expect(restored.syncEnabled, isFalse);
     expect(restored.syncServerUrl, isEmpty);
+  });
+
+  test('preferência de sincronização já salva é preservada', () {
+    // Mudar o padrão não pode desligar o sync de quem já o havia ligado: a
+    // chave está presente no payload salvo desses aparelhos.
+    final restored = AppSettings.fromJson(const {
+      'syncEnabled': true,
+      'syncServerUrl': 'http://192.168.2.5:8888',
+    });
+
+    expect(restored.syncEnabled, isTrue);
+    expect(restored.syncServerUrl, 'http://192.168.2.5:8888');
   });
 }

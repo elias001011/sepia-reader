@@ -507,4 +507,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String syncLast(String time) {
     return 'Last sync: $time';
   }
+
+  @override
+  String get syncDisabledTitle => 'Syncing turned off';
+
+  @override
+  String get syncDisabledBody =>
+      'Your library stays complete on this device. What about the copy on the server?';
+
+  @override
+  String get syncKeepOnServer => 'Keep on server';
+
+  @override
+  String get syncWipeFromServer => 'Erase from server';
+
+  @override
+  String get syncWipeFailed =>
+      'Syncing is off, but the copy on the server could not be erased. It is still there.';
+
+  @override
+  String get syncWipeDone => 'Server copy erased.';
 }

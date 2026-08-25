@@ -1,4 +1,6 @@
-class LibraryDocument {
+import 'syncable.dart';
+
+class LibraryDocument implements SyncableRecord {
   const LibraryDocument({
     required this.id,
     required this.title,
@@ -8,15 +10,23 @@ class LibraryDocument {
     required this.updatedAt,
     this.isFavorite = false,
     this.folderId,
+    this.deletedAt,
   });
+  @override
   final String id;
   final String title;
   final String content;
   final String extension;
   final DateTime createdAt;
+  @override
   final DateTime updatedAt;
   final bool isFavorite;
   final String? folderId;
+
+  /// Set when the document was deleted; the record is kept around as a
+  /// tombstone so the deletion can reach other devices.
+  @override
+  final DateTime? deletedAt;
 
   bool get isMarkdown => extension == 'md' || extension == 'markdown';
   int get wordCount =>
@@ -31,6 +41,7 @@ class LibraryDocument {
     bool? isFavorite,
     String? folderId,
     bool moveToRoot = false,
+    DateTime? deletedAt,
   }) => LibraryDocument(
     id: id,
     title: title ?? this.title,
@@ -40,6 +51,7 @@ class LibraryDocument {
     updatedAt: updatedAt ?? this.updatedAt,
     isFavorite: isFavorite ?? this.isFavorite,
     folderId: moveToRoot ? null : folderId ?? this.folderId,
+    deletedAt: deletedAt ?? this.deletedAt,
   );
 
   Map<String, dynamic> toJson() => {
@@ -51,6 +63,7 @@ class LibraryDocument {
     'updatedAt': updatedAt.toIso8601String(),
     'isFavorite': isFavorite,
     'folderId': folderId,
+    if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
   };
 
   factory LibraryDocument.fromJson(Map<String, dynamic> json) =>
@@ -63,5 +76,9 @@ class LibraryDocument {
         updatedAt: DateTime.parse(json['updatedAt'] as String),
         isFavorite: json['isFavorite'] as bool? ?? false,
         folderId: json['folderId'] as String?,
+        deletedAt: switch (json['deletedAt']) {
+          final String value => DateTime.tryParse(value),
+          _ => null,
+        },
       );
 }

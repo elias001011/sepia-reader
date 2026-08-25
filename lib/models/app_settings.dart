@@ -16,7 +16,7 @@ class AppSettings {
     this.readerFontSize = 20,
     this.readerLineHeight = 1.75,
     this.readerWidth = 760,
-    this.syncEnabled = true,
+    this.syncEnabled = false,
     this.syncServerUrl = '',
   });
   final String localeCode;
@@ -34,10 +34,11 @@ class AppSettings {
   final double readerLineHeight;
   final double readerWidth;
 
-  /// Whether the library is mirrored to a server. Persisted locally as well
-  /// as here (see `StorageService.loadSyncConfig`); the local copy always
-  /// wins, so a synced settings payload can never turn a device's own sync
-  /// off or repoint it at another host.
+  /// Whether the library is mirrored to a server. Off by default: a
+  /// local-first app should not assume a server exists until one is named.
+  /// Persisted locally as well as here (see `StorageService.loadSyncConfig`);
+  /// the local copy always wins, so a synced settings payload can never turn
+  /// a device's own sync off or repoint it at another host.
   final bool syncEnabled;
 
   /// Base URL of the sync server. Empty means "the origin this app was
@@ -120,7 +121,7 @@ class AppSettings {
       readerFontSize: (json['readerFontSize'] as num? ?? 20).toDouble(),
       readerLineHeight: (json['readerLineHeight'] as num? ?? 1.75).toDouble(),
       readerWidth: (json['readerWidth'] as num? ?? 760).toDouble(),
-      syncEnabled: json['syncEnabled'] as bool? ?? true,
+      syncEnabled: json['syncEnabled'] as bool? ?? false,
       syncServerUrl: json['syncServerUrl'] as String? ?? '',
     );
   }
