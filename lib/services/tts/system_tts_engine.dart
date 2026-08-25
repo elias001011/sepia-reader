@@ -13,7 +13,7 @@ import 'tts_engine.dart';
 /// Termux server, where a bundled neural model would have to be fetched over
 /// the network first. The trade-off is voice quality, which is the platform's
 /// to decide, not ours.
-class SystemTtsEngine implements TtsEngine {
+class SystemTtsEngine extends TtsEngine {
   FlutterTts? _tts;
   Completer<void>? _utterance;
 

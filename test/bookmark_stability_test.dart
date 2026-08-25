@@ -173,7 +173,11 @@ Final paragraph.
     final codeBlock = blocks.firstWhere((b) => b.contains('void main'));
     expect(codeBlock, contains('blank line above is inside the fence'));
     expect(codeBlock, contains('```dart'));
-    expect(codeBlock, contains('```\n') /* closing fence kept in-block */);
+    // The closing fence now ends the block: a fence is flushed as soon as it
+    // closes, so "## heading" followed by a fence no longer merge into one
+    // chunk. What matters here is that the fence is still whole.
+    expect(codeBlock.trimRight(), endsWith('```'));
+    expect('```dart'.allMatches(codeBlock).length, 1);
 
     // The loose list (blank line between items) should stay one block.
     final listBlock = blocks.firstWhere((b) => b.contains('item one'));

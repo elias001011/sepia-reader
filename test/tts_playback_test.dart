@@ -9,7 +9,7 @@ import 'package:sepia_reader/services/tts/tts_playback.dart';
 /// A speech engine that records what it was asked to say and only finishes an
 /// utterance when the test says so, so the queue's behaviour mid-sentence is
 /// observable.
-class FakeEngine implements TtsEngine {
+class FakeEngine extends TtsEngine {
   final spoken = <String>[];
   final configured = <({String? voiceId, double rate, double pitch})>[];
   int prepareCalls = 0;
@@ -34,6 +34,11 @@ class FakeEngine implements TtsEngine {
     required double rate,
     required double pitch,
   }) async => configured.add((voiceId: voiceId, rate: rate, pitch: pitch));
+
+  final primed = <String>[];
+
+  @override
+  Future<void> prime(String text) async => primed.add(text);
 
   @override
   Future<void> speak(String text) async {
@@ -236,6 +241,57 @@ void main() {
     );
   });
 
+  test('a próxima fala é preparada enquanto a atual toca', () async {
+    final engine = FakeEngine();
+    final controller = TtsPlaybackController(engine: engine);
+    final sections = sectionsOf(fic());
+
+    await controller.start(
+      document: fic(),
+      section: sections.first,
+      voiceId: null,
+      rate: 1,
+      pitch: 1,
+    );
+    // The first sentence is still playing, and the second is already being
+    // rendered — which is what keeps a neural voice from pausing between
+    // every sentence.
+    expect(engine.spoken.last, 'Capítulo um');
+    expect(engine.primed, contains('Primeira frase do um.'));
+
+    await engine.finishUtterance();
+    expect(engine.primed, contains('Segunda frase do um.'));
+  });
+
+  test('um motor que não sobe reporta erro em vez de ficar mudo', () async {
+    final controller = TtsPlaybackController(engine: BrokenEngine());
+    final sections = sectionsOf(fic());
+    await controller.start(
+      document: fic(),
+      section: sections.first,
+      voiceId: null,
+      rate: 1,
+      pitch: 1,
+    );
+    expect(controller.error, isNotNull);
+    expect(controller.isActive, isFalse);
+
+    // And the player can be handed a working engine and carry on, which is
+    // what the reader does when a neural voice fails: fall back, not fail.
+    final engine = FakeEngine();
+    await controller.useEngine(engine);
+    await controller.start(
+      document: fic(),
+      section: sections.first,
+      voiceId: null,
+      rate: 1,
+      pitch: 1,
+    );
+    expect(controller.error, isNull);
+    expect(controller.isPlaying, isTrue);
+    expect(engine.spoken, isNotEmpty);
+  });
+
   test('parar libera o motor e zera o estado', () async {
     final engine = FakeEngine();
     final controller = TtsPlaybackController(engine: engine);
@@ -253,4 +309,30 @@ void main() {
     expect(engine.releaseCalls, 1);
     expect(engine.isSpeaking, isFalse);
   });
+}
+
+/// An engine that cannot start — the shape of a neural voice whose model is
+/// missing, whose native library will not load, or whose audio output is
+/// unavailable.
+class BrokenEngine extends TtsEngine {
+  @override
+  String get label => 'broken';
+  @override
+  Future<bool> isAvailable() async => false;
+  @override
+  Future<void> prepare() async => throw StateError('no model');
+  @override
+  Future<List<TtsVoice>> availableVoices() async => const [];
+  @override
+  Future<void> configure({
+    String? voiceId,
+    required double rate,
+    required double pitch,
+  }) async {}
+  @override
+  Future<void> speak(String text) async {}
+  @override
+  Future<void> stop() async {}
+  @override
+  Future<void> release() async {}
 }

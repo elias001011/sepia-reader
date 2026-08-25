@@ -127,6 +127,13 @@ class TtsPlaybackController extends ChangeNotifier {
         _state == TtsPlaybackState.playing &&
         _index < _pieces.length) {
       final piece = _pieces[_index];
+      // Ask the engine to work ahead on the next sentence while this one is
+      // still playing. A neural backend has to synthesise before it can play,
+      // so without this there is a gap before every single sentence; engines
+      // that speak directly ignore it.
+      if (_index + 1 < _pieces.length) {
+        unawaited(_engine.prime(_pieces[_index + 1].text));
+      }
       try {
         await _engine.speak(piece.text);
       } catch (error) {
