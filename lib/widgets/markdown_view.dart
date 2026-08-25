@@ -162,6 +162,17 @@ class DocumentView extends StatelessWidget {
                   ),
                 ),
               )
+            : document.content.length > _virtualizeThreshold
+            ? _VirtualizedPlainText(
+                content: document.content,
+                extension: document.extension,
+                baseStyle: base,
+                readerText: readerText,
+                fontSize: settings.readerFontSize,
+                padding: padding,
+                maxWidth: settings.readerWidth,
+                scrollController: scrollController,
+              )
             : SingleChildScrollView(
                 controller: scrollController,
                 padding: padding,
@@ -184,6 +195,121 @@ class DocumentView extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Above this size the plain-text/code reader switches to a virtualized,
+/// lazily highlighted view. Smaller files keep the simpler single-span path,
+/// which preserves continuous text selection across the whole document.
+const int _virtualizeThreshold = 50000;
+
+/// Number of source lines rendered per chunk.
+const int _chunkLines = 120;
+
+/// Virtualized reader for large plain-text and source files.
+///
+/// The eager path builds one span for the entire file (running the syntax
+/// highlighter over all of it) inside a non-culling scroll view — the same
+/// shape that made large markdown documents crawl. Here the file is split
+/// into chunks rendered through a `ListView.builder`, so only on-screen
+/// chunks are built, highlighted and painted; results are memoized so
+/// scrolling back is free.
+///
+/// Trade-off: highlighting runs per chunk, so a construct spanning a chunk
+/// boundary (a very long block comment or string) can lose its colour after
+/// the boundary, and selection cannot extend into chunks that have been
+/// scrolled out of the tree. Both only apply above the size threshold.
+class _VirtualizedPlainText extends StatefulWidget {
+  const _VirtualizedPlainText({
+    required this.content,
+    required this.extension,
+    required this.baseStyle,
+    required this.readerText,
+    required this.fontSize,
+    required this.padding,
+    required this.maxWidth,
+    this.scrollController,
+  });
+
+  final String content;
+  final String extension;
+  final TextStyle baseStyle;
+  final Color readerText;
+  final double fontSize;
+  final EdgeInsets padding;
+  final double maxWidth;
+  final ScrollController? scrollController;
+
+  @override
+  State<_VirtualizedPlainText> createState() => _VirtualizedPlainTextState();
+}
+
+class _VirtualizedPlainTextState extends State<_VirtualizedPlainText> {
+  late List<String> _chunks;
+  final Map<int, TextSpan> _spans = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _chunks = _split(widget.content);
+  }
+
+  @override
+  void didUpdateWidget(_VirtualizedPlainText oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.content != oldWidget.content ||
+        widget.extension != oldWidget.extension ||
+        widget.baseStyle != oldWidget.baseStyle ||
+        widget.readerText != oldWidget.readerText ||
+        widget.fontSize != oldWidget.fontSize) {
+      _chunks = _split(widget.content);
+      _spans.clear();
+    }
+  }
+
+  static List<String> _split(String content) {
+    final lines = content.split('\n');
+    final chunks = <String>[];
+    for (var i = 0; i < lines.length; i += _chunkLines) {
+      final end = (i + _chunkLines).clamp(0, lines.length);
+      chunks.add(lines.sublist(i, end).join('\n'));
+    }
+    return chunks.isEmpty ? [''] : chunks;
+  }
+
+  TextSpan _spanFor(int index) => _spans.putIfAbsent(index, () {
+    final chunk = _chunks[index];
+    if (!isCodeExtension(widget.extension)) {
+      return TextSpan(text: chunk, style: widget.baseStyle);
+    }
+    return highlightedSpan(
+      chunk,
+      widget.extension,
+      widget.readerText,
+      widget.fontSize,
+    );
+  });
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.only(
+      left: widget.padding.left,
+      right: widget.padding.right,
+    ),
+    child: Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: widget.maxWidth),
+        child: ListView.builder(
+          controller: widget.scrollController,
+          padding: EdgeInsets.only(
+            top: widget.padding.top,
+            bottom: widget.padding.bottom,
+          ),
+          itemCount: _chunks.length,
+          itemBuilder: (context, index) => Text.rich(_spanFor(index)),
+        ),
+      ),
+    ),
+  );
 }
 
 TextStyle readerTextStyle(AppSettings settings) => TextStyle(

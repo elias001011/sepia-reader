@@ -35,4 +35,23 @@ void main() {
     expect(restored.readerFollowsTheme, isTrue);
     expect(restored.autoHideReaderControls, isTrue);
   });
+
+  test('preserva as preferências de sincronização', () {
+    const settings = AppSettings(
+      syncEnabled: false,
+      syncServerUrl: 'http://192.168.2.5:8888',
+    );
+
+    final restored = AppSettings.fromJson(settings.toJson());
+
+    expect(restored.syncEnabled, isFalse);
+    expect(restored.syncServerUrl, 'http://192.168.2.5:8888');
+  });
+
+  test('sincronização vem ligada e na mesma origem por padrão', () {
+    final restored = AppSettings.fromJson(const {});
+
+    expect(restored.syncEnabled, isTrue);
+    expect(restored.syncServerUrl, isEmpty);
+  });
 }

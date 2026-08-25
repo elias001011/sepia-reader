@@ -30,9 +30,21 @@ class _EditorScreenState extends State<EditorScreen> {
   final UndoHistoryController _undoController = UndoHistoryController();
   final ScrollController _readerScrollController = ScrollController();
   final ValueNotifier<double> _readerScrollOffset = ValueNotifier(0);
+
+  /// Typing must not rebuild the whole screen. These notifiers let only the
+  /// small widgets that actually depend on the text rebuild: the save
+  /// indicator, the status bar counters, and the (debounced) live preview.
+  final ValueNotifier<bool> _dirty = ValueNotifier(false);
+  final ValueNotifier<({int words, int minutes})> _stats = ValueNotifier((
+    words: 0,
+    minutes: 0,
+  ));
+  late final ValueNotifier<String> _previewContent;
+
   Timer? _saveTimer;
+  Timer? _statsTimer;
+  Timer? _previewTimer;
   Timer? _readerControlsTimer;
-  bool _dirty = false;
   bool _readingMode = false;
   bool _readerControlsVisible = true;
   bool _showPreview = false;
@@ -49,7 +61,8 @@ class _EditorScreenState extends State<EditorScreen> {
       ..addListener(_onChanged);
     _titleController = TextEditingController(text: document.title)
       ..addListener(_onChanged);
-    _undoController.addListener(_refresh);
+    _previewContent = ValueNotifier(document.content);
+    _stats.value = _statsFor(document.content);
     widget.controller.addListener(_refresh);
     _readerScrollController.addListener(_onReaderOffsetChanged);
   }
@@ -57,17 +70,27 @@ class _EditorScreenState extends State<EditorScreen> {
   @override
   void dispose() {
     _saveTimer?.cancel();
+    _statsTimer?.cancel();
+    _previewTimer?.cancel();
     _readerControlsTimer?.cancel();
-    if (_dirty) unawaited(_save());
+    if (_dirty.value) unawaited(_save());
     widget.controller.removeListener(_refresh);
-    _undoController.removeListener(_refresh);
     _undoController.dispose();
     _readerScrollController.removeListener(_onReaderOffsetChanged);
     _readerScrollController.dispose();
     _readerScrollOffset.dispose();
+    _dirty.dispose();
+    _stats.dispose();
+    _previewContent.dispose();
     _contentController.dispose();
     _titleController.dispose();
     super.dispose();
+  }
+
+  ({int words, int minutes}) _statsFor(String content) {
+    final trimmed = content.trim();
+    final words = trimmed.isEmpty ? 0 : trimmed.split(RegExp(r'\s+')).length;
+    return (words: words, minutes: words == 0 ? 0 : (words / 220).ceil());
   }
 
   void _onReaderOffsetChanged() {
@@ -81,10 +104,20 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 
   void _onChanged() {
-    _dirty = true;
+    // No setState here: rebuilding the whole editor on every keystroke made
+    // large documents crawl (a full document copy, two regex passes over the
+    // entire text for the counters, and a live markdown re-render).
+    _dirty.value = true;
     _saveTimer?.cancel();
     _saveTimer = Timer(const Duration(milliseconds: 700), _save);
-    setState(() {});
+    _statsTimer?.cancel();
+    _statsTimer = Timer(const Duration(milliseconds: 400), () {
+      _stats.value = _statsFor(_contentController.text);
+    });
+    _previewTimer?.cancel();
+    _previewTimer = Timer(const Duration(milliseconds: 400), () {
+      _previewContent.value = _contentController.text;
+    });
   }
 
   LibraryDocument get _draft {
@@ -100,8 +133,7 @@ class _EditorScreenState extends State<EditorScreen> {
   Future<void> _save() async {
     _saveTimer?.cancel();
     await widget.controller.updateDocument(_draft);
-    _dirty = false;
-    if (mounted) setState(() {});
+    _dirty.value = false;
   }
 
   void _enterReadingMode() {
@@ -196,27 +228,30 @@ class _EditorScreenState extends State<EditorScreen> {
         ),
         actions: [
           if (MediaQuery.sizeOf(context).width >= 620)
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 180),
-              child: _dirty
-                  ? const Padding(
-                      key: ValueKey('saving'),
-                      padding: EdgeInsets.symmetric(horizontal: 8),
-                      child: SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+            ValueListenableBuilder<bool>(
+              valueListenable: _dirty,
+              builder: (context, dirty, _) => AnimatedSwitcher(
+                duration: const Duration(milliseconds: 180),
+                child: dirty
+                    ? const Padding(
+                        key: ValueKey('saving'),
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : Padding(
+                        key: const ValueKey('saved'),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Icon(
+                          Icons.cloud_done_outlined,
+                          size: 20,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    )
-                  : Padding(
-                      key: const ValueKey('saved'),
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Icon(
-                        Icons.cloud_done_outlined,
-                        size: 20,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
+              ),
             ),
           if (MediaQuery.sizeOf(context).width < 620)
             PopupMenuButton<String>(
@@ -363,8 +398,15 @@ class _EditorScreenState extends State<EditorScreen> {
     ),
   );
 
-  Widget _preview(BuildContext context) =>
-      DocumentView(document: _draft, settings: widget.controller.settings);
+  // Renders from the debounced text so a live preview does not re-parse the
+  // whole markdown document on every keystroke.
+  Widget _preview(BuildContext context) => ValueListenableBuilder<String>(
+    valueListenable: _previewContent,
+    builder: (context, content, _) => DocumentView(
+      document: _stored!.copyWith(content: content),
+      settings: widget.controller.settings,
+    ),
+  );
 
   Widget _mobileTabs(BuildContext context) => Container(
     width: double.infinity,
@@ -392,11 +434,22 @@ class _EditorScreenState extends State<EditorScreen> {
     ),
   );
 
+  // Listens to the undo controller directly instead of calling setState on
+  // every text change: only the two undo/redo buttons depend on it.
   Widget _editorToolbar(
     BuildContext context, {
     required bool includeMarkdownTools,
-  }) {
-    final history = _undoController.value;
+  }) => ValueListenableBuilder<UndoHistoryValue>(
+    valueListenable: _undoController,
+    builder: (context, history, _) =>
+        _editorToolbarBody(context, history, includeMarkdownTools),
+  );
+
+  Widget _editorToolbarBody(
+    BuildContext context,
+    UndoHistoryValue history,
+    bool includeMarkdownTools,
+  ) {
     final actions = <({String label, IconData icon, VoidCallback? onTap})>[
       (
         label: context.l10n.undoSession,
@@ -476,36 +529,39 @@ class _EditorScreenState extends State<EditorScreen> {
       color: Theme.of(context).colorScheme.surfaceContainerLow,
       border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
     ),
-    child: Row(
-      children: [
-        if (MediaQuery.sizeOf(context).width < 620)
-          Expanded(
-            child: Text(
-              '${context.l10n.wordCount(_draft.wordCount)} · '
-              '${context.l10n.readingMinutes(_draft.readingMinutes)}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+    child: ValueListenableBuilder<({int words, int minutes})>(
+      valueListenable: _stats,
+      builder: (context, stats, _) => Row(
+        children: [
+          if (MediaQuery.sizeOf(context).width < 620)
+            Expanded(
+              child: Text(
+                '${context.l10n.wordCount(stats.words)} · '
+                '${context.l10n.readingMinutes(stats.minutes)}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelSmall,
+              ),
+            )
+          else ...[
+            Text(
+              context.l10n.wordCount(stats.words),
               style: Theme.of(context).textTheme.labelSmall,
             ),
-          )
-        else ...[
+            const SizedBox(width: 16),
+            Text(
+              context.l10n.readingMinutes(stats.minutes),
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
+            const Spacer(),
+          ],
+          const SizedBox(width: 12),
           Text(
-            context.l10n.wordCount(_draft.wordCount),
+            '.${_stored?.extension ?? 'md'}',
             style: Theme.of(context).textTheme.labelSmall,
           ),
-          const SizedBox(width: 16),
-          Text(
-            context.l10n.readingMinutes(_draft.readingMinutes),
-            style: Theme.of(context).textTheme.labelSmall,
-          ),
-          const Spacer(),
         ],
-        const SizedBox(width: 12),
-        Text(
-          '.${_draft.extension}',
-          style: Theme.of(context).textTheme.labelSmall,
-        ),
-      ],
+      ),
     ),
   );
 
@@ -842,12 +898,12 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 
   Future<void> _close() async {
-    if (_dirty) await _save();
+    if (_dirty.value) await _save();
     if (mounted) Navigator.pop(context);
   }
 
   Future<void> _export() async {
-    if (_dirty) await _save();
+    if (_dirty.value) await _save();
     try {
       await exportDocument(_draft);
       if (mounted) {

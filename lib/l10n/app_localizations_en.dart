@@ -457,4 +457,54 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get goToBookmark => 'Go to bookmark';
+
+  @override
+  String get syncSection => 'Sync';
+
+  @override
+  String get syncWithServer => 'Sync with the server';
+
+  @override
+  String get syncWithServerDescription =>
+      'Keeps the library identical on every device that opens this server.';
+
+  @override
+  String get syncServerAddress => 'Server address';
+
+  @override
+  String get syncServerAddressHint =>
+      'Empty: use the address the app was opened from';
+
+  @override
+  String get syncTestConnection => 'Test connection';
+
+  @override
+  String get syncTesting => 'Testing…';
+
+  @override
+  String syncTestOk(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Connected. $count documents on the server.',
+      one: 'Connected. 1 document on the server.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String syncTestFailed(String error) {
+    return 'Failed: $error';
+  }
+
+  @override
+  String get syncOff => 'Sync is off';
+
+  @override
+  String get syncNever => 'Not synced yet';
+
+  @override
+  String syncLast(String time) {
+    return 'Last sync: $time';
+  }
 }

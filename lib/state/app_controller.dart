@@ -330,9 +330,25 @@ class AppController extends ChangeNotifier {
 
   Future<void> updateSettings(AppSettings settings) async {
     _settings = settings;
+    // Persist the sync preferences locally *before* saving, so that turning
+    // sync off takes effect immediately (this very save must not be pushed)
+    // and a new server address is used from here on.
+    await _storage.saveSyncConfig(
+      SyncConfig(
+        enabled: settings.syncEnabled,
+        serverUrl: settings.syncServerUrl,
+      ),
+    );
     await _storage.saveSettings(settings);
     notifyListeners();
   }
+
+  /// Probes a server address on behalf of the settings screen.
+  Future<SyncTestResult> testSyncConnection(String serverUrl) =>
+      _storage.testConnection(serverUrl);
+
+  /// Timestamp of the last successful exchange with the server, if any.
+  Future<DateTime?> lastSyncAt() => _storage.loadLastSyncAt();
 
   /// Explicit user-triggered "force sync": pulls documents, folders and
   /// settings from the server unconditionally (an empty response is taken

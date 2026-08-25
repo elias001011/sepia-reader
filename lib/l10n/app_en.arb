@@ -61,19 +61,58 @@
   "folderNotEmpty": "This folder is not empty. Move or delete its contents first.",
   "noCompatibleFiles": "No compatible files were found in this folder.",
   "folderCount": "{count, plural, =0{no folders} =1{1 folder} other{{count} folders}}",
-  "@folderCount": {"placeholders": {"count": {"type": "int"}}},
+  "@folderCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "folderContents": "{files} files · {folders} folders",
-  "@folderContents": {"placeholders": {"files": {"type": "int"}, "folders": {"type": "int"}}},
+  "@folderContents": {
+    "placeholders": {
+      "files": {
+        "type": "int"
+      },
+      "folders": {
+        "type": "int"
+      }
+    }
+  },
   "folderImported": "{imported} compatible files imported · {skipped} skipped",
-  "@folderImported": {"placeholders": {"imported": {"type": "int"}, "skipped": {"type": "int"}}},
+  "@folderImported": {
+    "placeholders": {
+      "imported": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
   "filesImported": "{imported} files imported · {skipped} skipped",
-  "@filesImported": {"placeholders": {"imported": {"type": "int"}, "skipped": {"type": "int"}}},
+  "@filesImported": {
+    "placeholders": {
+      "imported": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
   "dropFilesHere": "Drop files to import",
   "dropFilesHint": "Markdown, text, or code · up to 5 MB per file",
   "libraryTitle": "Library",
   "results": "Results",
   "fileCount": "{count, plural, =0{no files} =1{1 file} other{{count} files}}",
-  "@fileCount": {"placeholders": {"count": {"type": "int"}}},
+  "@fileCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "nextReading": "Your next read starts here",
   "nothingFound": "Nothing found",
   "emptyLibraryHelp": "Create a Markdown document or import a text file.",
@@ -85,29 +124,77 @@
   "plainTextFormat": "Plain text (.txt)",
   "create": "Create",
   "importedCount": "{count, plural, =1{1 file imported.} other{{count} files imported.}}",
-  "@importedCount": {"placeholders": {"count": {"type": "int"}}},
+  "@importedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "importFailed": "Could not import: {error}",
-  "@importFailed": {"placeholders": {"error": {"type": "String"}}},
+  "@importFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "exported": "File exported.",
   "exportFailed": "Could not export: {error}",
-  "@exportFailed": {"placeholders": {"error": {"type": "String"}}},
+  "@exportFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "deleteFileQuestion": "Delete file?",
   "deleteFileDescription": "“{filename}” will be removed from the library.",
-  "@deleteFileDescription": {"placeholders": {"filename": {"type": "String"}}},
+  "@deleteFileDescription": {
+    "placeholders": {
+      "filename": {
+        "type": "String"
+      }
+    }
+  },
   "delete": "Delete",
   "favorite": "Favorite",
   "unfavorite": "Remove favorite",
   "exportLabel": "Export",
   "emptyDocument": "Empty document — tap to begin.",
   "wordCount": "{count, plural, =1{1 word} other{{count} words}}",
-  "@wordCount": {"placeholders": {"count": {"type": "int"}}},
+  "@wordCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "now": "now",
   "minutesAgo": "{count} min ago",
-  "@minutesAgo": {"placeholders": {"count": {"type": "int"}}},
+  "@minutesAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "hoursAgo": "{count} h ago",
-  "@hoursAgo": {"placeholders": {"count": {"type": "int"}}},
+  "@hoursAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "daysAgo": "{count} d ago",
-  "@daysAgo": {"placeholders": {"count": {"type": "int"}}},
+  "@daysAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "documentNotFound": "Document not found.",
   "untitled": "Untitled",
   "readingSettings": "Reading settings",
@@ -130,7 +217,13 @@
   "textPlaceholder": "text",
   "codePlaceholder": "code",
   "readingMinutes": "{count, plural, =1{1 min read} other{{count} min read}}",
-  "@readingMinutes": {"placeholders": {"count": {"type": "int"}}},
+  "@readingMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "backToLibrary": "Back to library",
   "adjustments": "Adjustments",
   "exitReadingMode": "Exit reading mode",
@@ -139,5 +232,38 @@
   "bookmarks": "Bookmarks",
   "bookmarksEmpty": "No bookmarks yet. Tap the bookmark icon on the reading bar to save where you left off.",
   "removeBookmark": "Remove bookmark",
-  "goToBookmark": "Go to bookmark"
+  "goToBookmark": "Go to bookmark",
+  "syncSection": "Sync",
+  "syncWithServer": "Sync with the server",
+  "syncWithServerDescription": "Keeps the library identical on every device that opens this server.",
+  "syncServerAddress": "Server address",
+  "syncServerAddressHint": "Empty: use the address the app was opened from",
+  "syncTestConnection": "Test connection",
+  "syncTesting": "Testing…",
+  "syncTestOk": "{count, plural, =1{Connected. 1 document on the server.} other{Connected. {count} documents on the server.}}",
+  "@syncTestOk": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "syncTestFailed": "Failed: {error}",
+  "@syncTestFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "syncOff": "Sync is off",
+  "syncNever": "Not synced yet",
+  "syncLast": "Last sync: {time}",
+  "@syncLast": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  }
 }

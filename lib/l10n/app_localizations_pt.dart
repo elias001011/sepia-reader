@@ -458,4 +458,54 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get goToBookmark => 'Ir para o marcador';
+
+  @override
+  String get syncSection => 'Sincronização';
+
+  @override
+  String get syncWithServer => 'Sincronizar com o servidor';
+
+  @override
+  String get syncWithServerDescription =>
+      'Mantém a biblioteca igual em todos os aparelhos que abrem este servidor.';
+
+  @override
+  String get syncServerAddress => 'Endereço do servidor';
+
+  @override
+  String get syncServerAddressHint =>
+      'Vazio: usar o endereço de onde o app foi aberto';
+
+  @override
+  String get syncTestConnection => 'Testar conexão';
+
+  @override
+  String get syncTesting => 'Testando…';
+
+  @override
+  String syncTestOk(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Conectado. $count documentos no servidor.',
+      one: 'Conectado. 1 documento no servidor.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String syncTestFailed(String error) {
+    return 'Falhou: $error';
+  }
+
+  @override
+  String get syncOff => 'Sincronização desligada';
+
+  @override
+  String get syncNever => 'Ainda não sincronizado';
+
+  @override
+  String syncLast(String time) {
+    return 'Última sincronização: $time';
+  }
 }
