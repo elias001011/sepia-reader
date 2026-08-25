@@ -508,4 +508,24 @@ class AppLocalizationsPt extends AppLocalizations {
   String syncLast(String time) {
     return 'Última sincronização: $time';
   }
+
+  @override
+  String get syncDisabledTitle => 'Sincronização desligada';
+
+  @override
+  String get syncDisabledBody =>
+      'Sua biblioteca continua completa neste aparelho. E a cópia no servidor?';
+
+  @override
+  String get syncKeepOnServer => 'Manter no servidor';
+
+  @override
+  String get syncWipeFromServer => 'Apagar do servidor';
+
+  @override
+  String get syncWipeFailed =>
+      'Sincronização desligada, mas não foi possível apagar a cópia no servidor. Ela continua lá.';
+
+  @override
+  String get syncWipeDone => 'Cópia do servidor apagada.';
 }

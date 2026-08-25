@@ -925,6 +925,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Last sync: {time}'**
   String syncLast(String time);
+
+  /// No description provided for @syncDisabledTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing turned off'**
+  String get syncDisabledTitle;
+
+  /// No description provided for @syncDisabledBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your library stays complete on this device. What about the copy on the server?'**
+  String get syncDisabledBody;
+
+  /// No description provided for @syncKeepOnServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep on server'**
+  String get syncKeepOnServer;
+
+  /// No description provided for @syncWipeFromServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Erase from server'**
+  String get syncWipeFromServer;
+
+  /// No description provided for @syncWipeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing is off, but the copy on the server could not be erased. It is still there.'**
+  String get syncWipeFailed;
+
+  /// No description provided for @syncWipeDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Server copy erased.'**
+  String get syncWipeDone;
 }
 
 class _AppLocalizationsDelegate
