@@ -11,6 +11,7 @@ class AppSettings {
     this.readerBackground = const Color(0xFF6B4933),
     this.readerText = const Color(0xFFFFF8ED),
     this.readerFollowsTheme = false,
+    this.autoHideReaderControls = false,
     this.readerFont = 'Merriweather',
     this.readerFontSize = 20,
     this.readerLineHeight = 1.75,
@@ -25,6 +26,7 @@ class AppSettings {
   final Color readerBackground;
   final Color readerText;
   final bool readerFollowsTheme;
+  final bool autoHideReaderControls;
   final String readerFont;
   final double readerFontSize;
   final double readerLineHeight;
@@ -40,6 +42,7 @@ class AppSettings {
     Color? readerBackground,
     Color? readerText,
     bool? readerFollowsTheme,
+    bool? autoHideReaderControls,
     String? readerFont,
     double? readerFontSize,
     double? readerLineHeight,
@@ -54,6 +57,8 @@ class AppSettings {
     readerBackground: readerBackground ?? this.readerBackground,
     readerText: readerText ?? this.readerText,
     readerFollowsTheme: readerFollowsTheme ?? this.readerFollowsTheme,
+    autoHideReaderControls:
+        autoHideReaderControls ?? this.autoHideReaderControls,
     readerFont: readerFont ?? this.readerFont,
     readerFontSize: readerFontSize ?? this.readerFontSize,
     readerLineHeight: readerLineHeight ?? this.readerLineHeight,
@@ -70,6 +75,7 @@ class AppSettings {
     'readerBackground': readerBackground.toARGB32(),
     'readerText': readerText.toARGB32(),
     'readerFollowsTheme': readerFollowsTheme,
+    'autoHideReaderControls': autoHideReaderControls,
     'readerFont': readerFont,
     'readerFontSize': readerFontSize,
     'readerLineHeight': readerLineHeight,
@@ -91,6 +97,7 @@ class AppSettings {
       readerBackground: Color(json['readerBackground'] as int? ?? 0xFF6B4933),
       readerText: Color(json['readerText'] as int? ?? 0xFFFFF8ED),
       readerFollowsTheme: json['readerFollowsTheme'] as bool? ?? false,
+      autoHideReaderControls: json['autoHideReaderControls'] as bool? ?? false,
       readerFont: json['readerFont'] as String? ?? 'Merriweather',
       readerFontSize: (json['readerFontSize'] as num? ?? 20).toDouble(),
       readerLineHeight: (json['readerLineHeight'] as num? ?? 1.75).toDouble(),

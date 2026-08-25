@@ -102,6 +102,25 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> renameDocument(String id, String name) async {
+    final index = _documents.indexWhere((document) => document.id == id);
+    if (index == -1) return;
+    final document = _documents[index];
+    final suffix = '.${document.extension}';
+    var cleanTitle = name.trim();
+    if (cleanTitle.toLowerCase().endsWith(suffix.toLowerCase())) {
+      cleanTitle = cleanTitle.substring(0, cleanTitle.length - suffix.length);
+    }
+    cleanTitle = cleanTitle.trim();
+    if (cleanTitle.isEmpty) return;
+    _documents[index] = document.copyWith(
+      title: cleanTitle,
+      updatedAt: DateTime.now(),
+    );
+    await _persistDocuments();
+    notifyListeners();
+  }
+
   Future<void> deleteDocument(String id) async {
     _documents.removeWhere((document) => document.id == id);
     await _persistDocuments();

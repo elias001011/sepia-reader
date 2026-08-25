@@ -188,6 +188,18 @@ abstract class AppLocalizations {
   /// **'Reading colors are independent unless “Follow app theme” is enabled in Reading settings.'**
   String get readerThemeHint;
 
+  /// No description provided for @autoHideReaderControls.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide controls while reading'**
+  String get autoHideReaderControls;
+
+  /// No description provided for @autoHideReaderControlsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'In reading mode, hide controls after a moment or while scrolling. Tap the top to show them.'**
+  String get autoHideReaderControlsDescription;
+
   /// No description provided for @saveAppearance.
   ///
   /// In en, this message translates to:
@@ -398,6 +410,12 @@ abstract class AppLocalizations {
   /// **'Rename folder'**
   String get renameFolder;
 
+  /// No description provided for @renameDocument.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename file'**
+  String get renameDocument;
+
   /// No description provided for @rename.
   ///
   /// In en, this message translates to:
@@ -457,6 +475,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{imported} compatible files imported · {skipped} skipped'**
   String folderImported(int imported, int skipped);
+
+  /// No description provided for @filesImported.
+  ///
+  /// In en, this message translates to:
+  /// **'{imported} files imported · {skipped} skipped'**
+  String filesImported(int imported, int skipped);
+
+  /// No description provided for @dropFilesHere.
+  ///
+  /// In en, this message translates to:
+  /// **'Drop files to import'**
+  String get dropFilesHere;
+
+  /// No description provided for @dropFilesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Markdown, text, or code · up to 5 MB per file'**
+  String get dropFilesHint;
 
   /// No description provided for @libraryTitle.
   ///

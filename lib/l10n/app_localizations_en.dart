@@ -57,6 +57,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Reading colors are independent unless “Follow app theme” is enabled in Reading settings.';
 
   @override
+  String get autoHideReaderControls => 'Hide controls while reading';
+
+  @override
+  String get autoHideReaderControlsDescription =>
+      'In reading mode, hide controls after a moment or while scrolling. Tap the top to show them.';
+
+  @override
   String get saveAppearance => 'Save appearance';
 
   @override
@@ -166,6 +173,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get renameFolder => 'Rename folder';
 
   @override
+  String get renameDocument => 'Rename file';
+
+  @override
   String get rename => 'Rename';
 
   @override
@@ -209,6 +219,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String folderImported(int imported, int skipped) {
     return '$imported compatible files imported · $skipped skipped';
   }
+
+  @override
+  String filesImported(int imported, int skipped) {
+    return '$imported files imported · $skipped skipped';
+  }
+
+  @override
+  String get dropFilesHere => 'Drop files to import';
+
+  @override
+  String get dropFilesHint => 'Markdown, text, or code · up to 5 MB per file';
 
   @override
   String get libraryTitle => 'Library';

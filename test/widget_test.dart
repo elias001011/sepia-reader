@@ -49,6 +49,30 @@ void main() {
       findsOneWidget,
     );
     expect(find.widgetWithText(FilledButton, 'Modo leitura'), findsNothing);
+    await tester.tap(
+      find.byWidgetPredicate(
+        (widget) => widget is IconButton && widget.tooltip == 'Modo leitura',
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester.getSize(
+        find.descendant(
+          of: find.byTooltip('Voltar à biblioteca'),
+          matching: find.byType(IconButton),
+        ),
+      ),
+      const Size(36, 36),
+    );
+    await tester.pump(const Duration(seconds: 4));
+    expect(
+      tester
+          .widget<AnimatedOpacity>(
+            find.byKey(const ValueKey('reader-controls')),
+          )
+          .opacity,
+      1,
+    );
     final mobileException = tester.takeException();
     expect(
       mobileException,
@@ -57,6 +81,40 @@ void main() {
           ? mobileException.toStringDeep()
           : '$mobileException',
     );
+  });
+
+  testWidgets('oculta controles de leitura e os revela ao tocar no topo', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    _useLocale('pt_BR', autoHideReaderControls: true);
+    final controller = AppController();
+    await controller.initialize();
+
+    await tester.pumpWidget(SepiaApp(controller: controller));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Bem-vindo ao Sépia.md'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Bem-vindo ao Sépia.md'));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byWidgetPredicate(
+        (widget) => widget is IconButton && widget.tooltip == 'Modo leitura',
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    final controls = find.byKey(const ValueKey('reader-controls'));
+    expect(tester.widget<AnimatedOpacity>(controls).opacity, 0);
+
+    await tester.tapAt(const Offset(195, 20));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(tester.widget<AnimatedOpacity>(controls).opacity, 1);
   });
 
   testWidgets('exibe a interface e o documento inicial em inglês', (
@@ -139,12 +197,37 @@ void main() {
     expect(find.text('Sua próxima leitura começa aqui'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('renomeia um arquivo pelo menu do cartão', (tester) async {
+    _useLocale('pt_BR');
+    final controller = AppController();
+    await controller.initialize();
+
+    await tester.pumpWidget(SepiaApp(controller: controller));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(PopupMenuButton<String>).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Renomear'));
+    await tester.pumpAndSettle();
+
+    final nameField = find.byType(TextField).last;
+    await tester.enterText(nameField, 'Minha fic');
+    await tester.tap(find.widgetWithText(FilledButton, 'Renomear'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Minha fic.md'), findsOneWidget);
+    expect(controller.documents.single.title, 'Minha fic');
+    expect(controller.documents.single.extension, 'md');
+  });
 }
 
-void _useLocale(String localeCode) {
+void _useLocale(String localeCode, {bool autoHideReaderControls = false}) {
   SharedPreferences.setMockInitialValues({
     'sepia.settings.v1': jsonEncode(
-      AppSettings(localeCode: localeCode).toJson(),
+      AppSettings(
+        localeCode: localeCode,
+        autoHideReaderControls: autoHideReaderControls,
+      ).toJson(),
     ),
   });
 }
