@@ -1,0 +1,76 @@
+import 'package:flutter/material.dart';
+
+class AppSettings {
+  const AppSettings({
+    this.themeMode = ThemeMode.system,
+    this.seedColor = const Color(0xFF9A6B45),
+    this.appBackground = const Color(0xFFF5EFE6),
+    this.readerBackground = const Color(0xFF6B4933),
+    this.readerText = const Color(0xFFFFF8ED),
+    this.readerFont = 'Merriweather',
+    this.readerFontSize = 20,
+    this.readerLineHeight = 1.75,
+    this.readerWidth = 760,
+  });
+  final ThemeMode themeMode;
+  final Color seedColor;
+  final Color appBackground;
+  final Color readerBackground;
+  final Color readerText;
+  final String readerFont;
+  final double readerFontSize;
+  final double readerLineHeight;
+  final double readerWidth;
+
+  AppSettings copyWith({
+    ThemeMode? themeMode,
+    Color? seedColor,
+    Color? appBackground,
+    Color? readerBackground,
+    Color? readerText,
+    String? readerFont,
+    double? readerFontSize,
+    double? readerLineHeight,
+    double? readerWidth,
+  }) => AppSettings(
+    themeMode: themeMode ?? this.themeMode,
+    seedColor: seedColor ?? this.seedColor,
+    appBackground: appBackground ?? this.appBackground,
+    readerBackground: readerBackground ?? this.readerBackground,
+    readerText: readerText ?? this.readerText,
+    readerFont: readerFont ?? this.readerFont,
+    readerFontSize: readerFontSize ?? this.readerFontSize,
+    readerLineHeight: readerLineHeight ?? this.readerLineHeight,
+    readerWidth: readerWidth ?? this.readerWidth,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'themeMode': themeMode.name,
+    'seedColor': seedColor.toARGB32(),
+    'appBackground': appBackground.toARGB32(),
+    'readerBackground': readerBackground.toARGB32(),
+    'readerText': readerText.toARGB32(),
+    'readerFont': readerFont,
+    'readerFontSize': readerFontSize,
+    'readerLineHeight': readerLineHeight,
+    'readerWidth': readerWidth,
+  };
+
+  factory AppSettings.fromJson(Map<String, dynamic> json) {
+    final modeName = json['themeMode'] as String? ?? 'system';
+    return AppSettings(
+      themeMode: ThemeMode.values.firstWhere(
+        (mode) => mode.name == modeName,
+        orElse: () => ThemeMode.system,
+      ),
+      seedColor: Color(json['seedColor'] as int? ?? 0xFF9A6B45),
+      appBackground: Color(json['appBackground'] as int? ?? 0xFFF5EFE6),
+      readerBackground: Color(json['readerBackground'] as int? ?? 0xFF6B4933),
+      readerText: Color(json['readerText'] as int? ?? 0xFFFFF8ED),
+      readerFont: json['readerFont'] as String? ?? 'Merriweather',
+      readerFontSize: (json['readerFontSize'] as num? ?? 20).toDouble(),
+      readerLineHeight: (json['readerLineHeight'] as num? ?? 1.75).toDouble(),
+      readerWidth: (json['readerWidth'] as num? ?? 760).toDouble(),
+    );
+  }
+}
