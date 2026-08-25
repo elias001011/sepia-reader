@@ -438,4 +438,23 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get exitReadingMode => 'Exit reading mode';
+
+  @override
+  String get addBookmark => 'Bookmark this spot';
+
+  @override
+  String get bookmarkAdded => 'Bookmark added';
+
+  @override
+  String get bookmarks => 'Bookmarks';
+
+  @override
+  String get bookmarksEmpty =>
+      'No bookmarks yet. Tap the bookmark icon on the reading bar to save where you left off.';
+
+  @override
+  String get removeBookmark => 'Remove bookmark';
+
+  @override
+  String get goToBookmark => 'Go to bookmark';
 }

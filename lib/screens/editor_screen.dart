@@ -3,10 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../l10n/l10n.dart';
+import '../models/bookmark.dart';
 import '../models/library_document.dart';
 import '../services/document_io.dart';
 import '../state/app_controller.dart';
 import '../widgets/markdown_view.dart';
+import 'bookmarks_sheet.dart';
 import 'reader_settings_sheet.dart';
 
 class EditorScreen extends StatefulWidget {
@@ -27,12 +29,14 @@ class _EditorScreenState extends State<EditorScreen> {
   late final TextEditingController _titleController;
   final UndoHistoryController _undoController = UndoHistoryController();
   final ScrollController _readerScrollController = ScrollController();
+  final ValueNotifier<double> _readerScrollOffset = ValueNotifier(0);
   Timer? _saveTimer;
   Timer? _readerControlsTimer;
   bool _dirty = false;
   bool _readingMode = false;
   bool _readerControlsVisible = true;
   bool _showPreview = false;
+  String? _activeBookmarkPopupId;
 
   LibraryDocument? get _stored =>
       widget.controller.documentById(widget.documentId);
@@ -47,6 +51,7 @@ class _EditorScreenState extends State<EditorScreen> {
       ..addListener(_onChanged);
     _undoController.addListener(_refresh);
     widget.controller.addListener(_refresh);
+    _readerScrollController.addListener(_onReaderOffsetChanged);
   }
 
   @override
@@ -57,10 +62,18 @@ class _EditorScreenState extends State<EditorScreen> {
     widget.controller.removeListener(_refresh);
     _undoController.removeListener(_refresh);
     _undoController.dispose();
+    _readerScrollController.removeListener(_onReaderOffsetChanged);
     _readerScrollController.dispose();
+    _readerScrollOffset.dispose();
     _contentController.dispose();
     _titleController.dispose();
     super.dispose();
+  }
+
+  void _onReaderOffsetChanged() {
+    if (_readerScrollController.hasClients) {
+      _readerScrollOffset.value = _readerScrollController.offset;
+    }
   }
 
   void _refresh() {
@@ -98,6 +111,63 @@ class _EditorScreenState extends State<EditorScreen> {
       _readerControlsVisible = true;
     });
     _scheduleReaderControlsHide();
+  }
+
+  Future<void> _addBookmarkHere() async {
+    if (!_readerScrollController.hasClients) return;
+    final position = _readerScrollController.position;
+    final fraction = position.maxScrollExtent > 0
+        ? (position.pixels / position.maxScrollExtent).clamp(0.0, 1.0)
+        : 0.0;
+    final content = _stored?.content ?? '';
+    final anchor = (fraction * content.length).round().clamp(
+      0,
+      content.length,
+    );
+    final start = (anchor - 40).clamp(0, content.length);
+    final end = (anchor + 40).clamp(0, content.length);
+    final excerpt = content
+        .substring(start, end)
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    await widget.controller.addBookmark(
+      widget.documentId,
+      scrollFraction: fraction,
+      excerpt: excerpt.isEmpty ? context.l10n.untitled : excerpt,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(context.l10n.bookmarkAdded),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Future<void> _goToBookmark(ReadingBookmark bookmark) async {
+    if (!_readerScrollController.hasClients) return;
+    final maxExtent = _readerScrollController.position.maxScrollExtent;
+    await _readerScrollController.animateTo(
+      (bookmark.scrollFraction * maxExtent).clamp(0.0, maxExtent),
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOut,
+    );
+  }
+
+  void _openBookmarksSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => BookmarksSheet(
+        bookmarks: widget.controller.bookmarksForDocument(widget.documentId),
+        onOpen: (bookmark) {
+          Navigator.pop(sheetContext);
+          _goToBookmark(bookmark);
+        },
+        onRemove: (bookmark) => widget.controller.removeBookmark(bookmark.id),
+      ),
+    );
   }
 
   @override
@@ -463,6 +533,36 @@ class _EditorScreenState extends State<EditorScreen> {
                 ),
               ),
             ),
+            if (widget.controller
+                .bookmarksForDocument(widget.documentId)
+                .isNotEmpty)
+              Positioned.fill(
+                child: ValueListenableBuilder<double>(
+                  valueListenable: _readerScrollOffset,
+                  builder: (context, offset, _) {
+                    if (!_readerScrollController.hasClients) {
+                      return const SizedBox.shrink();
+                    }
+                    final maxExtent =
+                        _readerScrollController.position.maxScrollExtent;
+                    final viewportHeight = constraints.maxHeight;
+                    return Stack(
+                      children: [
+                        for (final bookmark in widget.controller
+                            .bookmarksForDocument(widget.documentId))
+                          _bookmarkMarker(
+                            context,
+                            bookmark,
+                            offset,
+                            maxExtent,
+                            compact,
+                            viewportHeight,
+                          ),
+                      ],
+                    );
+                  },
+                ),
+              ),
             Positioned(
               top: 0,
               left: 0,
@@ -503,6 +603,22 @@ class _EditorScreenState extends State<EditorScreen> {
                           onPressed: _close,
                         ),
                         const Spacer(),
+                        _readerButton(
+                          context,
+                          compact: compact,
+                          tooltip: context.l10n.addBookmark,
+                          icon: Icons.bookmark_add_rounded,
+                          onPressed: _addBookmarkHere,
+                        ),
+                        SizedBox(width: compact ? 5 : 8),
+                        _readerButton(
+                          context,
+                          compact: compact,
+                          tooltip: context.l10n.bookmarks,
+                          icon: Icons.bookmark_rounded,
+                          onPressed: _openBookmarksSheet,
+                        ),
+                        SizedBox(width: compact ? 5 : 8),
                         _readerButton(
                           context,
                           compact: compact,
@@ -559,6 +675,86 @@ class _EditorScreenState extends State<EditorScreen> {
       ),
     ),
   );
+
+  Widget _bookmarkMarker(
+    BuildContext context,
+    ReadingBookmark bookmark,
+    double scrollOffset,
+    double maxExtent,
+    bool compact,
+    double viewportHeight,
+  ) {
+    final top = bookmark.scrollFraction * maxExtent - scrollOffset;
+    if (top < -32 || top > viewportHeight + 32) return const SizedBox.shrink();
+    final isOpen = _activeBookmarkPopupId == bookmark.id;
+    final scheme = Theme.of(context).colorScheme;
+    return Positioned(
+      right: compact ? 6 : 10,
+      top: top,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Material(
+            color: scheme.primary,
+            shape: const CircleBorder(),
+            elevation: 2,
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: () => setState(
+                () => _activeBookmarkPopupId = isOpen ? null : bookmark.id,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(6),
+                child: Icon(
+                  Icons.bookmark_rounded,
+                  size: 14,
+                  color: scheme.onPrimary,
+                ),
+              ),
+            ),
+          ),
+          if (isOpen)
+            Container(
+              margin: const EdgeInsets.only(top: 6),
+              constraints: const BoxConstraints(maxWidth: 220),
+              padding: const EdgeInsets.fromLTRB(12, 6, 6, 6),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: .25),
+                    blurRadius: 10,
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      bookmark.excerpt,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: context.l10n.removeBookmark,
+                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () {
+                      widget.controller.removeBookmark(bookmark.id);
+                      setState(() => _activeBookmarkPopupId = null);
+                    },
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 
   bool _onReaderScroll(ScrollNotification notification) {
     if (!widget.controller.settings.autoHideReaderControls) return false;
