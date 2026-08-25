@@ -1,8 +1,12 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/app_settings.dart';
+import '../models/folder_import.dart';
 import '../models/library_document.dart';
+import '../models/library_folder.dart';
 import '../services/storage_service.dart';
 
 class AppController extends ChangeNotifier {
@@ -11,6 +15,7 @@ class AppController extends ChangeNotifier {
   final StorageService _storage;
   final Uuid _uuid = const Uuid();
   final List<LibraryDocument> _documents = [];
+  final List<LibraryFolder> _folders = [];
   AppSettings _settings = const AppSettings();
 
   List<LibraryDocument> get documents {
@@ -24,8 +29,23 @@ class AppController extends ChangeNotifier {
 
   AppSettings get settings => _settings;
 
+  List<LibraryFolder> get folders {
+    final sorted = List<LibraryFolder>.from(_folders)
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    return List.unmodifiable(sorted);
+  }
+
+  List<LibraryFolder> foldersIn(String? parentId) => folders
+      .where((folder) => folder.parentId == parentId)
+      .toList(growable: false);
+
+  List<LibraryDocument> documentsIn(String? folderId) => documents
+      .where((document) => document.folderId == folderId)
+      .toList(growable: false);
+
   Future<void> initialize() async {
     _settings = await _storage.loadSettings();
+    _folders.addAll(await _storage.loadFolders());
     _documents.addAll(await _storage.loadDocuments());
     if (_documents.isEmpty) {
       final now = DateTime.now();
@@ -48,6 +68,7 @@ class AppController extends ChangeNotifier {
     required String title,
     String extension = 'md',
     String content = '',
+    String? folderId,
   }) async {
     final now = DateTime.now();
     final ext = extension.replaceFirst('.', '').toLowerCase();
@@ -65,6 +86,7 @@ class AppController extends ChangeNotifier {
       extension: ext,
       createdAt: now,
       updatedAt: now,
+      folderId: folderId,
     );
     _documents.add(document);
     await _persistDocuments();
@@ -96,12 +118,155 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<LibraryFolder> createFolder({
+    required String name,
+    String? parentId,
+  }) async {
+    final folder = _createFolderInMemory(name: name, parentId: parentId);
+    await _persistFolders();
+    notifyListeners();
+    return folder;
+  }
+
+  Future<void> renameFolder(String id, String name) async {
+    final index = _folders.indexWhere((folder) => folder.id == id);
+    final cleanName = _cleanFolderName(name);
+    if (index == -1 || cleanName.isEmpty) return;
+    _folders[index] = _folders[index].copyWith(
+      name: _uniqueFolderName(
+        cleanName,
+        _folders[index].parentId,
+        exceptId: id,
+      ),
+      updatedAt: DateTime.now(),
+    );
+    await _persistFolders();
+    notifyListeners();
+  }
+
+  Future<void> moveDocument(String documentId, String? folderId) async {
+    final index = _documents.indexWhere(
+      (document) => document.id == documentId,
+    );
+    if (index == -1) return;
+    _documents[index] = _documents[index].copyWith(
+      folderId: folderId,
+      moveToRoot: folderId == null,
+      updatedAt: DateTime.now(),
+    );
+    await _persistDocuments();
+    notifyListeners();
+  }
+
+  Future<bool> deleteEmptyFolder(String id) async {
+    final index = _folders.indexWhere((folder) => folder.id == id);
+    if (index == -1 ||
+        _folders.any((folder) => folder.parentId == id) ||
+        _documents.any((document) => document.folderId == id)) {
+      return false;
+    }
+    _folders.removeAt(index);
+    await _persistFolders();
+    notifyListeners();
+    return true;
+  }
+
+  Future<int> importFolder(
+    FolderImportSelection selection, {
+    String? parentId,
+  }) async {
+    if (selection.files.isEmpty) return 0;
+    final root = _createFolderInMemory(
+      name: selection.folderName,
+      parentId: parentId,
+    );
+    final folderIds = <String, String>{'': root.id};
+    var imported = 0;
+
+    for (final file in selection.files) {
+      final parts = file.relativePath
+          .replaceAll('\\', '/')
+          .split('/')
+          .where((part) => part.trim().isNotEmpty)
+          .toList();
+      if (parts.isEmpty) continue;
+      final filename = parts.removeLast();
+      var currentPath = '';
+      var currentFolderId = root.id;
+      for (final segment in parts) {
+        currentPath = currentPath.isEmpty ? segment : '$currentPath/$segment';
+        currentFolderId = folderIds.putIfAbsent(
+          currentPath,
+          () => _createFolderInMemory(
+            name: segment,
+            parentId: currentFolderId,
+          ).id,
+        );
+      }
+      final nameParts = filename.split('.');
+      final extension = nameParts.length > 1
+          ? nameParts.removeLast().toLowerCase()
+          : 'txt';
+      final title = nameParts.join('.');
+      _createDocumentInMemory(
+        title: title,
+        extension: extension,
+        content: utf8.decode(file.bytes, allowMalformed: true),
+        folderId: currentFolderId,
+      );
+      imported++;
+    }
+
+    await _persistLibrary();
+    notifyListeners();
+    return imported;
+  }
+
   LibraryDocument? documentById(String id) {
     try {
       return _documents.firstWhere((document) => document.id == id);
     } catch (_) {
       return null;
     }
+  }
+
+  LibraryFolder? folderById(String id) {
+    try {
+      return _folders.firstWhere((folder) => folder.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  List<LibraryFolder> folderPath(String? folderId) {
+    final path = <LibraryFolder>[];
+    final seen = <String>{};
+    var currentId = folderId;
+    while (currentId != null && seen.add(currentId)) {
+      final folder = folderById(currentId);
+      if (folder == null) break;
+      path.insert(0, folder);
+      currentId = folder.parentId;
+    }
+    return path;
+  }
+
+  int folderDocumentCount(String folderId) {
+    final ids = <String>{folderId};
+    var changed = true;
+    while (changed) {
+      changed = false;
+      for (final folder in _folders) {
+        if (folder.parentId != null &&
+            ids.contains(folder.parentId) &&
+            ids.add(folder.id)) {
+          changed = true;
+        }
+      }
+    }
+    return _documents
+        .where((document) => ids.contains(document.folderId))
+        .length;
   }
 
   Future<void> updateSettings(AppSettings settings) async {
@@ -111,6 +276,78 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> _persistDocuments() => _storage.saveDocuments(_documents);
+
+  Future<void> _persistFolders() => _storage.saveFolders(_folders);
+
+  Future<void> _persistLibrary() async {
+    await Future.wait([_persistDocuments(), _persistFolders()]);
+  }
+
+  LibraryFolder _createFolderInMemory({
+    required String name,
+    String? parentId,
+  }) {
+    final now = DateTime.now();
+    final cleanName = _cleanFolderName(name);
+    final folder = LibraryFolder(
+      id: _uuid.v4(),
+      name: _uniqueFolderName(
+        cleanName.isEmpty
+            ? (_usesEnglish ? 'New folder' : 'Nova pasta')
+            : cleanName,
+        parentId,
+      ),
+      parentId: parentId,
+      createdAt: now,
+      updatedAt: now,
+    );
+    _folders.add(folder);
+    return folder;
+  }
+
+  LibraryDocument _createDocumentInMemory({
+    required String title,
+    required String extension,
+    required String content,
+    String? folderId,
+  }) {
+    final now = DateTime.now();
+    final document = LibraryDocument(
+      id: _uuid.v4(),
+      title: title.trim().isEmpty
+          ? (_usesEnglish ? 'Untitled' : 'Sem título')
+          : title.trim(),
+      content: content,
+      extension: extension,
+      folderId: folderId,
+      createdAt: now,
+      updatedAt: now,
+    );
+    _documents.add(document);
+    return document;
+  }
+
+  String _cleanFolderName(String name) => name
+      .trim()
+      .replaceAll(RegExp(r'[\\/]'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ');
+
+  String _uniqueFolderName(
+    String requested,
+    String? parentId, {
+    String? exceptId,
+  }) {
+    final names = _folders
+        .where((folder) => folder.parentId == parentId && folder.id != exceptId)
+        .map((folder) => folder.name.toLowerCase())
+        .toSet();
+    if (!names.contains(requested.toLowerCase())) return requested;
+    var suffix = 2;
+    while (names.contains('$requested $suffix'.toLowerCase())) {
+      suffix++;
+    }
+    return '$requested $suffix';
+  }
 
   bool get _usesEnglish {
     if (_settings.localeCode == 'en') return true;

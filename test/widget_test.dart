@@ -38,6 +38,8 @@ void main() {
     expect(find.text('Novo'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
+    await tester.ensureVisible(find.text('Bem-vindo ao Sépia.md'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Bem-vindo ao Sépia.md'));
     await tester.pumpAndSettle();
     expect(
@@ -82,6 +84,8 @@ void main() {
 
     await tester.pumpWidget(SepiaApp(controller: controller));
     await tester.pump();
+    await tester.ensureVisible(find.text('Bem-vindo ao Sépia.md'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Bem-vindo ao Sépia.md'));
     await tester.pumpAndSettle();
 
@@ -114,6 +118,26 @@ void main() {
       'texto novo',
     );
     await tester.pump(const Duration(milliseconds: 800));
+  });
+
+  testWidgets('cria e abre uma pasta na biblioteca', (tester) async {
+    _useLocale('pt_BR');
+    final controller = AppController();
+    await controller.initialize();
+    await controller.createFolder(name: 'Ficções');
+
+    await tester.pumpWidget(SepiaApp(controller: controller));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ficções'), findsOneWidget);
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -400));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ficções'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Raiz da biblioteca'), findsOneWidget);
+    expect(find.text('Sua próxima leitura começa aqui'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }
 

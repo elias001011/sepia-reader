@@ -140,6 +140,12 @@ abstract class AppLocalizations {
   /// **'Dark'**
   String get dark;
 
+  /// No description provided for @amoled.
+  ///
+  /// In en, this message translates to:
+  /// **'AMOLED'**
+  String get amoled;
+
   /// No description provided for @language.
   ///
   /// In en, this message translates to:
@@ -170,6 +176,18 @@ abstract class AppLocalizations {
   /// **'Light theme background'**
   String get lightThemeBackground;
 
+  /// No description provided for @darkThemeBackground.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark theme background'**
+  String get darkThemeBackground;
+
+  /// No description provided for @readerThemeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading colors are independent unless “Follow app theme” is enabled in Reading settings.'**
+  String get readerThemeHint;
+
   /// No description provided for @saveAppearance.
   ///
   /// In en, this message translates to:
@@ -187,6 +205,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'These settings apply to every document.'**
   String get readerSettingsDescription;
+
+  /// No description provided for @followAppTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow app theme'**
+  String get followAppTheme;
+
+  /// No description provided for @followAppThemeDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the current app surfaces and text colors while reading.'**
+  String get followAppThemeDescription;
 
   /// No description provided for @presets.
   ///
@@ -331,6 +361,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Import files'**
   String get importFiles;
+
+  /// No description provided for @importFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Import folder'**
+  String get importFolder;
+
+  /// No description provided for @compatibleFilesOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Only compatible text and code files will be added.'**
+  String get compatibleFilesOnly;
+
+  /// No description provided for @newFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'New folder'**
+  String get newFolder;
+
+  /// No description provided for @folderName.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder name'**
+  String get folderName;
+
+  /// No description provided for @folderNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Books to read'**
+  String get folderNameHint;
+
+  /// No description provided for @renameFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename folder'**
+  String get renameFolder;
+
+  /// No description provided for @rename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get rename;
+
+  /// No description provided for @root.
+  ///
+  /// In en, this message translates to:
+  /// **'Library root'**
+  String get root;
+
+  /// No description provided for @moveTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to…'**
+  String get moveTo;
+
+  /// No description provided for @moveDocument.
+  ///
+  /// In en, this message translates to:
+  /// **'Move document'**
+  String get moveDocument;
+
+  /// No description provided for @openFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Open folder'**
+  String get openFolder;
+
+  /// No description provided for @folderNotEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'This folder is not empty. Move or delete its contents first.'**
+  String get folderNotEmpty;
+
+  /// No description provided for @noCompatibleFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'No compatible files were found in this folder.'**
+  String get noCompatibleFiles;
+
+  /// No description provided for @folderCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{no folders} =1{1 folder} other{{count} folders}}'**
+  String folderCount(int count);
+
+  /// No description provided for @folderContents.
+  ///
+  /// In en, this message translates to:
+  /// **'{files} files · {folders} folders'**
+  String folderContents(int files, int folders);
+
+  /// No description provided for @folderImported.
+  ///
+  /// In en, this message translates to:
+  /// **'{imported} compatible files imported · {skipped} skipped'**
+  String folderImported(int imported, int skipped);
 
   /// No description provided for @libraryTitle.
   ///

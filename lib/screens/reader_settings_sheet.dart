@@ -52,6 +52,16 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
                   context.l10n.readerSettingsDescription,
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
+                const SizedBox(height: 10),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(context.l10n.followAppTheme),
+                  subtitle: Text(context.l10n.followAppThemeDescription),
+                  value: _draft.readerFollowsTheme,
+                  onChanged: (value) => setState(
+                    () => _draft = _draft.copyWith(readerFollowsTheme: value),
+                  ),
+                ),
                 const SizedBox(height: 22),
                 Text(
                   context.l10n.presets,
@@ -85,6 +95,12 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
                       context.l10n.nightPreset,
                       const Color(0xFF111318),
                       const Color(0xFFE8E2DA),
+                    ),
+                    _preset(
+                      context,
+                      context.l10n.amoled,
+                      Colors.black,
+                      const Color(0xFFF5F5F5),
                     ),
                   ],
                 ),
@@ -157,14 +173,20 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
                   label: context.l10n.readerBackground,
                   value: _draft.readerBackground,
                   onChanged: (value) => setState(
-                    () => _draft = _draft.copyWith(readerBackground: value),
+                    () => _draft = _draft.copyWith(
+                      readerBackground: value,
+                      readerFollowsTheme: false,
+                    ),
                   ),
                 ),
                 ColorField(
                   label: context.l10n.textColor,
                   value: _draft.readerText,
                   onChanged: (value) => setState(
-                    () => _draft = _draft.copyWith(readerText: value),
+                    () => _draft = _draft.copyWith(
+                      readerText: value,
+                      readerFollowsTheme: false,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -206,6 +228,7 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
       () => _draft = _draft.copyWith(
         readerBackground: background,
         readerText: text,
+        readerFollowsTheme: false,
       ),
     ),
   );

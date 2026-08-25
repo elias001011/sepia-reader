@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 
 import '../l10n/l10n.dart';
 import '../models/library_document.dart';
+import '../models/library_folder.dart';
 import '../services/document_io.dart';
+import '../services/folder_importer.dart';
 import '../state/app_controller.dart';
 import 'editor_screen.dart';
 import 'settings_sheet.dart';
@@ -21,6 +23,8 @@ class LibraryScreen extends StatefulWidget {
 class _LibraryScreenState extends State<LibraryScreen> {
   final _searchController = TextEditingController();
   String _query = '';
+  String? _currentFolderId;
+  bool _isImportingFolder = false;
 
   @override
   void initState() {
@@ -41,18 +45,27 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final documents = widget.controller.documents.where((document) {
+    final searching = _query.trim().isNotEmpty;
+    final sourceDocuments = searching
+        ? widget.controller.documents
+        : widget.controller.documentsIn(_currentFolderId);
+    final documents = sourceDocuments.where((document) {
       final haystack =
           '${document.title}.${document.extension} ${document.content}'
               .toLowerCase();
       return haystack.contains(_query.toLowerCase());
     }).toList();
+    final folders = searching
+        ? const <LibraryFolder>[]
+        : widget.controller.foldersIn(_currentFolderId);
 
     return Scaffold(
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
             SliverToBoxAdapter(child: _topBar(context)),
+            if (_isImportingFolder)
+              const SliverToBoxAdapter(child: LinearProgressIndicator()),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 28, 20, 48),
               sliver: SliverToBoxAdapter(
@@ -63,10 +76,16 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _hero(context),
-                        const SizedBox(height: 30),
-                        _sectionHeader(context, documents.length),
+                        const SizedBox(height: 22),
+                        _breadcrumbs(context),
+                        const SizedBox(height: 22),
+                        _sectionHeader(
+                          context,
+                          documentCount: documents.length,
+                          folderCount: folders.length,
+                        ),
                         const SizedBox(height: 16),
-                        if (documents.isEmpty)
+                        if (documents.isEmpty && folders.isEmpty)
                           _emptyState(context)
                         else
                           LayoutBuilder(
@@ -86,16 +105,40 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                       crossAxisSpacing: 16,
                                       mainAxisSpacing: 16,
                                     ),
-                                itemCount: documents.length,
-                                itemBuilder: (context, index) => _DocumentCard(
-                                  document: documents[index],
-                                  onOpen: () => _open(documents[index]),
-                                  onFavorite: () => widget.controller
-                                      .toggleFavorite(documents[index].id),
-                                  onExport: () => _export(documents[index]),
-                                  onDelete: () =>
-                                      _confirmDelete(documents[index]),
-                                ),
+                                itemCount: folders.length + documents.length,
+                                itemBuilder: (context, index) {
+                                  if (index < folders.length) {
+                                    final folder = folders[index];
+                                    return _FolderCard(
+                                      folder: folder,
+                                      documentCount: widget.controller
+                                          .folderDocumentCount(folder.id),
+                                      childFolderCount: widget.controller
+                                          .foldersIn(folder.id)
+                                          .length,
+                                      onOpen: () => _enterFolder(folder.id),
+                                      onRename: () => _renameFolder(folder),
+                                      onDelete: () => _deleteFolder(folder),
+                                    );
+                                  }
+                                  final document =
+                                      documents[index - folders.length];
+                                  return _DocumentCard(
+                                    document: document,
+                                    folderPath: searching
+                                        ? widget.controller
+                                              .folderPath(document.folderId)
+                                              .map((folder) => folder.name)
+                                              .join(' / ')
+                                        : null,
+                                    onOpen: () => _open(document),
+                                    onFavorite: () => widget.controller
+                                        .toggleFavorite(document.id),
+                                    onMove: () => _moveDocument(document),
+                                    onExport: () => _export(document),
+                                    onDelete: () => _confirmDelete(document),
+                                  );
+                                },
                               );
                             },
                           ),
@@ -110,7 +153,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       ),
       floatingActionButton: MediaQuery.sizeOf(context).width < 620
           ? FloatingActionButton.extended(
-              onPressed: _createDocument,
+              onPressed: _showLibraryActions,
               icon: const Icon(Icons.add_rounded),
               label: Text(context.l10n.newLabel),
             )
@@ -156,16 +199,46 @@ class _LibraryScreenState extends State<LibraryScreen> {
               ),
               if (MediaQuery.sizeOf(context).width >= 620) ...[
                 const SizedBox(width: 8),
-                OutlinedButton.icon(
-                  onPressed: _importFiles,
-                  icon: const Icon(Icons.upload_file_rounded),
-                  label: Text(context.l10n.importLabel),
+                MenuAnchor(
+                  builder: (context, menu, _) => OutlinedButton.icon(
+                    onPressed: menu.open,
+                    icon: const Icon(Icons.upload_file_rounded),
+                    label: Text(context.l10n.importLabel),
+                  ),
+                  menuChildren: [
+                    MenuItemButton(
+                      onPressed: _importFiles,
+                      leadingIcon: const Icon(Icons.description_outlined),
+                      child: Text(context.l10n.importFiles),
+                    ),
+                    MenuItemButton(
+                      onPressed: _importFolder,
+                      leadingIcon: const Icon(
+                        Icons.drive_folder_upload_outlined,
+                      ),
+                      child: Text(context.l10n.importFolder),
+                    ),
+                  ],
                 ),
                 const SizedBox(width: 8),
-                FilledButton.icon(
-                  onPressed: _createDocument,
-                  icon: const Icon(Icons.add_rounded),
-                  label: Text(context.l10n.newDocument),
+                MenuAnchor(
+                  builder: (context, menu, _) => FilledButton.icon(
+                    onPressed: menu.open,
+                    icon: const Icon(Icons.add_rounded),
+                    label: Text(context.l10n.newLabel),
+                  ),
+                  menuChildren: [
+                    MenuItemButton(
+                      onPressed: _createDocument,
+                      leadingIcon: const Icon(Icons.note_add_outlined),
+                      child: Text(context.l10n.newDocument),
+                    ),
+                    MenuItemButton(
+                      onPressed: _createFolder,
+                      leadingIcon: const Icon(Icons.create_new_folder_outlined),
+                      child: Text(context.l10n.newFolder),
+                    ),
+                  ],
                 ),
               ],
             ],
@@ -230,9 +303,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    onPressed: _importFiles,
+                    onPressed: () => _showLibraryActions(importOnly: true),
                     icon: const Icon(Icons.upload_file_rounded),
-                    label: Text(context.l10n.importFiles),
+                    label: Text(context.l10n.importLabel),
                   ),
                 ),
               ],
@@ -250,7 +323,38 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  Widget _sectionHeader(BuildContext context, int count) => Wrap(
+  Widget _breadcrumbs(BuildContext context) {
+    final path = widget.controller.folderPath(_currentFolderId);
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          ActionChip(
+            avatar: const Icon(Icons.home_rounded, size: 18),
+            label: Text(context.l10n.root),
+            onPressed: () => _enterFolder(null),
+          ),
+          for (final folder in path) ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4),
+              child: Icon(Icons.chevron_right_rounded, size: 20),
+            ),
+            ActionChip(
+              avatar: const Icon(Icons.folder_rounded, size: 18),
+              label: Text(folder.name),
+              onPressed: () => _enterFolder(folder.id),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionHeader(
+    BuildContext context, {
+    required int documentCount,
+    required int folderCount,
+  }) => Wrap(
     spacing: 10,
     runSpacing: 8,
     crossAxisAlignment: WrapCrossAlignment.center,
@@ -260,9 +364,194 @@ class _LibraryScreenState extends State<LibraryScreen> {
         style: Theme.of(context).textTheme.headlineSmall
             ?.copyWith(fontWeight: FontWeight.w700),
       ),
-      Chip(label: Text(context.l10n.fileCount(count))),
+      Chip(label: Text(context.l10n.fileCount(documentCount))),
+      if (_query.isEmpty)
+        Chip(label: Text(context.l10n.folderCount(folderCount))),
     ],
   );
+
+  void _enterFolder(String? folderId) {
+    _searchController.clear();
+    setState(() {
+      _currentFolderId = folderId;
+      _query = '';
+    });
+  }
+
+  Future<void> _showLibraryActions({bool importOnly = false}) async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (!importOnly) ...[
+                ListTile(
+                  leading: const Icon(Icons.note_add_outlined),
+                  title: Text(context.l10n.newDocument),
+                  onTap: () => Navigator.pop(sheetContext, 'document'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.create_new_folder_outlined),
+                  title: Text(context.l10n.newFolder),
+                  onTap: () => Navigator.pop(sheetContext, 'folder'),
+                ),
+                const Divider(),
+              ],
+              ListTile(
+                leading: const Icon(Icons.description_outlined),
+                title: Text(context.l10n.importFiles),
+                onTap: () => Navigator.pop(sheetContext, 'importFiles'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.drive_folder_upload_outlined),
+                title: Text(context.l10n.importFolder),
+                subtitle: Text(context.l10n.compatibleFilesOnly),
+                onTap: () => Navigator.pop(sheetContext, 'importFolder'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (!mounted) return;
+    switch (action) {
+      case 'document':
+        await _createDocument();
+      case 'folder':
+        await _createFolder();
+      case 'importFiles':
+        await _importFiles();
+      case 'importFolder':
+        await _importFolder();
+    }
+  }
+
+  Future<void> _createFolder() async {
+    final name = TextEditingController();
+    final created = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(context.l10n.newFolder),
+        content: TextField(
+          controller: name,
+          autofocus: true,
+          textInputAction: TextInputAction.done,
+          decoration: InputDecoration(
+            labelText: context.l10n.folderName,
+            hintText: context.l10n.folderNameHint,
+          ),
+          onSubmitted: (_) => Navigator.pop(dialogContext, true),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(context.l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(context.l10n.create),
+          ),
+        ],
+      ),
+    );
+    final value = name.text;
+    name.dispose();
+    if (created == true) {
+      await widget.controller.createFolder(
+        name: value,
+        parentId: _currentFolderId,
+      );
+    }
+  }
+
+  Future<void> _renameFolder(LibraryFolder folder) async {
+    final name = TextEditingController(text: folder.name);
+    final renamed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(context.l10n.renameFolder),
+        content: TextField(
+          controller: name,
+          autofocus: true,
+          textInputAction: TextInputAction.done,
+          decoration: InputDecoration(labelText: context.l10n.folderName),
+          onSubmitted: (_) => Navigator.pop(dialogContext, true),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(context.l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(context.l10n.rename),
+          ),
+        ],
+      ),
+    );
+    final value = name.text;
+    name.dispose();
+    if (renamed == true) await widget.controller.renameFolder(folder.id, value);
+  }
+
+  Future<void> _deleteFolder(LibraryFolder folder) async {
+    final deleted = await widget.controller.deleteEmptyFolder(folder.id);
+    if (!mounted || deleted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(context.l10n.folderNotEmpty)));
+  }
+
+  Future<void> _moveDocument(LibraryDocument document) async {
+    const rootValue = '__root__';
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(context.l10n.moveDocument),
+        content: SizedBox(
+          width: 440,
+          height: 420,
+          child: ListView(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.home_rounded),
+                title: Text(context.l10n.root),
+                selected: document.folderId == null,
+                onTap: () => Navigator.pop(dialogContext, rootValue),
+              ),
+              for (final folder in widget.controller.folders)
+                ListTile(
+                  leading: const Icon(Icons.folder_rounded),
+                  title: Text(folder.name),
+                  subtitle: Text(
+                    widget.controller
+                        .folderPath(folder.parentId)
+                        .map((item) => item.name)
+                        .join(' / '),
+                  ),
+                  selected: document.folderId == folder.id,
+                  onTap: () => Navigator.pop(dialogContext, folder.id),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(context.l10n.cancel),
+          ),
+        ],
+      ),
+    );
+    if (selected == null) return;
+    await widget.controller.moveDocument(
+      document.id,
+      selected == rootValue ? null : selected,
+    );
+  }
 
   Widget _emptyState(BuildContext context) => Container(
     width: double.infinity,
@@ -358,6 +647,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 final document = await widget.controller.createDocument(
                   title: title.text,
                   extension: extension,
+                  folderId: _currentFolderId,
                 );
                 if (context.mounted) Navigator.pop(context, document);
               },
@@ -375,26 +665,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     try {
       final files = await FilePicker.pickFiles(
         type: FileType.custom,
-        allowedExtensions: const [
-          'md',
-          'markdown',
-          'txt',
-          'dart',
-          'js',
-          'ts',
-          'json',
-          'yaml',
-          'yml',
-          'html',
-          'css',
-          'py',
-          'java',
-          'kt',
-          'swift',
-          'sh',
-          'sql',
-          'xml',
-        ],
+        allowedExtensions: supportedDocumentExtensions.toList(),
       );
       var imported = 0;
       for (final file in files) {
@@ -409,6 +680,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           title: title,
           extension: extension,
           content: utf8.decode(bytes, allowMalformed: true),
+          folderId: _currentFolderId,
         );
         imported++;
       }
@@ -423,6 +695,37 @@ class _LibraryScreenState extends State<LibraryScreen> {
           SnackBar(content: Text(context.l10n.importFailed('$error'))),
         );
       }
+    }
+  }
+
+  Future<void> _importFolder() async {
+    if (_isImportingFolder) return;
+    setState(() => _isImportingFolder = true);
+    try {
+      final selection = await pickDocumentFolder();
+      if (selection == null || !mounted) return;
+      final imported = await widget.controller.importFolder(
+        selection,
+        parentId: _currentFolderId,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            imported == 0
+                ? context.l10n.noCompatibleFiles
+                : context.l10n.folderImported(imported, selection.skippedFiles),
+          ),
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.importFailed('$error'))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isImportingFolder = false);
     }
   }
 
@@ -475,17 +778,132 @@ class _LibraryScreenState extends State<LibraryScreen> {
   );
 }
 
+class _FolderCard extends StatelessWidget {
+  const _FolderCard({
+    required this.folder,
+    required this.documentCount,
+    required this.childFolderCount,
+    required this.onOpen,
+    required this.onRename,
+    required this.onDelete,
+  });
+
+  final LibraryFolder folder;
+  final int documentCount;
+  final int childFolderCount;
+  final VoidCallback onOpen;
+  final VoidCallback onRename;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    clipBehavior: Clip.antiAlias,
+    child: InkWell(
+      onTap: onOpen,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(
+                    Icons.folder_rounded,
+                    size: 30,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  ),
+                ),
+                const Spacer(),
+                PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'rename') onRename();
+                    if (value == 'delete') onDelete();
+                  },
+                  itemBuilder: (_) => [
+                    PopupMenuItem(
+                      value: 'rename',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.edit_outlined),
+                          const SizedBox(width: 12),
+                          Text(context.l10n.rename),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.delete_outline_rounded),
+                          const SizedBox(width: 12),
+                          Text(context.l10n.delete),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Text(
+              folder.name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleLarge
+                  ?.copyWith(fontWeight: FontWeight.w700, height: 1.15),
+            ),
+            const Spacer(),
+            Text(
+              context.l10n.folderContents(documentCount, childFolderCount),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Icon(
+                  Icons.arrow_forward_rounded,
+                  size: 18,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  context.l10n.openFolder,
+                  style: Theme.of(context).textTheme.labelLarge
+                      ?.copyWith(color: Theme.of(context).colorScheme.primary),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
 class _DocumentCard extends StatelessWidget {
   const _DocumentCard({
     required this.document,
+    required this.folderPath,
     required this.onOpen,
     required this.onFavorite,
+    required this.onMove,
     required this.onExport,
     required this.onDelete,
   });
   final LibraryDocument document;
+  final String? folderPath;
   final VoidCallback onOpen;
   final VoidCallback onFavorite;
+  final VoidCallback onMove;
   final VoidCallback onExport;
   final VoidCallback onDelete;
 
@@ -536,30 +954,55 @@ class _DocumentCard extends StatelessWidget {
                   ),
                   PopupMenuButton<String>(
                     onSelected: (value) {
+                      if (value == 'move') onMove();
                       if (value == 'export') onExport();
                       if (value == 'delete') onDelete();
                     },
                     itemBuilder: (_) => [
                       PopupMenuItem(
+                        value: 'move',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.drive_file_move_outline),
+                            const SizedBox(width: 12),
+                            Text(context.l10n.moveTo),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
                         value: 'export',
-                        child: ListTile(
-                          leading: const Icon(Icons.download_rounded),
-                          title: Text(context.l10n.exportLabel),
-                          contentPadding: EdgeInsets.zero,
+                        child: Row(
+                          children: [
+                            const Icon(Icons.download_rounded),
+                            const SizedBox(width: 12),
+                            Text(context.l10n.exportLabel),
+                          ],
                         ),
                       ),
                       PopupMenuItem(
                         value: 'delete',
-                        child: ListTile(
-                          leading: const Icon(Icons.delete_outline_rounded),
-                          title: Text(context.l10n.delete),
-                          contentPadding: EdgeInsets.zero,
+                        child: Row(
+                          children: [
+                            const Icon(Icons.delete_outline_rounded),
+                            const SizedBox(width: 12),
+                            Text(context.l10n.delete),
+                          ],
                         ),
                       ),
                     ],
                   ),
                 ],
               ),
+              if (folderPath != null && folderPath!.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  folderPath!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelMedium
+                      ?.copyWith(color: Theme.of(context).colorScheme.primary),
+                ),
+              ],
               const SizedBox(height: 12),
               Text(
                 '${document.title}.${document.extension}',

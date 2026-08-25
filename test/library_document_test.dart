@@ -28,11 +28,26 @@ void main() {
       createdAt: now,
       updatedAt: now,
       isFavorite: true,
+      folderId: 'folder-1',
     );
 
     final restored = LibraryDocument.fromJson(original.toJson());
     expect(restored.title, original.title);
     expect(restored.content, original.content);
     expect(restored.isFavorite, isTrue);
+    expect(restored.folderId, 'folder-1');
+  });
+
+  test('mantém documentos antigos na raiz', () {
+    final restored = LibraryDocument.fromJson({
+      'id': 'old',
+      'title': 'Antigo',
+      'content': '',
+      'extension': 'txt',
+      'createdAt': DateTime.utc(2025).toIso8601String(),
+      'updatedAt': DateTime.utc(2025).toIso8601String(),
+    });
+
+    expect(restored.folderId, isNull);
   });
 }
