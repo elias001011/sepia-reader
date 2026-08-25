@@ -10,21 +10,101 @@ import '../models/bookmark.dart';
 import '../models/library_document.dart';
 import '../models/library_folder.dart';
 
+/// Locally-stored sync preferences.
+///
+/// Deliberately kept out of the synced settings payload: if the only copy
+/// lived on the server, a settings response could disable a device's sync
+/// (locking it out of ever syncing again) or silently repoint it at another
+/// host. The local copy is always authoritative.
+class SyncConfig {
+  const SyncConfig({this.enabled = true, this.serverUrl = ''});
+  final bool enabled;
+  final String serverUrl;
+
+  Map<String, dynamic> toJson() => {
+    'syncEnabled': enabled,
+    'syncServerUrl': serverUrl,
+  };
+
+  factory SyncConfig.fromJson(Map<String, dynamic> json) => SyncConfig(
+    enabled: json['syncEnabled'] as bool? ?? true,
+    serverUrl: json['syncServerUrl'] as String? ?? '',
+  );
+}
+
+/// Outcome of an explicit "test connection" from the settings screen.
+typedef SyncTestResult = ({bool ok, int documentCount, String? error});
+
 class StorageService {
   static const _documentsKey = 'sepia.documents.v1';
   static const _settingsKey = 'sepia.settings.v1';
   static const _foldersKey = 'sepia.folders.v1';
   static const _bookmarksKey = 'sepia.bookmarks.v1';
+  static const _syncConfigKey = 'sepia.syncconfig.v1';
+  static const _lastSyncKey = 'sepia.lastsync.v1';
 
   static const _networkTimeout = Duration(seconds: 6);
 
-  Uri _apiUri(String path) => Uri.base.resolve(path);
+  SyncConfig? _cachedSyncConfig;
+
+  Future<SyncConfig> loadSyncConfig() async {
+    final cached = _cachedSyncConfig;
+    if (cached != null) return cached;
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_syncConfigKey);
+    var config = const SyncConfig();
+    if (raw != null) {
+      try {
+        config = SyncConfig.fromJson(
+          Map<String, dynamic>.from(jsonDecode(raw) as Map),
+        );
+      } catch (_) {
+        config = const SyncConfig();
+      }
+    }
+    _cachedSyncConfig = config;
+    return config;
+  }
+
+  Future<void> saveSyncConfig(SyncConfig config) async {
+    _cachedSyncConfig = config;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_syncConfigKey, jsonEncode(config.toJson()));
+  }
+
+  Future<DateTime?> loadLastSyncAt() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_lastSyncKey);
+    if (raw == null) return null;
+    return DateTime.tryParse(raw);
+  }
+
+  Future<void> _markSynced() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_lastSyncKey, DateTime.now().toIso8601String());
+  }
+
+  /// Resolves an API path against the configured server, or returns null
+  /// when syncing is off (in which case the app runs fully local).
+  Uri? _resolve(String path, SyncConfig config) {
+    if (!config.enabled) return null;
+    final base = config.serverUrl.trim();
+    if (base.isEmpty) return Uri.base.resolve(path);
+    final normalized = base.endsWith('/')
+        ? base.substring(0, base.length - 1)
+        : base;
+    return Uri.tryParse('$normalized$path');
+  }
 
   Future<dynamic> _fetchJson(String path) async {
+    final uri = _resolve(path, await loadSyncConfig());
+    if (uri == null) return null;
     try {
-      final response = await http.get(_apiUri(path)).timeout(_networkTimeout);
+      final response = await http.get(uri).timeout(_networkTimeout);
       if (response.statusCode != 200) return null;
-      return jsonDecode(utf8.decode(response.bodyBytes));
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      await _markSynced();
+      return decoded;
     } catch (error) {
       debugPrint('sepia: GET $path failed: $error');
       return null;
@@ -33,21 +113,55 @@ class StorageService {
 
   void _pushJson(String path, Object body) {
     unawaited(() async {
+      final uri = _resolve(path, await loadSyncConfig());
+      if (uri == null) return;
       try {
         final response = await http
             .put(
-              _apiUri(path),
+              uri,
               headers: const {'Content-Type': 'application/json'},
               body: jsonEncode(body),
             )
             .timeout(_networkTimeout);
         if (response.statusCode != 200) {
           debugPrint('sepia: PUT $path returned ${response.statusCode}');
+        } else {
+          await _markSynced();
         }
       } catch (error) {
         debugPrint('sepia: PUT $path failed: $error');
       }
     }());
+  }
+
+  /// Explicitly probes a server address, regardless of whether syncing is
+  /// currently enabled, so the settings screen can tell the user what is
+  /// actually wrong instead of failing silently.
+  Future<SyncTestResult> testConnection(String serverUrl) async {
+    final uri = _resolve(
+      '/api/documents',
+      SyncConfig(enabled: true, serverUrl: serverUrl),
+    );
+    if (uri == null) {
+      return (ok: false, documentCount: 0, error: 'URL inválida');
+    }
+    try {
+      final response = await http.get(uri).timeout(_networkTimeout);
+      if (response.statusCode != 200) {
+        return (
+          ok: false,
+          documentCount: 0,
+          error: 'HTTP ${response.statusCode}',
+        );
+      }
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      if (decoded is! List) {
+        return (ok: false, documentCount: 0, error: 'Resposta inesperada');
+      }
+      return (ok: true, documentCount: decoded.length, error: null);
+    } catch (error) {
+      return (ok: false, documentCount: 0, error: '$error');
+    }
   }
 
   Future<List<LibraryDocument>> loadDocuments() async {
@@ -85,6 +199,16 @@ class StorageService {
       )
       .toList();
 
+  /// Forces the device's own sync preferences onto a settings object, so a
+  /// payload coming from the server can never change them.
+  Future<AppSettings> _withLocalSyncConfig(AppSettings settings) async {
+    final config = await loadSyncConfig();
+    return settings.copyWith(
+      syncEnabled: config.enabled,
+      syncServerUrl: config.serverUrl,
+    );
+  }
+
   Future<AppSettings> loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     final localRaw = prefs.getString(_settingsKey);
@@ -92,16 +216,18 @@ class StorageService {
     if (remote is Map && remote.isNotEmpty) {
       final map = Map<String, dynamic>.from(remote);
       await prefs.setString(_settingsKey, jsonEncode(map));
-      return AppSettings.fromJson(map);
+      return _withLocalSyncConfig(AppSettings.fromJson(map));
     }
-    if (localRaw == null) return const AppSettings();
+    if (localRaw == null) return _withLocalSyncConfig(const AppSettings());
+    AppSettings parsed;
     try {
-      return AppSettings.fromJson(
+      parsed = AppSettings.fromJson(
         Map<String, dynamic>.from(jsonDecode(localRaw) as Map),
       );
     } catch (_) {
-      return const AppSettings();
+      parsed = const AppSettings();
     }
+    return _withLocalSyncConfig(parsed);
   }
 
   Future<List<LibraryFolder>> loadFolders() async {
@@ -246,10 +372,10 @@ class StorageService {
 
     final remoteSettings = await _fetchJson('/api/settings');
     AppSettings settings;
-    if (remoteSettings is Map) {
+    if (remoteSettings is Map && remoteSettings.isNotEmpty) {
       final map = Map<String, dynamic>.from(remoteSettings);
       await prefs.setString(_settingsKey, jsonEncode(map));
-      settings = AppSettings.fromJson(map);
+      settings = await _withLocalSyncConfig(AppSettings.fromJson(map));
     } else {
       settings = await loadSettings();
     }

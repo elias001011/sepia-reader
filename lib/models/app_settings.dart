@@ -16,6 +16,8 @@ class AppSettings {
     this.readerFontSize = 20,
     this.readerLineHeight = 1.75,
     this.readerWidth = 760,
+    this.syncEnabled = true,
+    this.syncServerUrl = '',
   });
   final String localeCode;
   final ThemeMode themeMode;
@@ -32,6 +34,16 @@ class AppSettings {
   final double readerLineHeight;
   final double readerWidth;
 
+  /// Whether the library is mirrored to a server. Persisted locally as well
+  /// as here (see `StorageService.loadSyncConfig`); the local copy always
+  /// wins, so a synced settings payload can never turn a device's own sync
+  /// off or repoint it at another host.
+  final bool syncEnabled;
+
+  /// Base URL of the sync server. Empty means "the origin this app was
+  /// loaded from", which is the normal self-hosted setup.
+  final String syncServerUrl;
+
   AppSettings copyWith({
     String? localeCode,
     ThemeMode? themeMode,
@@ -47,6 +59,8 @@ class AppSettings {
     double? readerFontSize,
     double? readerLineHeight,
     double? readerWidth,
+    bool? syncEnabled,
+    String? syncServerUrl,
   }) => AppSettings(
     localeCode: localeCode ?? this.localeCode,
     themeMode: themeMode ?? this.themeMode,
@@ -63,6 +77,8 @@ class AppSettings {
     readerFontSize: readerFontSize ?? this.readerFontSize,
     readerLineHeight: readerLineHeight ?? this.readerLineHeight,
     readerWidth: readerWidth ?? this.readerWidth,
+    syncEnabled: syncEnabled ?? this.syncEnabled,
+    syncServerUrl: syncServerUrl ?? this.syncServerUrl,
   );
 
   Map<String, dynamic> toJson() => {
@@ -80,6 +96,8 @@ class AppSettings {
     'readerFontSize': readerFontSize,
     'readerLineHeight': readerLineHeight,
     'readerWidth': readerWidth,
+    'syncEnabled': syncEnabled,
+    'syncServerUrl': syncServerUrl,
   };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
@@ -102,6 +120,8 @@ class AppSettings {
       readerFontSize: (json['readerFontSize'] as num? ?? 20).toDouble(),
       readerLineHeight: (json['readerLineHeight'] as num? ?? 1.75).toDouble(),
       readerWidth: (json['readerWidth'] as num? ?? 760).toDouble(),
+      syncEnabled: json['syncEnabled'] as bool? ?? true,
+      syncServerUrl: json['syncServerUrl'] as String? ?? '',
     );
   }
 }
