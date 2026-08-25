@@ -108,12 +108,12 @@ _surfaceScale(Color background, {required bool isDark, required bool amoled}) {
   if (amoled) {
     return (
       dim: Colors.black,
-      bright: const Color(0xFF181818),
+      bright: Colors.black,
       lowest: Colors.black,
-      low: const Color(0xFF050505),
-      container: const Color(0xFF090909),
-      high: const Color(0xFF101010),
-      highest: const Color(0xFF181818),
+      low: Colors.black,
+      container: Colors.black,
+      high: Colors.black,
+      highest: Colors.black,
     );
   }
   if (isDark) {

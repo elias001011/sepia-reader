@@ -249,12 +249,18 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Widget _hero(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isAmoled =
+        widget.controller.settings.amoledTheme &&
+        Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer
-            .withValues(alpha: .55),
+        color: isAmoled
+            ? Colors.black
+            : scheme.primaryContainer.withValues(alpha: .55),
+        border: isAmoled ? Border.all(color: scheme.outlineVariant) : null,
         borderRadius: BorderRadius.circular(28),
       ),
       child: LayoutBuilder(

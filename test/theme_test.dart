@@ -47,7 +47,7 @@ void main() {
     expect(theme.colorScheme.onSurface.computeLuminance(), greaterThan(.8));
   });
 
-  test('AMOLED usa preto puro e superfícies quase pretas', () {
+  test('AMOLED usa preto puro em todas as superfícies', () {
     final theme = buildSepiaTheme(
       const AppSettings(amoledTheme: true),
       Brightness.dark,
@@ -56,7 +56,11 @@ void main() {
     expect(theme.scaffoldBackgroundColor, Colors.black);
     expect(theme.colorScheme.surface, Colors.black);
     expect(theme.colorScheme.surfaceContainerLowest, Colors.black);
-    expect(theme.colorScheme.surfaceContainerLow, const Color(0xFF050505));
+    expect(theme.colorScheme.surfaceContainerLow, Colors.black);
+    expect(theme.colorScheme.surfaceContainer, Colors.black);
+    expect(theme.colorScheme.surfaceContainerHigh, Colors.black);
+    expect(theme.cardTheme.color, Colors.black);
+    expect(theme.inputDecorationTheme.fillColor, Colors.black);
   });
 
   testWidgets('leitor pode seguir as superfícies do tema', (tester) async {
