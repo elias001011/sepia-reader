@@ -132,7 +132,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get newLabel => 'Novo';
 
   @override
-  String get appearance => 'Aparência';
+  String get appearance => 'Configurações';
 
   @override
   String get importLabel => 'Importar';

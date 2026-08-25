@@ -200,20 +200,26 @@ class _SettingsSheetState extends State<SettingsSheet> {
           24 + MediaQuery.viewInsetsOf(context).bottom,
         ),
         child: Center(
-          child: SizedBox(
-            width: 520,
+          // A fixed width, not a maximum: on any screen narrower than
+          // this the sheet overflowed and its right edge — switches,
+          // buttons, the close control — was simply cut off. Which is
+          // every phone, where this app is mostly used.
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Text(
-                      context.l10n.appAppearance,
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w700),
+                    Expanded(
+                      child: Text(
+                        context.l10n.appAppearance,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
                     ),
-                    const Spacer(),
                     IconButton(
                       onPressed: () => Navigator.pop(context),
                       icon: const Icon(Icons.close_rounded),
@@ -233,6 +239,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
+                  isExpanded: true,
                   initialValue: _themeChoice,
                   decoration: InputDecoration(labelText: context.l10n.theme),
                   items: [
@@ -259,6 +266,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
                 ),
                 const SizedBox(height: 20),
                 DropdownButtonFormField<String>(
+                  isExpanded: true,
                   initialValue: _draft.localeCode,
                   decoration: InputDecoration(labelText: context.l10n.language),
                   items: [

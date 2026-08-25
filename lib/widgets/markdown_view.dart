@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:highlight/highlight.dart' as hl;
+import 'package:markdown/markdown.dart' as md;
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../models/app_settings.dart';
@@ -44,10 +45,17 @@ List<String> splitMarkdownBlocks(String content) {
     final fenceMatch = _fence.firstMatch(line.trimLeft());
     if (fenceMatch != null &&
         (!inFence || line.trimLeft().startsWith(fenceMarker!))) {
+      // A code fence opening after a blank line starts its own block. This
+      // used to fall through to `pendingBlanks = 0`, which swallowed the
+      // separator and glued the fence onto whatever came before it — so a
+      // "## Blocks of code" heading and the code under it became one
+      // indivisible chunk.
+      if (!inFence && pendingBlanks > 0) flush();
       inFence = !inFence;
       fenceMarker = inFence ? fenceMatch.group(1) : null;
       current.add(line);
       pendingBlanks = 0;
+      if (!inFence) flush();
       continue;
     }
     if (inFence) {
@@ -59,15 +67,23 @@ List<String> splitMarkdownBlocks(String content) {
       continue;
     }
     if (pendingBlanks > 0) {
-      // Only the line *after* the blank decides whether it continues the
-      // block: a list/quote marker or an indented continuation keeps a
-      // loose list or multi-paragraph quote together, but a plain new
-      // paragraph after a list must start its own block, even though the
-      // list item before the blank line also matches this pattern.
+      // Both sides of the blank line get a say. The line *after* must look
+      // like a list/quote marker or an indented continuation, and the block
+      // *before* must already be a list or quote — otherwise a heading or a
+      // paragraph followed by a list swallowed the list into itself, which
+      // is how "### Unordered" and every bullet under it ended up as one
+      // indivisible chunk with no spacing between them.
+      final previous = current.lastWhere(
+        (candidate) => candidate.trim().isNotEmpty,
+        orElse: () => '',
+      );
       final continues =
-          _listOrQuote.hasMatch(line) ||
-          line.startsWith('  ') ||
-          line.startsWith('\t');
+          (_listOrQuote.hasMatch(previous) ||
+              previous.startsWith('  ') ||
+              previous.startsWith('\t')) &&
+          (_listOrQuote.hasMatch(line) ||
+              line.startsWith('  ') ||
+              line.startsWith('\t'));
       if (!continues) {
         flush();
       } else {
@@ -98,6 +114,82 @@ List<String> splitPlainTextChunks(String content) {
   }
   return chunks.isEmpty ? [''] : chunks;
 }
+
+
+/// Matches a link reference definition line: `[label]: https://…`.
+final _linkDefinition = RegExp(r'^\s{0,3}\[([^\]^][^\]]*)\]:\s*\S+');
+
+/// Matches a footnote definition line: `[^1]: text`.
+final _footnoteDefinition = RegExp(r'^\s{0,3}\[\^([^\]]+)\]:\s*(.*)$');
+
+/// Matches an inline footnote reference: `[^1]`.
+final _footnoteReference = RegExp(r'\[\^([^\]]+)\]');
+
+/// Matches a `$$ … $$` display-math block.
+final _mathBlock = RegExp(r'^\s*\$\$[\s\S]*\$\$\s*$');
+
+/// Every link reference definition in the document, as markdown source.
+///
+/// Reference-style links (`[text][label]` with `[label]: url` elsewhere)
+/// broke the moment the reader started rendering one block at a time: the
+/// definition almost always lives in a different chunk from the link that
+/// uses it, and a markdown parser given only the link renders it as literal
+/// brackets. Collecting the definitions once and appending them to every
+/// chunk puts them back within reach — they render as nothing on their own,
+/// so the cost is only in the parse.
+String collectLinkDefinitions(String content) {
+  final definitions = <String>[];
+  for (final line in content.split('\n')) {
+    if (_linkDefinition.hasMatch(line)) definitions.add(line.trim());
+  }
+  return definitions.isEmpty ? '' : '\n\n${definitions.join('\n')}';
+}
+
+const _superscripts = {
+  '0': '\u2070', '1': '\u00b9', '2': '\u00b2', '3': '\u00b3',
+  '4': '\u2074', '5': '\u2075', '6': '\u2076', '7': '\u2077',
+  '8': '\u2078', '9': '\u2079',
+};
+
+String _superscript(String label) {
+  final buffer = StringBuffer();
+  for (final char in label.split('')) {
+    final mapped = _superscripts[char];
+    if (mapped == null) return label;
+    buffer.write(mapped);
+  }
+  return buffer.toString();
+}
+
+/// Rewrites footnotes into something the markdown renderer can show.
+///
+/// `flutter_markdown_plus` has no notion of footnotes, so `[^1]` came out as
+/// literal brackets and `[^1]: …` as a stray paragraph of punctuation. A
+/// numeric label becomes a real superscript, and the definition becomes an
+/// italic note introduced by that same superscript — not the bottom-of-page
+/// treatment a typesetter would give it, but readable, and unmistakably a
+/// note rather than a typo.
+String rewriteFootnotes(String chunk) {
+  final definition = _footnoteDefinition.firstMatch(chunk);
+  if (definition != null) {
+    final label = _superscript(definition.group(1)!);
+    final body = definition.group(2)!.trim();
+    return body.isEmpty ? '' : '$label *$body*';
+  }
+  return chunk.replaceAllMapped(
+    _footnoteReference,
+    (match) => _superscript(match.group(1)!),
+  );
+}
+
+/// Whether a chunk holds nothing but link reference definitions, which are
+/// metadata rather than content and should occupy no space in the reader.
+bool isLinkDefinitionOnly(String chunk) {
+  final lines = chunk.split('\n').where((l) => l.trim().isNotEmpty);
+  return lines.isNotEmpty && lines.every(_linkDefinition.hasMatch);
+}
+
+bool isMathBlock(String chunk) => _mathBlock.hasMatch(chunk);
 
 class DocumentView extends StatelessWidget {
   const DocumentView({
@@ -158,6 +250,9 @@ class DocumentView extends StatelessWidget {
       height: settings.readerLineHeight,
     );
     final chunks = chunksForDocument(document);
+    final linkDefinitions = document.isMarkdown
+        ? collectLinkDefinitions(document.content)
+        : '';
     final markdownStyle = MarkdownStyleSheet(
       p: base,
       a: base.copyWith(
@@ -220,32 +315,67 @@ class DocumentView extends StatelessWidget {
       tableCellsDecoration: BoxDecoration(color: panelColor),
       tableHeadCellsDecoration: BoxDecoration(color: strongerPanelColor),
       tableCellsPadding: const EdgeInsets.all(10),
+      blockSpacing: settings.readerFontSize * 0.55,
       horizontalRuleDecoration: BoxDecoration(
         border: Border(top: BorderSide(color: readerText.withValues(alpha: .25))),
       ),
     );
     final syntaxHighlighter = SepiaSyntaxHighlighter(baseColor: readerText);
 
+    // Each chunk is its own widget in the list, so the vertical rhythm that
+    // a single markdown widget would have produced between its blocks has
+    // to be put back by hand — without it every paragraph, heading and list
+    // butted straight up against the next one.
+    final blockSpacing = settings.readerFontSize * 0.8;
+
     Widget itemFor(int index) {
       final chunk = chunks[index];
       if (document.isMarkdown) {
-        return MarkdownBody(
-          data: chunk,
-          selectable: false,
-          softLineBreak: true,
-          syntaxHighlighter: syntaxHighlighter,
-          styleSheet: markdownStyle,
+        if (isLinkDefinitionOnly(chunk)) return const SizedBox.shrink();
+        if (isMathBlock(chunk)) {
+          return Padding(
+            padding: EdgeInsets.symmetric(vertical: blockSpacing / 2),
+            child: FormulaBlock(
+              source: chunk,
+              textColor: readerText,
+              fontSize: settings.readerFontSize,
+            ),
+          );
+        }
+        // A heading opens a section, and wants more air above it than
+        // between two paragraphs — but not at the very top of the document.
+        final startsSection =
+            index > 0 && RegExp(r'^\s{0,3}#{1,6}\s').hasMatch(chunk);
+        return Padding(
+          padding: EdgeInsets.only(
+            top: startsSection ? blockSpacing * 1.6 : 0,
+            bottom: blockSpacing,
+          ),
+          child: MarkdownBody(
+            data: '${rewriteFootnotes(chunk)}$linkDefinitions',
+            selectable: false,
+            softLineBreak: true,
+            syntaxHighlighter: syntaxHighlighter,
+            styleSheet: markdownStyle,
+            builders: {'code': DiagramAwareCodeBuilder(
+              textColor: readerText,
+              fontSize: settings.readerFontSize,
+            )},
+          ),
         );
       }
-      return Text.rich(
-        isCodeExtension(document.extension)
-            ? highlightedSpan(
-                chunk,
-                document.extension,
-                readerText,
-                settings.readerFontSize,
-              )
-            : TextSpan(text: chunk, style: base),
+      return Padding(
+        padding: EdgeInsets.only(bottom: blockSpacing / 2),
+        child: Text.rich(
+          isCodeExtension(document.extension)
+              ? highlightedSpan(
+                  chunk,
+                  document.extension,
+                  readerText,
+                  settings.readerFontSize,
+                )
+              : TextSpan(text: chunk, style: base),
+        ),
       );
     }
 
@@ -572,5 +702,148 @@ void _flatten(
     final style = span.style ?? inherited;
     if (span.text != null) out.add((text: span.text!, style: style));
     if (span.children != null) _flatten(span.children!, out, style);
+  }
+}
+
+/// Renders fenced blocks that describe a *diagram* differently from code.
+///
+/// A ```mermaid block is not source anybody wants to read: dropped into the
+/// default code block it reads as a wall of arrows and braces with no hint
+/// that it was meant to be a picture. Until the diagram itself can be drawn
+/// (see the note below), it is at least labelled as one, so the reader knows
+/// what they are looking at instead of assuming the document is broken.
+///
+/// Drawing it for real needs a renderer on every platform this ships to:
+/// `webview_flutter` covers Android and iOS but not Flutter web, and a
+/// platform view with mermaid.js covers web but neither of the others. That
+/// is a feature of its own, not a builder.
+class DiagramAwareCodeBuilder extends MarkdownElementBuilder {
+  DiagramAwareCodeBuilder({required this.textColor, required this.fontSize});
+
+  final Color textColor;
+  final double fontSize;
+
+  static const _diagramLanguages = {
+    'mermaid',
+    'graphviz',
+    'dot',
+    'plantuml',
+    'puml',
+  };
+
+  @override
+  Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
+    final language = _languageOf(element);
+    if (language == null || !_diagramLanguages.contains(language)) return null;
+    final source = element.textContent.trimRight();
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+      decoration: BoxDecoration(
+        color: textColor.withValues(alpha: .05),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: textColor.withValues(alpha: .18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.account_tree_rounded,
+                size: fontSize * .8,
+                color: textColor.withValues(alpha: .7),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                language,
+                style: TextStyle(
+                  fontFamily: 'Roboto Mono',
+                  fontSize: fontSize * .62,
+                  letterSpacing: 1.1,
+                  color: textColor.withValues(alpha: .7),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Text(
+              source,
+              style: TextStyle(
+                fontFamily: 'Roboto Mono',
+                fontSize: fontSize * .72,
+                height: 1.5,
+                color: textColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String? _languageOf(md.Element element) {
+    // flutter_markdown_plus hands over the <code> element; the language is
+    // the "language-x" class markdown puts on it.
+    final classes = element.attributes['class'];
+    if (classes == null) return null;
+    for (final name in classes.split(RegExp(r'\s+'))) {
+      if (name.startsWith('language-')) {
+        return name.substring('language-'.length).toLowerCase();
+      }
+    }
+    return null;
+  }
+}
+
+/// A `$$ … $$` display equation.
+///
+/// Rendering LaTeX properly needs a maths typesetter, which is a dependency
+/// and a feature of its own. Until then the equation is at least presented
+/// as one — centred, monospaced, framed — instead of as a paragraph that
+/// happens to start and end with dollar signs.
+class FormulaBlock extends StatelessWidget {
+  const FormulaBlock({
+    super.key,
+    required this.source,
+    required this.textColor,
+    required this.fontSize,
+  });
+
+  final String source;
+  final Color textColor;
+  final double fontSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final body = source
+        .trim()
+        .replaceAll(RegExp(r'^\$\$|\$\$$'), '')
+        .trim();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: textColor.withValues(alpha: .05),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: textColor.withValues(alpha: .18)),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Text(
+          body,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontFamily: 'Roboto Mono',
+            fontSize: fontSize * .8,
+            height: 1.5,
+            color: textColor,
+          ),
+        ),
+      ),
+    );
   }
 }

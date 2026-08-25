@@ -335,7 +335,7 @@ abstract class AppLocalizations {
   /// No description provided for @appearance.
   ///
   /// In en, this message translates to:
-  /// **'Appearance'**
+  /// **'Settings'**
   String get appearance;
 
   /// No description provided for @importLabel.

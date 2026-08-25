@@ -280,9 +280,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
               ),
               const Spacer(),
               IconButton(
+                // Labelled "Aparência" with a tune icon, this was the only
+                // door to theme, language, syncing and reading aloud — and
+                // it read as a door to none of them but the first.
                 tooltip: context.l10n.appearance,
                 onPressed: _openSettings,
-                icon: const Icon(Icons.tune_rounded),
+                icon: const Icon(Icons.settings_rounded),
               ),
               if (MediaQuery.sizeOf(context).width >= 620) ...[
                 const SizedBox(width: 8),
@@ -691,8 +694,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(context.l10n.moveDocument),
+        // Width capped to the screen, not fixed: an AlertDialog does not
+        // scroll sideways, so a wider-than-the-phone body just loses its
+        // right edge.
         content: SizedBox(
-          width: 440,
+          width: _dialogWidth(dialogContext, 440),
           height: 420,
           child: ListView(
             children: [
@@ -785,7 +791,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         builder: (context, setDialogState) => AlertDialog(
           title: Text(context.l10n.newDocument),
           content: SizedBox(
-            width: 420,
+            width: _dialogWidth(context, 420),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -1016,6 +1022,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
       ),
     );
     if (confirmed == true) await widget.controller.deleteDocument(document.id);
+  }
+
+  /// Preferred dialog body width, never wider than the screen allows.
+  static double _dialogWidth(BuildContext context, double preferred) {
+    final available = MediaQuery.sizeOf(context).width - 80;
+    return available < preferred ? available.clamp(200.0, preferred) : preferred;
   }
 
   void _openSettings() => showModalBottomSheet<void>(
