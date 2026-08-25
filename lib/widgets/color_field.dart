@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/l10n.dart';
+
 class ColorField extends StatelessWidget {
   const ColorField({
     super.key,
@@ -116,8 +118,8 @@ class ColorField extends StatelessWidget {
                 const SizedBox(height: 20),
                 TextField(
                   controller: controller,
-                  decoration: const InputDecoration(
-                    labelText: 'Cor hexadecimal',
+                  decoration: InputDecoration(
+                    labelText: context.l10n.hexColor,
                     prefixText: '#',
                     hintText: '6B4933',
                   ),
@@ -138,11 +140,11 @@ class ColorField extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
+              child: Text(context.l10n.cancel),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, selected),
-              child: const Text('Aplicar'),
+              child: Text(context.l10n.apply),
             ),
           ],
         ),

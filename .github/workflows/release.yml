@@ -33,18 +33,26 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
-      - run: flutter build apk --release
-      - run: flutter build web --release
+      - name: Build universal and ARM64 Android APKs
+        shell: bash
+        run: |
+          mkdir -p build/release-apks
+          flutter build apk --release
+          cp build/app/outputs/flutter-apk/app-release.apk build/release-apks/universal.apk
+          flutter build apk --release --target-platform android-arm64
+          cp build/app/outputs/flutter-apk/app-release.apk build/release-apks/arm64-v8a.apk
+      - run: bash tool/build_web.sh
 
       - name: Package release files
         shell: bash
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-release.apk "dist/sepia-${VERSION}-android.apk"
+          cp build/release-apks/universal.apk "dist/sepia-${VERSION}-android-universal.apk"
+          cp build/release-apks/arm64-v8a.apk "dist/sepia-${VERSION}-android-arm64-v8a.apk"
           tar -C build/web -czf "dist/sepia-${VERSION}-web.tar.gz" .
           cd dist
-          sha256sum "sepia-${VERSION}-android.apk" "sepia-${VERSION}-web.tar.gz" > SHA256SUMS.txt
+          sha256sum "sepia-${VERSION}-android-universal.apk" "sepia-${VERSION}-android-arm64-v8a.apk" "sepia-${VERSION}-web.tar.gz" > SHA256SUMS.txt
 
       - uses: actions/upload-artifact@v7
         with:
@@ -56,7 +64,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: >-
           gh release create "$GITHUB_REF_NAME"
-          dist/sepia-*-android.apk
+          dist/sepia-*-android-universal.apk
+          dist/sepia-*-android-arm64-v8a.apk
           dist/sepia-*-web.tar.gz
           dist/SHA256SUMS.txt
           --repo "$GITHUB_REPOSITORY"

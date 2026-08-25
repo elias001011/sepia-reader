@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: ^3.13.0
@@ -30,6 +30,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -37,7 +39,6 @@ dependencies:
   file_picker: ^12.0.0
   file_saver: ^0.4.0
   flutter_markdown_plus: ^1.0.12
-  google_fonts: ^8.2.1
   highlight: ^0.7.0
   shared_preferences: ^2.5.5
   uuid: ^4.6.0
@@ -59,11 +60,44 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+  generate: true
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/sepia_icon.png
+    - assets/fonts/licenses/
+
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter.ttf
+        - asset: assets/fonts/Inter-Italic.ttf
+          style: italic
+    - family: Merriweather
+      fonts:
+        - asset: assets/fonts/Merriweather-400.ttf
+          weight: 400
+        - asset: assets/fonts/Merriweather-400-Italic.ttf
+          style: italic
+          weight: 400
+        - asset: assets/fonts/Merriweather-700.ttf
+          weight: 700
+        - asset: assets/fonts/Merriweather-800.ttf
+          weight: 800
+    - family: Lora
+      fonts:
+        - asset: assets/fonts/Lora.ttf
+        - asset: assets/fonts/Lora-Italic.ttf
+          style: italic
+    - family: Roboto Mono
+      fonts:
+        - asset: assets/fonts/RobotoMono.ttf
+        - asset: assets/fonts/RobotoMono-Italic.ttf
+          style: italic
 
 flutter_launcher_icons:
   android: true

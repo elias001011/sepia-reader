@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/l10n.dart';
 import '../models/app_settings.dart';
 import '../state/app_controller.dart';
 import '../widgets/color_field.dart';
@@ -35,7 +36,7 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
                 Row(
                   children: [
                     Text(
-                      'Ajustes de leitura',
+                      context.l10n.readerSettings,
                       style: Theme.of(context).textTheme.headlineSmall
                           ?.copyWith(fontWeight: FontWeight.w700),
                     ),
@@ -48,11 +49,14 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Os ajustes são usados em todos os documentos.',
+                  context.l10n.readerSettingsDescription,
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 22),
-                Text('Presets', style: Theme.of(context).textTheme.labelLarge),
+                Text(
+                  context.l10n.presets,
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
                 const SizedBox(height: 10),
                 Wrap(
                   spacing: 10,
@@ -60,25 +64,25 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
                   children: [
                     _preset(
                       context,
-                      'Sépia',
+                      context.l10n.sepiaPreset,
                       const Color(0xFF6B4933),
                       const Color(0xFFFFF8ED),
                     ),
                     _preset(
                       context,
-                      'Artifact',
+                      context.l10n.artifactPreset,
                       const Color(0xFF2B211D),
                       const Color(0xFFE7DDD2),
                     ),
                     _preset(
                       context,
-                      'Papel',
+                      context.l10n.paperPreset,
                       const Color(0xFFFFFBF2),
                       const Color(0xFF322720),
                     ),
                     _preset(
                       context,
-                      'Noite',
+                      context.l10n.nightPreset,
                       const Color(0xFF111318),
                       const Color(0xFFE8E2DA),
                     ),
@@ -87,7 +91,7 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
                 const SizedBox(height: 22),
                 DropdownButtonFormField<String>(
                   initialValue: _draft.readerFont,
-                  decoration: const InputDecoration(labelText: 'Fonte'),
+                  decoration: InputDecoration(labelText: context.l10n.font),
                   items:
                       const [
                             'Merriweather',
@@ -99,7 +103,11 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
                           .map(
                             (font) => DropdownMenuItem(
                               value: font,
-                              child: Text(font),
+                              child: Text(
+                                font == 'Sistema'
+                                    ? context.l10n.systemFont
+                                    : font,
+                              ),
                             ),
                           )
                           .toList(),
@@ -110,7 +118,7 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
                 const SizedBox(height: 18),
                 _slider(
                   context,
-                  label: 'Tamanho',
+                  label: context.l10n.size,
                   value: _draft.readerFontSize,
                   min: 14,
                   max: 34,
@@ -122,7 +130,7 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
                 ),
                 _slider(
                   context,
-                  label: 'Entrelinha',
+                  label: context.l10n.lineHeight,
                   value: _draft.readerLineHeight,
                   min: 1.2,
                   max: 2.2,
@@ -134,7 +142,7 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
                 ),
                 _slider(
                   context,
-                  label: 'Largura da página',
+                  label: context.l10n.pageWidth,
                   value: _draft.readerWidth,
                   min: 520,
                   max: 1040,
@@ -146,14 +154,14 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
                 ),
                 const SizedBox(height: 8),
                 ColorField(
-                  label: 'Fundo da leitura',
+                  label: context.l10n.readerBackground,
                   value: _draft.readerBackground,
                   onChanged: (value) => setState(
                     () => _draft = _draft.copyWith(readerBackground: value),
                   ),
                 ),
                 ColorField(
-                  label: 'Cor do texto',
+                  label: context.l10n.textColor,
                   value: _draft.readerText,
                   onChanged: (value) => setState(
                     () => _draft = _draft.copyWith(readerText: value),
@@ -168,9 +176,9 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
                       if (context.mounted) Navigator.pop(context);
                     },
                     icon: const Icon(Icons.check_rounded),
-                    label: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: Text('Aplicar na leitura'),
+                    label: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Text(context.l10n.applyReading),
                     ),
                   ),
                 ),

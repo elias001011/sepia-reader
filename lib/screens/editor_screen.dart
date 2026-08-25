@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../l10n/l10n.dart';
 import '../models/library_document.dart';
 import '../services/document_io.dart';
 import '../state/app_controller.dart';
@@ -24,6 +25,7 @@ class EditorScreen extends StatefulWidget {
 class _EditorScreenState extends State<EditorScreen> {
   late final TextEditingController _contentController;
   late final TextEditingController _titleController;
+  final UndoHistoryController _undoController = UndoHistoryController();
   Timer? _saveTimer;
   bool _dirty = false;
   bool _readingMode = false;
@@ -40,6 +42,7 @@ class _EditorScreenState extends State<EditorScreen> {
       ..addListener(_onChanged);
     _titleController = TextEditingController(text: document.title)
       ..addListener(_onChanged);
+    _undoController.addListener(_refresh);
     widget.controller.addListener(_refresh);
   }
 
@@ -48,6 +51,8 @@ class _EditorScreenState extends State<EditorScreen> {
     _saveTimer?.cancel();
     if (_dirty) unawaited(_save());
     widget.controller.removeListener(_refresh);
+    _undoController.removeListener(_refresh);
+    _undoController.dispose();
     _contentController.dispose();
     _titleController.dispose();
     super.dispose();
@@ -68,7 +73,7 @@ class _EditorScreenState extends State<EditorScreen> {
     final document = _stored!;
     return document.copyWith(
       title: _titleController.text.trim().isEmpty
-          ? 'Sem título'
+          ? context.l10n.untitled
           : _titleController.text.trim(),
       content: _contentController.text,
     );
@@ -81,12 +86,15 @@ class _EditorScreenState extends State<EditorScreen> {
     if (mounted) setState(() {});
   }
 
+  void _enterReadingMode() {
+    FocusScope.of(context).unfocus();
+    setState(() => _readingMode = true);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_stored == null) {
-      return const Scaffold(
-        body: Center(child: Text('Documento não encontrado.')),
-      );
+      return Scaffold(body: Center(child: Text(context.l10n.documentNotFound)));
     }
     if (_readingMode) return _readerOnly(context);
     return Scaffold(
@@ -108,50 +116,80 @@ class _EditorScreenState extends State<EditorScreen> {
           ),
         ),
         actions: [
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 180),
-            child: _dirty
-                ? const Padding(
-                    key: ValueKey('saving'),
-                    padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+          if (MediaQuery.sizeOf(context).width >= 620)
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 180),
+              child: _dirty
+                  ? const Padding(
+                      key: ValueKey('saving'),
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : Padding(
+                      key: const ValueKey('saved'),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Icon(
+                        Icons.cloud_done_outlined,
+                        size: 20,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
-                  )
-                : Padding(
-                    key: const ValueKey('saved'),
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Icon(
-                      Icons.cloud_done_outlined,
-                      size: 20,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+            ),
+          if (MediaQuery.sizeOf(context).width < 620)
+            PopupMenuButton<String>(
+              tooltip: context.l10n.adjustments,
+              onSelected: (value) {
+                if (value == 'reader-settings') _openReaderSettings();
+                if (value == 'export') _export();
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'reader-settings',
+                  child: ListTile(
+                    leading: const Icon(Icons.text_fields_rounded),
+                    title: Text(context.l10n.readingSettings),
+                    contentPadding: EdgeInsets.zero,
                   ),
-          ),
-          IconButton(
-            tooltip: 'Ajustes de leitura',
-            onPressed: _openReaderSettings,
-            icon: const Icon(Icons.text_fields_rounded),
-          ),
-          IconButton(
-            tooltip: 'Exportar',
-            onPressed: _export,
-            icon: const Icon(Icons.download_rounded),
-          ),
+                ),
+                PopupMenuItem(
+                  value: 'export',
+                  child: ListTile(
+                    leading: const Icon(Icons.download_rounded),
+                    title: Text(context.l10n.exportLabel),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              ],
+            )
+          else ...[
+            IconButton(
+              tooltip: context.l10n.readingSettings,
+              onPressed: _openReaderSettings,
+              icon: const Icon(Icons.text_fields_rounded),
+            ),
+            IconButton(
+              tooltip: context.l10n.exportLabel,
+              onPressed: _export,
+              icon: const Icon(Icons.download_rounded),
+            ),
+          ],
           Padding(
             padding: const EdgeInsets.only(right: 12),
-            child: FilledButton.tonalIcon(
-              onPressed: () {
-                FocusScope.of(context).unfocus();
-                setState(() => _readingMode = true);
-              },
-              icon: const Icon(Icons.menu_book_rounded),
-              label: MediaQuery.sizeOf(context).width >= 620
-                  ? const Text('Modo leitura')
-                  : const SizedBox.shrink(),
-            ),
+            child: MediaQuery.sizeOf(context).width < 620
+                ? IconButton.filledTonal(
+                    tooltip: context.l10n.readingMode,
+                    onPressed: _enterReadingMode,
+                    icon: const Icon(Icons.menu_book_rounded),
+                  )
+                : FilledButton.tonalIcon(
+                    onPressed: _enterReadingMode,
+                    icon: const Icon(Icons.menu_book_rounded),
+                    label: Text(context.l10n.readingMode),
+                  ),
           ),
         ],
       ),
@@ -160,8 +198,11 @@ class _EditorScreenState extends State<EditorScreen> {
           final wide = constraints.maxWidth >= 900;
           return Column(
             children: [
-              if (_stored!.isMarkdown && (!wide && !_showPreview || wide))
-                _formatToolbar(context),
+              if (!wide && !_showPreview || wide)
+                _editorToolbar(
+                  context,
+                  includeMarkdownTools: _stored!.isMarkdown,
+                ),
               if (!wide) _mobileTabs(context),
               Expanded(
                 child: wide
@@ -188,7 +229,7 @@ class _EditorScreenState extends State<EditorScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               color: Theme.of(context).colorScheme.surfaceContainerLow,
               child: Text(
-                'EDITOR',
+                context.l10n.editorLabel,
                 style: Theme.of(context).textTheme.labelSmall
                     ?.copyWith(letterSpacing: 1.2),
               ),
@@ -206,7 +247,7 @@ class _EditorScreenState extends State<EditorScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               color: Theme.of(context).colorScheme.surfaceContainerLow,
               child: Text(
-                'LEITURA',
+                context.l10n.readingLabel,
                 style: Theme.of(context).textTheme.labelSmall
                     ?.copyWith(letterSpacing: 1.2),
               ),
@@ -222,6 +263,7 @@ class _EditorScreenState extends State<EditorScreen> {
     color: Theme.of(context).colorScheme.surface,
     child: TextField(
       controller: _contentController,
+      undoController: _undoController,
       expands: true,
       maxLines: null,
       minLines: null,
@@ -232,12 +274,12 @@ class _EditorScreenState extends State<EditorScreen> {
         fontSize: 15.5,
         height: 1.65,
       ),
-      decoration: const InputDecoration(
+      decoration: InputDecoration(
         filled: false,
         border: InputBorder.none,
         enabledBorder: InputBorder.none,
-        contentPadding: EdgeInsets.all(24),
-        hintText: 'Comece a escrever…',
+        contentPadding: const EdgeInsets.all(24),
+        hintText: context.l10n.startWriting,
       ),
     ),
   );
@@ -250,16 +292,17 @@ class _EditorScreenState extends State<EditorScreen> {
     padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
     color: Theme.of(context).colorScheme.surfaceContainerLow,
     child: SegmentedButton<bool>(
-      segments: const [
+      showSelectedIcon: false,
+      segments: [
         ButtonSegment(
           value: false,
-          label: Text('Editar'),
-          icon: Icon(Icons.edit_outlined),
+          label: Text(context.l10n.edit),
+          icon: const Icon(Icons.edit_outlined),
         ),
         ButtonSegment(
           value: true,
-          label: Text('Visualizar'),
-          icon: Icon(Icons.visibility_outlined),
+          label: Text(context.l10n.preview),
+          icon: const Icon(Icons.visibility_outlined),
         ),
       ],
       selected: {_showPreview},
@@ -270,48 +313,64 @@ class _EditorScreenState extends State<EditorScreen> {
     ),
   );
 
-  Widget _formatToolbar(BuildContext context) {
-    final actions = <({String label, IconData icon, VoidCallback onTap})>[
+  Widget _editorToolbar(
+    BuildContext context, {
+    required bool includeMarkdownTools,
+  }) {
+    final history = _undoController.value;
+    final actions = <({String label, IconData icon, VoidCallback? onTap})>[
       (
-        label: 'Título',
-        icon: Icons.title_rounded,
-        onTap: () => _linePrefix('## '),
+        label: context.l10n.undoSession,
+        icon: Icons.undo_rounded,
+        onTap: history.canUndo ? _undoController.undo : null,
       ),
       (
-        label: 'Negrito',
-        icon: Icons.format_bold_rounded,
-        onTap: () => _wrap('**', '**', 'texto'),
+        label: context.l10n.redoSession,
+        icon: Icons.redo_rounded,
+        onTap: history.canRedo ? _undoController.redo : null,
       ),
-      (
-        label: 'Itálico',
-        icon: Icons.format_italic_rounded,
-        onTap: () => _wrap('_', '_', 'texto'),
-      ),
-      (
-        label: 'Citação',
-        icon: Icons.format_quote_rounded,
-        onTap: () => _linePrefix('> '),
-      ),
-      (
-        label: 'Lista',
-        icon: Icons.format_list_bulleted_rounded,
-        onTap: () => _linePrefix('- '),
-      ),
-      (
-        label: 'Código',
-        icon: Icons.code_rounded,
-        onTap: () => _wrap('`', '`', 'código'),
-      ),
-      (
-        label: 'Link',
-        icon: Icons.link_rounded,
-        onTap: () => _wrap('[', '](https://)', 'texto'),
-      ),
-      (
-        label: 'Linha',
-        icon: Icons.horizontal_rule_rounded,
-        onTap: () => _insert('\n---\n'),
-      ),
+      if (includeMarkdownTools) ...[
+        (
+          label: context.l10n.heading,
+          icon: Icons.title_rounded,
+          onTap: () => _linePrefix('## '),
+        ),
+        (
+          label: context.l10n.bold,
+          icon: Icons.format_bold_rounded,
+          onTap: () => _wrap('**', '**', context.l10n.textPlaceholder),
+        ),
+        (
+          label: context.l10n.italic,
+          icon: Icons.format_italic_rounded,
+          onTap: () => _wrap('_', '_', context.l10n.textPlaceholder),
+        ),
+        (
+          label: context.l10n.quote,
+          icon: Icons.format_quote_rounded,
+          onTap: () => _linePrefix('> '),
+        ),
+        (
+          label: context.l10n.list,
+          icon: Icons.format_list_bulleted_rounded,
+          onTap: () => _linePrefix('- '),
+        ),
+        (
+          label: context.l10n.code,
+          icon: Icons.code_rounded,
+          onTap: () => _wrap('`', '`', context.l10n.codePlaceholder),
+        ),
+        (
+          label: context.l10n.link,
+          icon: Icons.link_rounded,
+          onTap: () => _wrap('[', '](https://)', context.l10n.textPlaceholder),
+        ),
+        (
+          label: context.l10n.horizontalRule,
+          icon: Icons.horizontal_rule_rounded,
+          onTap: () => _insert('\n---\n'),
+        ),
+      ],
     ];
     return Material(
       color: Theme.of(context).colorScheme.surfaceContainerLow,
@@ -340,16 +399,29 @@ class _EditorScreenState extends State<EditorScreen> {
     ),
     child: Row(
       children: [
-        Text(
-          '${_draft.wordCount} palavras',
-          style: Theme.of(context).textTheme.labelSmall,
-        ),
-        const SizedBox(width: 16),
-        Text(
-          '${_draft.readingMinutes} min de leitura',
-          style: Theme.of(context).textTheme.labelSmall,
-        ),
-        const Spacer(),
+        if (MediaQuery.sizeOf(context).width < 620)
+          Expanded(
+            child: Text(
+              '${context.l10n.wordCount(_draft.wordCount)} · '
+              '${context.l10n.readingMinutes(_draft.readingMinutes)}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
+          )
+        else ...[
+          Text(
+            context.l10n.wordCount(_draft.wordCount),
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
+          const SizedBox(width: 16),
+          Text(
+            context.l10n.readingMinutes(_draft.readingMinutes),
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
+          const Spacer(),
+        ],
+        const SizedBox(width: 12),
         Text(
           '.${_draft.extension}',
           style: Theme.of(context).textTheme.labelSmall,
@@ -378,7 +450,7 @@ class _EditorScreenState extends State<EditorScreen> {
           left: 16,
           child: _readerButton(
             context,
-            tooltip: 'Voltar à biblioteca',
+            tooltip: context.l10n.backToLibrary,
             icon: Icons.arrow_back_rounded,
             onPressed: _close,
           ),
@@ -390,14 +462,14 @@ class _EditorScreenState extends State<EditorScreen> {
             children: [
               _readerButton(
                 context,
-                tooltip: 'Ajustes',
+                tooltip: context.l10n.adjustments,
                 icon: Icons.text_fields_rounded,
                 onPressed: _openReaderSettings,
               ),
               const SizedBox(width: 8),
               _readerButton(
                 context,
-                tooltip: 'Sair do modo leitura',
+                tooltip: context.l10n.exitReadingMode,
                 icon: Icons.edit_rounded,
                 onPressed: () => setState(() => _readingMode = false),
               ),
@@ -484,12 +556,12 @@ class _EditorScreenState extends State<EditorScreen> {
       await exportDocument(_draft);
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Arquivo exportado.')));
+            .showSnackBar(SnackBar(content: Text(context.l10n.exported)));
       }
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Não foi possível exportar: $error')),
+          SnackBar(content: Text(context.l10n.exportFailed('$error'))),
         );
       }
     }
