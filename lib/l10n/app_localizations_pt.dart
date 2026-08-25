@@ -132,7 +132,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get newLabel => 'Novo';
 
   @override
-  String get appearance => 'Aparência';
+  String get appearance => 'Configurações';
 
   @override
   String get importLabel => 'Importar';
@@ -601,14 +601,14 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get ttsEngineSystemDescription =>
-      'Usa a voz que o Android ou o navegador já tem. Não baixa nada e funciona offline.';
+      'Ultra leve: usa a voz que o Android ou o navegador já tem. Não baixa nada, não ocupa espaço e funciona offline.';
 
   @override
-  String get ttsEngineNeural => 'Modelo neural local (em preparação)';
+  String get ttsEngineNeural => 'Voz neural no aparelho';
 
   @override
   String get ttsEngineNeuralDescription =>
-      'Voz bem mais natural, rodando no próprio aparelho. Ainda não disponível nesta versão — acompanhe em github.com/elias001011/sepia-reader/issues/1.';
+      'Muito mais natural. Roda offline no próprio aparelho, sem API e sem mandar seu texto para lugar nenhum — mas precisa baixar uma voz primeiro.';
 
   @override
   String get ttsVoice => 'Voz';
@@ -730,4 +730,90 @@ class AppLocalizationsPt extends AppLocalizations {
   String editSectionPart(String number) {
     return 'Parte $number';
   }
+
+  @override
+  String get ttsEngineNeuralUnavailableWeb =>
+      'No navegador só a voz do sistema funciona: a voz neural precisa rodar nativamente. Use o app Android para isso.';
+
+  @override
+  String get ttsNeuralVoices => 'Vozes neurais';
+
+  @override
+  String get ttsManageVoices => 'Baixar vozes';
+
+  @override
+  String get ttsVoicesTitle => 'Vozes para baixar';
+
+  @override
+  String get ttsVoicesDescription =>
+      'Baixe uma vez e use offline para sempre. Fica guardada no aparelho e dá para remover quando quiser.';
+
+  @override
+  String get ttsVoiceInstall => 'Baixar';
+
+  @override
+  String get ttsVoiceRemove => 'Remover';
+
+  @override
+  String get ttsVoiceInstalled => 'Instalada';
+
+  @override
+  String get ttsVoiceUse => 'Usar';
+
+  @override
+  String get ttsVoiceInUse => 'Em uso';
+
+  @override
+  String ttsVoiceDownloading(int percent) {
+    return 'Baixando… $percent%';
+  }
+
+  @override
+  String get ttsVoiceCancel => 'Cancelar';
+
+  @override
+  String ttsVoiceSize(int size) {
+    return '$size MB';
+  }
+
+  @override
+  String ttsVoiceInstallFailed(String error) {
+    return 'Não deu para baixar a voz: $error';
+  }
+
+  @override
+  String ttsVoiceRemoveConfirm(String name) {
+    return 'Remover “$name”? Os arquivos saem do aparelho e dá para baixar de novo depois.';
+  }
+
+  @override
+  String get ttsVoiceHeavy =>
+      'Modelo grande: precisa de bastante espaço e memória. Em aparelho mais fraco, prefira as vozes Piper.';
+
+  @override
+  String get ttsNoNeuralVoice => 'Nenhuma voz neural instalada ainda.';
+
+  @override
+  String get ttsPitchUnsupported =>
+      'As vozes neurais são reproduzidas como foram gravadas; o tom não se aplica a elas.';
+
+  @override
+  String get ttsTierSystem => 'Ultra leve · voz do sistema';
+
+  @override
+  String get ttsTierLight => 'Leve';
+
+  @override
+  String get ttsTierBest => 'Melhor';
+
+  @override
+  String get ttsTierLightHint => 'Piper · roda bem em qualquer aparelho';
+
+  @override
+  String get ttsTierBestHint =>
+      'Kokoro · voz mais natural, pede mais espaço e memória';
+
+  @override
+  String get ttsFellBackToSystem =>
+      'A voz neural não pôde ser usada agora; lendo com a voz do sistema.';
 }

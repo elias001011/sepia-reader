@@ -39,7 +39,7 @@
   "cancel": "Cancelar",
   "apply": "Aplicar",
   "newLabel": "Novo",
-  "appearance": "Aparência",
+  "appearance": "Configurações",
   "importLabel": "Importar",
   "newDocument": "Novo documento",
   "libraryHero": "Sua biblioteca,\nno seu ritmo.",
@@ -316,9 +316,9 @@
   "ttsEnableDescription": "Adiciona um botão de ouvir no modo leitura.",
   "ttsEngineLabel": "Voz",
   "ttsEngineSystem": "Voz do sistema",
-  "ttsEngineSystemDescription": "Usa a voz que o Android ou o navegador já tem. Não baixa nada e funciona offline.",
-  "ttsEngineNeural": "Modelo neural local (em preparação)",
-  "ttsEngineNeuralDescription": "Voz bem mais natural, rodando no próprio aparelho. Ainda não disponível nesta versão — acompanhe em github.com/elias001011/sepia-reader/issues/1.",
+  "ttsEngineSystemDescription": "Ultra leve: usa a voz que o Android ou o navegador já tem. Não baixa nada, não ocupa espaço e funciona offline.",
+  "ttsEngineNeural": "Voz neural no aparelho",
+  "ttsEngineNeuralDescription": "Muito mais natural. Roda offline no próprio aparelho, sem API e sem mandar seu texto para lugar nenhum — mas precisa baixar uma voz primeiro.",
   "ttsVoice": "Voz",
   "ttsVoiceAuto": "Escolher automaticamente",
   "ttsRate": "Velocidade",
@@ -393,5 +393,57 @@
         "type": "String"
       }
     }
-  }
+  },
+  "ttsEngineNeuralUnavailableWeb": "No navegador só a voz do sistema funciona: a voz neural precisa rodar nativamente. Use o app Android para isso.",
+  "ttsNeuralVoices": "Vozes neurais",
+  "ttsManageVoices": "Baixar vozes",
+  "ttsVoicesTitle": "Vozes para baixar",
+  "ttsVoicesDescription": "Baixe uma vez e use offline para sempre. Fica guardada no aparelho e dá para remover quando quiser.",
+  "ttsVoiceInstall": "Baixar",
+  "ttsVoiceRemove": "Remover",
+  "ttsVoiceInstalled": "Instalada",
+  "ttsVoiceUse": "Usar",
+  "ttsVoiceInUse": "Em uso",
+  "ttsVoiceDownloading": "Baixando… {percent}%",
+  "@ttsVoiceDownloading": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "ttsVoiceCancel": "Cancelar",
+  "ttsVoiceSize": "{size} MB",
+  "@ttsVoiceSize": {
+    "placeholders": {
+      "size": {
+        "type": "int"
+      }
+    }
+  },
+  "ttsVoiceInstallFailed": "Não deu para baixar a voz: {error}",
+  "@ttsVoiceInstallFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "ttsVoiceRemoveConfirm": "Remover “{name}”? Os arquivos saem do aparelho e dá para baixar de novo depois.",
+  "@ttsVoiceRemoveConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ttsVoiceHeavy": "Modelo grande: precisa de bastante espaço e memória. Em aparelho mais fraco, prefira as vozes Piper.",
+  "ttsNoNeuralVoice": "Nenhuma voz neural instalada ainda.",
+  "ttsPitchUnsupported": "As vozes neurais são reproduzidas como foram gravadas; o tom não se aplica a elas.",
+  "ttsTierSystem": "Ultra leve · voz do sistema",
+  "ttsTierLight": "Leve",
+  "ttsTierBest": "Melhor",
+  "ttsTierLightHint": "Piper · roda bem em qualquer aparelho",
+  "ttsTierBestHint": "Kokoro · voz mais natural, pede mais espaço e memória",
+  "ttsFellBackToSystem": "A voz neural não pôde ser usada agora; lendo com a voz do sistema."
 }

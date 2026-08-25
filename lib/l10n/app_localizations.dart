@@ -335,7 +335,7 @@ abstract class AppLocalizations {
   /// No description provided for @appearance.
   ///
   /// In en, this message translates to:
-  /// **'Appearance'**
+  /// **'Settings'**
   String get appearance;
 
   /// No description provided for @importLabel.
@@ -1043,19 +1043,19 @@ abstract class AppLocalizations {
   /// No description provided for @ttsEngineSystemDescription.
   ///
   /// In en, this message translates to:
-  /// **'Uses the voice Android or your browser already has. Nothing to download, works offline.'**
+  /// **'Ultra light: uses the voice Android or your browser already has. Nothing to download, no storage used, works offline.'**
   String get ttsEngineSystemDescription;
 
   /// No description provided for @ttsEngineNeural.
   ///
   /// In en, this message translates to:
-  /// **'Local neural model (in progress)'**
+  /// **'On-device neural voice'**
   String get ttsEngineNeural;
 
   /// No description provided for @ttsEngineNeuralDescription.
   ///
   /// In en, this message translates to:
-  /// **'A far more natural voice, running on the device itself. Not available in this version yet — follow along at github.com/elias001011/sepia-reader/issues/1.'**
+  /// **'Far more natural. Runs offline on the device itself, with no API and without sending your text anywhere — but a voice has to be downloaded first.'**
   String get ttsEngineNeuralDescription;
 
   /// No description provided for @ttsVoice.
@@ -1261,6 +1261,150 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Part {number}'**
   String editSectionPart(String number);
+
+  /// No description provided for @ttsEngineNeuralUnavailableWeb.
+  ///
+  /// In en, this message translates to:
+  /// **'In the browser only the system voice works: the neural voice needs to run natively. Use the Android app for that.'**
+  String get ttsEngineNeuralUnavailableWeb;
+
+  /// No description provided for @ttsNeuralVoices.
+  ///
+  /// In en, this message translates to:
+  /// **'Neural voices'**
+  String get ttsNeuralVoices;
+
+  /// No description provided for @ttsManageVoices.
+  ///
+  /// In en, this message translates to:
+  /// **'Download voices'**
+  String get ttsManageVoices;
+
+  /// No description provided for @ttsVoicesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Voices to download'**
+  String get ttsVoicesTitle;
+
+  /// No description provided for @ttsVoicesDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Download once and use offline forever. It is stored on the device and can be removed whenever you like.'**
+  String get ttsVoicesDescription;
+
+  /// No description provided for @ttsVoiceInstall.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get ttsVoiceInstall;
+
+  /// No description provided for @ttsVoiceRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get ttsVoiceRemove;
+
+  /// No description provided for @ttsVoiceInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'Installed'**
+  String get ttsVoiceInstalled;
+
+  /// No description provided for @ttsVoiceUse.
+  ///
+  /// In en, this message translates to:
+  /// **'Use'**
+  String get ttsVoiceUse;
+
+  /// No description provided for @ttsVoiceInUse.
+  ///
+  /// In en, this message translates to:
+  /// **'In use'**
+  String get ttsVoiceInUse;
+
+  /// No description provided for @ttsVoiceDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading… {percent}%'**
+  String ttsVoiceDownloading(int percent);
+
+  /// No description provided for @ttsVoiceCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get ttsVoiceCancel;
+
+  /// No description provided for @ttsVoiceSize.
+  ///
+  /// In en, this message translates to:
+  /// **'{size} MB'**
+  String ttsVoiceSize(int size);
+
+  /// No description provided for @ttsVoiceInstallFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not download the voice: {error}'**
+  String ttsVoiceInstallFailed(String error);
+
+  /// No description provided for @ttsVoiceRemoveConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove “{name}”? The files leave the device and can be downloaded again later.'**
+  String ttsVoiceRemoveConfirm(String name);
+
+  /// No description provided for @ttsVoiceHeavy.
+  ///
+  /// In en, this message translates to:
+  /// **'Large model: needs plenty of space and memory. On a weaker phone, prefer the Piper voices.'**
+  String get ttsVoiceHeavy;
+
+  /// No description provided for @ttsNoNeuralVoice.
+  ///
+  /// In en, this message translates to:
+  /// **'No neural voice installed yet.'**
+  String get ttsNoNeuralVoice;
+
+  /// No description provided for @ttsPitchUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Neural voices play as they were recorded; pitch does not apply to them.'**
+  String get ttsPitchUnsupported;
+
+  /// No description provided for @ttsTierSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'Ultra light · system voice'**
+  String get ttsTierSystem;
+
+  /// No description provided for @ttsTierLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get ttsTierLight;
+
+  /// No description provided for @ttsTierBest.
+  ///
+  /// In en, this message translates to:
+  /// **'Best'**
+  String get ttsTierBest;
+
+  /// No description provided for @ttsTierLightHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Piper · runs well on any device'**
+  String get ttsTierLightHint;
+
+  /// No description provided for @ttsTierBestHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Kokoro · more natural, wants more space and memory'**
+  String get ttsTierBestHint;
+
+  /// No description provided for @ttsFellBackToSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'The neural voice could not be used right now; reading with the system voice.'**
+  String get ttsFellBackToSystem;
 }
 
 class _AppLocalizationsDelegate

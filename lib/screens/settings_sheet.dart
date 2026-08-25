@@ -6,6 +6,9 @@ import '../l10n/l10n.dart';
 import '../models/app_settings.dart';
 import '../services/tts/system_tts_engine.dart';
 import '../services/tts/tts_engine.dart';
+import '../services/tts/voice_catalog.dart';
+import '../services/tts/voice_store.dart';
+import 'voice_downloads_sheet.dart';
 import '../state/app_controller.dart';
 import '../widgets/color_field.dart';
 
@@ -34,6 +37,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
   TtsEngine? _voiceEngine;
   List<TtsVoice>? _voices;
   bool _loadingVoices = false;
+  final VoiceStore _voiceStore = VoiceStore();
 
   @override
   void initState() {
@@ -200,20 +204,26 @@ class _SettingsSheetState extends State<SettingsSheet> {
           24 + MediaQuery.viewInsetsOf(context).bottom,
         ),
         child: Center(
-          child: SizedBox(
-            width: 520,
+          // A fixed width, not a maximum: on any screen narrower than
+          // this the sheet overflowed and its right edge — switches,
+          // buttons, the close control — was simply cut off. Which is
+          // every phone, where this app is mostly used.
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Text(
-                      context.l10n.appAppearance,
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w700),
+                    Expanded(
+                      child: Text(
+                        context.l10n.appAppearance,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
                     ),
-                    const Spacer(),
                     IconButton(
                       onPressed: () => Navigator.pop(context),
                       icon: const Icon(Icons.close_rounded),
@@ -233,6 +243,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
+                  isExpanded: true,
                   initialValue: _themeChoice,
                   decoration: InputDecoration(labelText: context.l10n.theme),
                   items: [
@@ -259,6 +270,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
                 ),
                 const SizedBox(height: 20),
                 DropdownButtonFormField<String>(
+                  isExpanded: true,
                   initialValue: _draft.localeCode,
                   decoration: InputDecoration(labelText: context.l10n.language),
                   items: [
@@ -348,11 +360,17 @@ class _SettingsSheetState extends State<SettingsSheet> {
                     context,
                     value: 'neural',
                     title: context.l10n.ttsEngineNeural,
-                    description: context.l10n.ttsEngineNeuralDescription,
-                    enabled: false,
+                    description: _voiceStore.isSupported
+                        ? context.l10n.ttsEngineNeuralDescription
+                        : context.l10n.ttsEngineNeuralUnavailableWeb,
+                    enabled: _voiceStore.isSupported,
                   ),
                   const SizedBox(height: 16),
-                  _voicePicker(context),
+                  if (_usingNeural) ...[
+                    _neuralVoiceRow(context),
+                    const SizedBox(height: 12),
+                  ] else
+                    _voicePicker(context),
                   const SizedBox(height: 8),
                   _slider(
                     context,
@@ -365,17 +383,21 @@ class _SettingsSheetState extends State<SettingsSheet> {
                       () => _draft = _draft.copyWith(ttsRate: value),
                     ),
                   ),
-                  _slider(
-                    context,
-                    label: context.l10n.ttsPitch,
-                    value: _draft.ttsPitch,
-                    min: 0.5,
-                    max: 2,
-                    divisions: 15,
-                    onChanged: (value) => setState(
-                      () => _draft = _draft.copyWith(ttsPitch: value),
+                  // Pitch is a platform-voice control: a neural model renders
+                  // its voice as trained, so offering the slider there would
+                  // be a knob that does nothing.
+                  if (!_usingNeural)
+                    _slider(
+                      context,
+                      label: context.l10n.ttsPitch,
+                      value: _draft.ttsPitch,
+                      min: 0.5,
+                      max: 2,
+                      divisions: 15,
+                      onChanged: (value) => setState(
+                        () => _draft = _draft.copyWith(ttsPitch: value),
+                      ),
                     ),
-                  ),
                   const SizedBox(height: 6),
                   OutlinedButton.icon(
                     onPressed: _previewVoice,
@@ -489,6 +511,43 @@ class _SettingsSheetState extends State<SettingsSheet> {
       ),
     );
   }
+
+  bool get _usingNeural =>
+      _draft.ttsEngine == 'neural' && _voiceStore.isSupported;
+
+  Widget _neuralVoiceRow(BuildContext context) {
+    final voice = neuralVoiceById(_draft.ttsNeuralVoiceId);
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            voice == null
+                ? context.l10n.ttsNoNeuralVoice
+                : '${voice.languageLabel} · ${voice.label}',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ),
+        const SizedBox(width: 12),
+        FilledButton.tonalIcon(
+          onPressed: _openVoiceDownloads,
+          icon: const Icon(Icons.download_rounded),
+          label: Text(context.l10n.ttsManageVoices),
+        ),
+      ],
+    );
+  }
+
+  void _openVoiceDownloads() => showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (_) => VoiceDownloadsSheet(
+      store: _voiceStore,
+      selectedVoiceId: _draft.ttsNeuralVoiceId,
+      onSelected: (id) =>
+          setState(() => _draft = _draft.copyWith(ttsNeuralVoiceId: id)),
+    ),
+  );
 
   Widget _voicePicker(BuildContext context) {
     final voices = _voices;

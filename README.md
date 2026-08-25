@@ -6,29 +6,48 @@ Leitor, biblioteca e editor de Markdown feito em Flutter. O Sépia foi pensado p
 
 ## O que já funciona
 
-- biblioteca local com busca, favoritos, pastas, subpastas e contagem de palavras;
-- criação de `.md` e `.txt` na raiz ou diretamente dentro de uma pasta;
-- renomeação e movimentação de documentos entre pastas e de volta à raiz;
-- importação múltipla, por arrastar e soltar no navegador ou de pastas inteiras, preservando a hierarquia e aceitando arquivos compatíveis de até 5 MB;
-- editor responsivo com atalhos para títulos, negrito, itálico, citações, listas, links e código;
-- desfazer/refazer por sessão via interface, `Ctrl/Cmd+Z`, `Ctrl+Y` ou `Ctrl/Cmd+Shift+Z`;
-- preview correto de Markdown, tabelas, citações e blocos de código, com contraste independente do tema do app;
-- syntax highlighting para Dart, JavaScript, TypeScript, JSON, YAML, HTML, CSS, Python, Java, Kotlin, Swift, shell, SQL e XML;
+### Ler
 - modo leitura que bloqueia edição, usa controles compactos e permite ocultá-los automaticamente;
 - fonte Merriweather e tema Sépia como padrão, com presets Artifact, Papel e Noite;
 - fonte, tamanho, entrelinha, largura, fundo e texto configuráveis;
+- marcadores ancorados ao trecho do texto, não à posição de rolagem — não escorregam quando o documento muda de tamanho;
+- Markdown completo: títulos, ênfase, riscado, listas, listas de tarefas, citações aninhadas, tabelas com alinhamento, links (inclusive por referência), imagens, notas de rodapé e blocos de código;
+- visualizador dedicado para código, com numeração de linhas, separado do leitor de prosa;
+- prévia de arquivos `.html`, com o código a um toque de distância;
+- documentos grandes virtualizados: só o que está na tela é construído.
+
+### Ouvir
+- leitura em voz alta, com escolha do capítulo (`#`/`##`) por onde começar, "continuar de onde parei", pausa, avanço de trecho e controle de velocidade;
+- o texto rola acompanhando a voz;
+- três níveis de voz:
+  - **voz do sistema** — ultra leve, usa o que o Android ou o navegador já tem, nada para baixar;
+  - **Piper** (~80 MB) — voz neural que roda bem em qualquer aparelho;
+  - **Kokoro** (~400 MB) — mais natural, para quem tem espaço e memória sobrando;
+- as duas neurais rodam offline no próprio aparelho via sherpa-onnx: nenhum texto sai do dispositivo, sem API e sem chave;
+- vozes baixadas sob demanda, com progresso, cancelamento, retomada de download interrompido e remoção;
+- a sintaxe do Markdown não é lida em voz alta — tabelas viram texto, código e diagramas são pulados.
+
+### Escrever
+- editor responsivo com atalhos para títulos, negrito, itálico, citações, listas, links e código;
+- desfazer/refazer por sessão via interface, `Ctrl/Cmd+Z`, `Ctrl+Y` ou `Ctrl/Cmd+Shift+Z`;
+- documentos grandes editados por partes, seguindo os capítulos do próprio texto, para a digitação não travar — o arquivo salvo continua inteiro;
+- syntax highlighting para Dart, JavaScript, TypeScript, JSON, YAML, HTML, CSS, Python, Java, Kotlin, Swift, shell, SQL e XML.
+
+### Guardar
+- biblioteca local com busca, favoritos, pastas, subpastas e contagem de palavras;
+- criação de `.md` e `.txt` na raiz ou dentro de uma pasta;
+- renomeação e movimentação entre pastas e de volta à raiz;
+- importação múltipla, por arrastar e soltar no navegador ou de pastas inteiras, preservando a hierarquia, com limite de 5 MB por arquivo;
+- arquivos que não são texto (`.docx`, `.pdf`, imagens) são recusados mesmo se renomeados — a checagem é nos bytes, não na extensão;
+- exclusão de pastas com confirmação, levando junto subpastas e documentos;
+- sincronização opcional com um servidor próprio, com puxar-para-atualizar na biblioteca;
+- persistência local e exportação do arquivo original.
+
+### Em qualquer lugar
 - tema Material 3 claro, escuro, AMOLED ou do sistema, com fundos claro e escuro personalizados;
 - opção para a leitura seguir integralmente as cores do app ou usar sua própria paleta;
 - interface localizada em português do Brasil e inglês, com opção de seguir o sistema;
-- persistência local e exportação do arquivo original;
-- versões web, Android e iOS a partir da mesma base Flutter.
-- leitura em voz alta opcional no modo leitura, com escolha do capítulo (`#`/`##`) por onde começar, controles de pausa, avanço e velocidade, usando a voz nativa do Android ou do navegador (sem download, sem API, sem internet);
-- visualizador dedicado para código, com numeração de linhas, separado do leitor de prosa;
-- prévia simples de arquivos `.html` no modo leitura, com o código a um toque de distância;
-- documentos grandes são editados por partes (capítulos do próprio texto), mantendo a digitação fluida sem alterar o arquivo salvo;
-- arquivos que não são texto (`.docx`, `.pdf`, imagens) são recusados na importação, mesmo renomeados;
-- exclusão de pastas com confirmação, levando junto subpastas e documentos;
-- sincronização opcional com um servidor próprio, com puxar-para-atualizar na biblioteca;
+- versões web, Android e iOS a partir da mesma base Flutter (as vozes neurais são exclusivas das versões nativas).
 
 ## Branches
 
@@ -56,11 +75,13 @@ flutter run -d android
 
 ```bash
 bash tool/build_web.sh
-flutter build apk --release
-flutter build apk --release --target-platform android-arm64
+flutter build apk --release --split-per-abi   # um APK por arquitetura
+flutter build apk --release                   # universal, todas juntas
 ```
 
 O script web inclui o runtime Flutter, as fontes Inter, Merriweather, Lora e Roboto Mono, além dos fallbacks Noto para emojis e símbolos, no próprio `build/web`; a aplicação não depende de Google Fonts nem de um CDN em execução.
+
+As vozes neurais rodam via `sherpa_onnx`, que traz bibliotecas nativas para cada arquitetura Android. Por isso o `--split-per-abi`: um APK `arm64-v8a` carrega só a biblioteca do próprio aparelho, enquanto o universal carrega as de todas. Os modelos de voz **não** vão no APK — são baixados sob demanda pelo app, de dentro das configurações.
 
 Os arquivos ficam armazenados localmente no dispositivo/navegador com `shared_preferences`. O Sépia não envia conteúdo para servidores.
 
@@ -82,14 +103,16 @@ Os arquivos `_headers` e `_redirects` já são incluídos na build para compatib
 
 ## Releases
 
-Tags semânticas publicam automaticamente um GitHub Release com um APK Android universal, um APK `arm64-v8a` menor para aparelhos modernos, o pacote web estático e checksums SHA-256:
+Tags semânticas publicam automaticamente um GitHub Release com um APK por arquitetura, um APK universal, o pacote web estático e checksums SHA-256:
 
 ```bash
 git tag v1.2.0
 git push origin v1.2.0
 ```
 
-O APK ARM64 é o download recomendado para a maioria dos aparelhos modernos; o universal fica disponível como opção de compatibilidade. Ambos usam a assinatura de desenvolvimento atual e são indicados para instalação direta/testes. Antes de distribuir pela Play Store, configure uma chave de assinatura permanente e prefira um Android App Bundle.
+**Baixe o `arm64-v8a`** — é a arquitetura de praticamente todo celular Android atual, e é o menor dos APKs. O `armeabi-v7a` serve aparelhos antigos, o `x86_64` serve emuladores, e o universal existe só como recurso de compatibilidade, sendo bem maior porque carrega as bibliotecas nativas de todas as arquiteturas ao mesmo tempo.
+
+Todos usam a assinatura de desenvolvimento atual e são indicados para instalação direta/testes. Antes de distribuir pela Play Store, configure uma chave de assinatura permanente e prefira um Android App Bundle — o próprio Play entrega só a ABI de cada aparelho.
 
 ## Stack
 

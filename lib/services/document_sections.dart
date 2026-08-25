@@ -112,7 +112,16 @@ final _linkPattern = RegExp(r'\[([^\]]+)\]\([^)]*\)');
 final _emphasis = RegExp(r'(\*{1,3}|_{1,3})(\S(?:.*?\S)?)\1');
 final _inlineCode = RegExp(r'`([^`]+)`');
 final _htmlTag = RegExp(r'<[^>]+>');
-final _leadingMarker = RegExp(r'^\s*(#{1,6}\s+|>\s?|[-*+]\s+|\d+[.)]\s+)');
+final _leadingMarker = RegExp(r'^\s*(#{1,6}\s+|[-*+]\s+|\d+[.)]\s+)');
+final _quoteMarker = RegExp(r'^\s*(>\s?)+');
+final _tableRow = RegExp(r'^\s*\|.*\|\s*$');
+final _tableDivider = RegExp(r'^\s*\|[\s:|-]+\|\s*$');
+final _taskMarker = RegExp(r'^\s*\[[ xX]\]\s+');
+final _strikethrough = RegExp(r'~~(.+?)~~');
+final _footnoteRef = RegExp(r'\[\^([^\]]+)\]');
+final _footnoteDef = RegExp(r'^\s{0,3}\[\^[^\]]+\]:\s*');
+final _linkDef = RegExp(r'^\s{0,3}\[[^\]^][^\]]*\]:\s*\S+\s*$');
+final _mathFence = RegExp(r'^\s*\$\$\s*$');
 final _horizontalRule = RegExp(r'^\s*([-*_])(\s*\1){2,}\s*$');
 
 /// Turns markdown source into something worth reading out loud.
@@ -126,17 +135,49 @@ String speakableText(String markdown) {
   final lines = markdown.split('\n');
   final output = <String>[];
   var inFence = false;
+  var inMath = false;
   for (final line in lines) {
     if (_fencedCode.hasMatch(line.trimLeft())) {
       inFence = !inFence;
       continue;
     }
     if (inFence) continue;
+    // A display equation read aloud is a stream of backslashes and braces.
+    if (_mathFence.hasMatch(line)) {
+      inMath = !inMath;
+      continue;
+    }
+    if (inMath) continue;
+    // A link reference definition is machinery, not prose.
+    if (_linkDef.hasMatch(line)) continue;
     if (_horizontalRule.hasMatch(line)) {
       output.add('');
       continue;
     }
-    var text = line.replaceFirst(_leadingMarker, '');
+    // A table read literally becomes "pipe left columns pipe right columns
+    // pipe, dash dash dash…". The alignment row carries no words at all, so
+    // it goes; the rest becomes the cells, separated by pauses.
+    if (_tableDivider.hasMatch(line)) continue;
+    if (_tableRow.hasMatch(line)) {
+      final cells = line
+          .trim()
+          .split('|')
+          .map((cell) => _stripInlineMarkdown(cell).trim())
+          .where((cell) => cell.isNotEmpty)
+          .toList();
+      if (cells.isNotEmpty) {
+        output.add("${cells.join(', ')}.");
+      }
+      continue;
+    }
+    // Every level of a nested quote, not just the first: a `>>` line kept
+    // its second marker and the voice read it out.
+    var text = line.replaceFirst(_quoteMarker, '');
+    // The footnote's marker goes; the note itself is content and stays.
+    text = text.replaceFirst(_footnoteDef, '');
+    text = text.replaceFirst(_leadingMarker, '');
+    // "[x] Set up the editor" must not be read as "bracket x bracket".
+    text = text.replaceFirst(_taskMarker, '');
     text = _stripInlineMarkdown(text);
     output.add(text.trim());
   }
@@ -148,6 +189,8 @@ String speakableText(String markdown) {
 
 String _stripInlineMarkdown(String input) {
   var text = input;
+  text = text.replaceAllMapped(_strikethrough, (m) => m.group(1) ?? '');
+  text = text.replaceAll(_footnoteRef, '');
   text = text.replaceAllMapped(_imagePattern, (m) => m.group(1) ?? '');
   text = text.replaceAllMapped(_linkPattern, (m) => m.group(1) ?? '');
   text = text.replaceAllMapped(_inlineCode, (m) => m.group(1) ?? '');

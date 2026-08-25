@@ -28,19 +28,25 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
         child: Center(
-          child: SizedBox(
-            width: 560,
+          // A fixed width, not a maximum: on any screen narrower than
+          // this the sheet overflowed and its right edge — switches,
+          // buttons, the close control — was simply cut off. Which is
+          // every phone, where this app is mostly used.
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Text(
-                      context.l10n.readerSettings,
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w700),
+                    Expanded(
+                      child: Text(
+                        context.l10n.readerSettings,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
                     ),
-                    const Spacer(),
                     IconButton(
                       onPressed: () => Navigator.pop(context),
                       icon: const Icon(Icons.close_rounded),
@@ -106,6 +112,7 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
                 ),
                 const SizedBox(height: 22),
                 DropdownButtonFormField<String>(
+                  isExpanded: true,
                   initialValue: _draft.readerFont,
                   decoration: InputDecoration(labelText: context.l10n.font),
                   items:

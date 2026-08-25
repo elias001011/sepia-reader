@@ -18,9 +18,10 @@ class AppSettings {
     this.readerWidth = 760,
     this.syncEnabled = false,
     this.syncServerUrl = '',
-    this.ttsEnabled = false,
+    this.ttsEnabled = true,
     this.ttsEngine = 'system',
     this.ttsVoiceId = '',
+    this.ttsNeuralVoiceId = '',
     this.ttsRate = 1,
     this.ttsPitch = 1,
   });
@@ -50,18 +51,26 @@ class AppSettings {
   /// loaded from", which is the normal self-hosted setup.
   final String syncServerUrl;
 
-  /// Whether reading mode offers to read the document out loud. Off by
-  /// default so the reader keeps exactly the controls it has today until
-  /// someone asks for the extra one.
+  /// Whether reading mode offers to read the document out loud.
+  ///
+  /// On by default. It shipped off, behind a settings screen whose only
+  /// entry point was a button labelled "Aparência", and the result was
+  /// exactly what you would expect: the feature was invisible. A reader
+  /// control belongs in the reader; the switch is there to turn it off.
   final bool ttsEnabled;
 
   /// Which speech backend to use. 'system' is the platform voice; further
   /// values are reserved for the locally-run neural engine.
   final String ttsEngine;
 
-  /// Engine-specific voice identifier; empty means "whatever the engine
-  /// picks for the current language".
+  /// Platform-voice identifier; empty means "whatever the engine picks for
+  /// the current language".
   final String ttsVoiceId;
+
+  /// Which downloaded neural voice to use, from [neuralVoices]. Kept apart
+  /// from [ttsVoiceId] so switching engines back and forth does not lose
+  /// either choice.
+  final String ttsNeuralVoiceId;
 
   /// Speaking speed as a multiplier, 1.0 being the voice's natural pace.
   final double ttsRate;
@@ -89,6 +98,7 @@ class AppSettings {
     bool? ttsEnabled,
     String? ttsEngine,
     String? ttsVoiceId,
+    String? ttsNeuralVoiceId,
     double? ttsRate,
     double? ttsPitch,
   }) => AppSettings(
@@ -112,6 +122,7 @@ class AppSettings {
     ttsEnabled: ttsEnabled ?? this.ttsEnabled,
     ttsEngine: ttsEngine ?? this.ttsEngine,
     ttsVoiceId: ttsVoiceId ?? this.ttsVoiceId,
+    ttsNeuralVoiceId: ttsNeuralVoiceId ?? this.ttsNeuralVoiceId,
     ttsRate: ttsRate ?? this.ttsRate,
     ttsPitch: ttsPitch ?? this.ttsPitch,
   );
@@ -136,6 +147,7 @@ class AppSettings {
     'ttsEnabled': ttsEnabled,
     'ttsEngine': ttsEngine,
     'ttsVoiceId': ttsVoiceId,
+    'ttsNeuralVoiceId': ttsNeuralVoiceId,
     'ttsRate': ttsRate,
     'ttsPitch': ttsPitch,
   };
@@ -162,9 +174,10 @@ class AppSettings {
       readerWidth: (json['readerWidth'] as num? ?? 760).toDouble(),
       syncEnabled: json['syncEnabled'] as bool? ?? false,
       syncServerUrl: json['syncServerUrl'] as String? ?? '',
-      ttsEnabled: json['ttsEnabled'] as bool? ?? false,
+      ttsEnabled: json['ttsEnabled'] as bool? ?? true,
       ttsEngine: json['ttsEngine'] as String? ?? 'system',
       ttsVoiceId: json['ttsVoiceId'] as String? ?? '',
+      ttsNeuralVoiceId: json['ttsNeuralVoiceId'] as String? ?? '',
       ttsRate: (json['ttsRate'] as num? ?? 1).toDouble().clamp(0.5, 2.0),
       ttsPitch: (json['ttsPitch'] as num? ?? 1).toDouble().clamp(0.5, 2.0),
     );
