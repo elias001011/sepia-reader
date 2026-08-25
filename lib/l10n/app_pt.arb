@@ -58,7 +58,6 @@
   "moveTo": "Mover para…",
   "moveDocument": "Mover documento",
   "openFolder": "Abrir pasta",
-  "folderNotEmpty": "Esta pasta não está vazia. Mova ou exclua o conteúdo primeiro.",
   "noCompatibleFiles": "Nenhum arquivo compatível foi encontrado nesta pasta.",
   "folderCount": "{count, plural, =0{nenhuma pasta} =1{1 pasta} other{{count} pastas}}",
   "@folderCount": {
@@ -314,7 +313,6 @@
   "ttsSection": "Leitura em voz alta",
   "ttsEnable": "Ativar a leitura em voz alta",
   "ttsEnableDescription": "Adiciona um botão de ouvir no modo leitura.",
-  "ttsEngineLabel": "Voz",
   "ttsEngineSystem": "Voz do sistema",
   "ttsEngineSystemDescription": "Ultra leve: usa a voz que o Android ou o navegador já tem. Não baixa nada, não ocupa espaço e funciona offline.",
   "ttsEngineNeural": "Voz neural no aparelho",
@@ -367,9 +365,7 @@
   },
   "viewerSource": "Código",
   "viewerPreview": "Prévia",
-  "viewerCodeLabel": "Visualizador de código",
   "appearanceSection": "Aparência",
-  "editSectionTitle": "Editando por partes",
   "editSectionPosition": "{current}/{total}",
   "@editSectionPosition": {
     "placeholders": {
@@ -395,7 +391,6 @@
     }
   },
   "ttsEngineNeuralUnavailableWeb": "No navegador só a voz do sistema funciona: a voz neural precisa rodar nativamente. Use o app Android para isso.",
-  "ttsNeuralVoices": "Vozes neurais",
   "ttsManageVoices": "Baixar vozes",
   "ttsVoicesTitle": "Vozes para baixar",
   "ttsVoicesDescription": "Baixe uma vez e use offline para sempre. Fica guardada no aparelho e dá para remover quando quiser.",
@@ -439,8 +434,6 @@
   },
   "ttsVoiceHeavy": "Modelo grande: precisa de bastante espaço e memória. Em aparelho mais fraco, prefira as vozes Piper.",
   "ttsNoNeuralVoice": "Nenhuma voz neural instalada ainda.",
-  "ttsPitchUnsupported": "As vozes neurais são reproduzidas como foram gravadas; o tom não se aplica a elas.",
-  "ttsTierSystem": "Ultra leve · voz do sistema",
   "ttsTierLight": "Leve",
   "ttsTierBest": "Melhor",
   "ttsTierLightHint": "Piper · roda bem em qualquer aparelho",

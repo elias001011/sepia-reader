@@ -191,10 +191,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get openFolder => 'Open folder';
 
   @override
-  String get folderNotEmpty =>
-      'This folder is not empty. Move or delete its contents first.';
-
-  @override
   String get noCompatibleFiles =>
       'No compatible files were found in this folder.';
 
@@ -594,9 +590,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ttsEnableDescription => 'Adds a listen button to reading mode.';
 
   @override
-  String get ttsEngineLabel => 'Voice';
-
-  @override
   String get ttsEngineSystem => 'System voice';
 
   @override
@@ -697,13 +690,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get viewerPreview => 'Preview';
 
   @override
-  String get viewerCodeLabel => 'Code viewer';
-
-  @override
   String get appearanceSection => 'Appearance';
-
-  @override
-  String get editSectionTitle => 'Editing in parts';
 
   @override
   String editSectionPosition(int current, int total) {
@@ -734,9 +721,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get ttsEngineNeuralUnavailableWeb =>
       'In the browser only the system voice works: the neural voice needs to run natively. Use the Android app for that.';
-
-  @override
-  String get ttsNeuralVoices => 'Neural voices';
 
   @override
   String get ttsManageVoices => 'Download voices';
@@ -792,13 +776,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ttsNoNeuralVoice => 'No neural voice installed yet.';
-
-  @override
-  String get ttsPitchUnsupported =>
-      'Neural voices play as they were recorded; pitch does not apply to them.';
-
-  @override
-  String get ttsTierSystem => 'Ultra light · system voice';
 
   @override
   String get ttsTierLight => 'Light';
