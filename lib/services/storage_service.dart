@@ -52,6 +52,11 @@ class StorageService {
 
   SyncConfig? _cachedSyncConfig;
 
+  /// Counts GETs that actually came back from the server. [forcePull] resets
+  /// it so a user-triggered sync can report whether the server was reached
+  /// at all, instead of the spinner just stopping either way.
+  int _serverResponses = 0;
+
   Future<SyncConfig> loadSyncConfig() async {
     final cached = _cachedSyncConfig;
     if (cached != null) return cached;
@@ -70,6 +75,8 @@ class StorageService {
     _cachedSyncConfig = config;
     return config;
   }
+
+  Future<bool> isSyncEnabled() async => (await loadSyncConfig()).enabled;
 
   Future<void> saveSyncConfig(SyncConfig config) async {
     _cachedSyncConfig = config;
@@ -121,6 +128,7 @@ class StorageService {
       final response = await http.get(uri).timeout(_networkTimeout);
       if (response.statusCode != 200) return null;
       final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      _serverResponses++;
       await _markSynced();
       return decoded;
     } catch (error) {
@@ -375,9 +383,11 @@ class StorageService {
       List<LibraryFolder> folders,
       List<ReadingBookmark> bookmarks,
       AppSettings settings,
+      bool reachedServer,
     })
   >
   forcePull() async {
+    _serverResponses = 0;
     final documents = await loadDocuments();
     final folders = await loadFolders();
     final bookmarks = await loadBookmarks();
@@ -387,6 +397,7 @@ class StorageService {
       folders: folders,
       bookmarks: bookmarks,
       settings: settings,
+      reachedServer: _serverResponses > 0,
     );
   }
 

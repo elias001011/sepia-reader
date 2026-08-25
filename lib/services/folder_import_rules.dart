@@ -2,6 +2,8 @@ const supportedDocumentExtensions = <String>{
   'md',
   'markdown',
   'txt',
+  'text',
+  'htm',
   'dart',
   'js',
   'ts',

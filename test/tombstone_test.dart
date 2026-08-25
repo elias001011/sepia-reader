@@ -68,22 +68,65 @@ void main() {
       title: 'Capítulo 1',
       folderId: folder.id,
     );
-    // Com o documento vivo, a pasta não pode ser apagada.
-    expect(await controller.deleteEmptyFolder(folder.id), isFalse);
+    expect(controller.folderContents(folder.id).documents, hasLength(1));
 
     await controller.deleteDocument(document.id);
 
     expect(controller.folderDocumentCount(folder.id), 0);
-    expect(await controller.deleteEmptyFolder(folder.id), isTrue);
+    expect(controller.folderContents(folder.id).documents, isEmpty);
+    await controller.deleteFolder(folder.id);
     expect(controller.folders.where((item) => item.id == folder.id), isEmpty);
     expect(controller.folderById(folder.id), isNull);
+  });
+
+  test('apagar pasta com conteúdo leva subpastas e documentos junto', () async {
+    final controller = AppController();
+    await controller.initialize();
+    final parent = await controller.createFolder(name: 'Fics');
+    final child = await controller.createFolder(
+      name: 'Capítulos',
+      parentId: parent.id,
+    );
+    final inParent = await controller.createDocument(
+      title: 'Sinopse',
+      folderId: parent.id,
+    );
+    final inChild = await controller.createDocument(
+      title: 'Capítulo 1',
+      folderId: child.id,
+    );
+    final outside = await controller.createDocument(title: 'Outra coisa');
+
+    final contents = controller.folderContents(parent.id);
+    expect(contents.folderIds, {parent.id, child.id});
+    expect(contents.documents.map((d) => d.id).toSet(), {
+      inParent.id,
+      inChild.id,
+    });
+
+    await controller.deleteFolder(parent.id);
+
+    expect(controller.folderById(parent.id), isNull);
+    expect(controller.folderById(child.id), isNull);
+    expect(controller.documentById(inParent.id), isNull);
+    expect(controller.documentById(inChild.id), isNull);
+    // Anything outside the folder is untouched.
+    expect(controller.documentById(outside.id), isNotNull);
+
+    // The deletions travel as tombstones, so another device learns about
+    // them instead of pushing the records back.
+    final restored = AppController();
+    await restored.initialize();
+    expect(restored.folderById(parent.id), isNull);
+    expect(restored.documentById(inChild.id), isNull);
+    expect(restored.documentById(outside.id), isNotNull);
   });
 
   test('nome de pasta apagada volta a ficar livre', () async {
     final controller = AppController();
     await controller.initialize();
     final first = await controller.createFolder(name: 'Fics');
-    await controller.deleteEmptyFolder(first.id);
+    await controller.deleteFolder(first.id);
 
     final second = await controller.createFolder(name: 'Fics');
 
