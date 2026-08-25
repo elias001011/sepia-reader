@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'l10n/app_localizations.dart';
 import 'screens/library_screen.dart';
 import 'state/app_controller.dart';
 import 'theme/sepia_theme.dart';
@@ -30,8 +31,15 @@ class _SepiaAppState extends State<SepiaApp> {
   Widget build(BuildContext context) {
     final settings = widget.controller.settings;
     return MaterialApp(
-      title: 'Sépia',
+      onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
       debugShowCheckedModeBanner: false,
+      locale: switch (settings.localeCode) {
+        'pt_BR' => const Locale('pt', 'BR'),
+        'en' => const Locale('en'),
+        _ => null,
+      },
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       themeMode: settings.themeMode,
       theme: buildSepiaTheme(settings, Brightness.light),
       darkTheme: buildSepiaTheme(settings, Brightness.dark),

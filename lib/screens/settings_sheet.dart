@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/l10n.dart';
 import '../models/app_settings.dart';
 import '../state/app_controller.dart';
 import '../widgets/color_field.dart';
@@ -40,7 +41,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
               Row(
                 children: [
                   Text(
-                    'Aparência do app',
+                    context.l10n.appAppearance,
                     style: Theme.of(context).textTheme.headlineSmall
                         ?.copyWith(fontWeight: FontWeight.w700),
                   ),
@@ -53,30 +54,33 @@ class _SettingsSheetState extends State<SettingsSheet> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Defina o tema Material usado na biblioteca e no editor.',
+                context.l10n.appAppearanceDescription,
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: 24),
-              Text('Tema', style: Theme.of(context).textTheme.labelLarge),
+              Text(
+                context.l10n.theme,
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
               const SizedBox(height: 10),
               SizedBox(
                 width: double.infinity,
                 child: SegmentedButton<ThemeMode>(
-                  segments: const [
+                  segments: [
                     ButtonSegment(
                       value: ThemeMode.light,
-                      label: Text('Claro'),
-                      icon: Icon(Icons.light_mode_outlined),
+                      label: Text(context.l10n.light),
+                      icon: const Icon(Icons.light_mode_outlined),
                     ),
                     ButtonSegment(
                       value: ThemeMode.system,
-                      label: Text('Sistema'),
-                      icon: Icon(Icons.brightness_auto_outlined),
+                      label: Text(context.l10n.system),
+                      icon: const Icon(Icons.brightness_auto_outlined),
                     ),
                     ButtonSegment(
                       value: ThemeMode.dark,
-                      label: Text('Escuro'),
-                      icon: Icon(Icons.dark_mode_outlined),
+                      label: Text(context.l10n.dark),
+                      icon: const Icon(Icons.dark_mode_outlined),
                     ),
                   ],
                   selected: {_draft.themeMode},
@@ -86,14 +90,35 @@ class _SettingsSheetState extends State<SettingsSheet> {
                 ),
               ),
               const SizedBox(height: 20),
+              DropdownButtonFormField<String>(
+                initialValue: _draft.localeCode,
+                decoration: InputDecoration(labelText: context.l10n.language),
+                items: [
+                  DropdownMenuItem(
+                    value: 'system',
+                    child: Text(context.l10n.system),
+                  ),
+                  DropdownMenuItem(
+                    value: 'pt_BR',
+                    child: Text(context.l10n.portugueseBrazil),
+                  ),
+                  DropdownMenuItem(
+                    value: 'en',
+                    child: Text(context.l10n.english),
+                  ),
+                ],
+                onChanged: (value) =>
+                    setState(() => _draft = _draft.copyWith(localeCode: value)),
+              ),
+              const SizedBox(height: 10),
               ColorField(
-                label: 'Cor principal',
+                label: context.l10n.primaryColor,
                 value: _draft.seedColor,
                 onChanged: (value) =>
                     setState(() => _draft = _draft.copyWith(seedColor: value)),
               ),
               ColorField(
-                label: 'Fundo do tema claro',
+                label: context.l10n.lightThemeBackground,
                 value: _draft.appBackground,
                 onChanged: (value) => setState(
                   () => _draft = _draft.copyWith(appBackground: value),
@@ -108,9 +133,9 @@ class _SettingsSheetState extends State<SettingsSheet> {
                     if (context.mounted) Navigator.pop(context);
                   },
                   icon: const Icon(Icons.check_rounded),
-                  label: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Text('Salvar aparência'),
+                  label: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Text(context.l10n.saveAppearance),
                   ),
                 ),
               ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 class AppSettings {
   const AppSettings({
+    this.localeCode = 'system',
     this.themeMode = ThemeMode.system,
     this.seedColor = const Color(0xFF9A6B45),
     this.appBackground = const Color(0xFFF5EFE6),
@@ -12,6 +13,7 @@ class AppSettings {
     this.readerLineHeight = 1.75,
     this.readerWidth = 760,
   });
+  final String localeCode;
   final ThemeMode themeMode;
   final Color seedColor;
   final Color appBackground;
@@ -23,6 +25,7 @@ class AppSettings {
   final double readerWidth;
 
   AppSettings copyWith({
+    String? localeCode,
     ThemeMode? themeMode,
     Color? seedColor,
     Color? appBackground,
@@ -33,6 +36,7 @@ class AppSettings {
     double? readerLineHeight,
     double? readerWidth,
   }) => AppSettings(
+    localeCode: localeCode ?? this.localeCode,
     themeMode: themeMode ?? this.themeMode,
     seedColor: seedColor ?? this.seedColor,
     appBackground: appBackground ?? this.appBackground,
@@ -45,6 +49,7 @@ class AppSettings {
   );
 
   Map<String, dynamic> toJson() => {
+    'localeCode': localeCode,
     'themeMode': themeMode.name,
     'seedColor': seedColor.toARGB32(),
     'appBackground': appBackground.toARGB32(),
@@ -59,6 +64,7 @@ class AppSettings {
   factory AppSettings.fromJson(Map<String, dynamic> json) {
     final modeName = json['themeMode'] as String? ?? 'system';
     return AppSettings(
+      localeCode: json['localeCode'] as String? ?? 'system',
       themeMode: ThemeMode.values.firstWhere(
         (mode) => mode.name == modeName,
         orElse: () => ThemeMode.system,

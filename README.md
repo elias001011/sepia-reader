@@ -10,12 +10,14 @@ Leitor, biblioteca e editor de Markdown feito em Flutter. O Sépia foi pensado p
 - criação de `.md` e `.txt` dentro do app;
 - importação múltipla de Markdown, texto e arquivos de código de até 5 MB;
 - editor responsivo com atalhos para títulos, negrito, itálico, citações, listas, links e código;
+- desfazer/refazer por sessão via interface, `Ctrl/Cmd+Z`, `Ctrl+Y` ou `Ctrl/Cmd+Shift+Z`;
 - preview correto de Markdown, tabelas, citações e blocos de código;
 - syntax highlighting para Dart, JavaScript, TypeScript, JSON, YAML, HTML, CSS, Python, Java, Kotlin, Swift, shell, SQL e XML;
 - modo leitura que oculta as ferramentas e bloqueia edição;
 - fonte Merriweather e tema Sépia como padrão, com presets Artifact, Papel e Noite;
 - fonte, tamanho, entrelinha, largura, fundo e texto configuráveis;
 - tema Material 3 claro, escuro ou do sistema, com cores personalizadas;
+- interface localizada em português do Brasil e inglês, com opção de seguir o sistema;
 - persistência local e exportação do arquivo original;
 - versões web, Android e iOS a partir da mesma base Flutter.
 
@@ -44,34 +46,45 @@ flutter run -d android
 ## Builds
 
 ```bash
-flutter build web --release
+bash tool/build_web.sh
 flutter build apk --release
+flutter build apk --release --target-platform android-arm64
 ```
 
-Os arquivos ficam armazenados localmente no dispositivo/navegador com `shared_preferences`. O MVP não envia conteúdo para servidores.
+O script web inclui o runtime Flutter, as fontes Inter, Merriweather, Lora e Roboto Mono e todos os demais assets no próprio `build/web`; a aplicação não depende de Google Fonts nem de um CDN em execução.
+
+Os arquivos ficam armazenados localmente no dispositivo/navegador com `shared_preferences`. O Sépia não envia conteúdo para servidores.
 
 ## Web e self-hosting
 
-Na web, a biblioteca é salva no armazenamento local do navegador e fica vinculada à origem usada para acessar o Sépia — por exemplo, `https://sepia.exemplo.com`. O servidor entrega apenas os arquivos estáticos do app; os documentos não são enviados para ele.
+Na web, a biblioteca é salva no armazenamento local do navegador e fica vinculada à origem usada para acessar o Sépia — por exemplo, `https://sepia-md.netlify.app`. O servidor entrega apenas os arquivos estáticos do app; os documentos não são enviados para ele. Visitantes diferentes não compartilham bibliotecas, e o Netlify não recebe o conteúdo dos documentos. Alguém usando o mesmo perfil do navegador e a mesma origem, porém, terá acesso àquela biblioteca local.
 
 Por isso, self-hosting é o foco recomendado para uma instalação privada e com endereço estável. Ainda assim, o usuário deve exportar documentos importantes: limpar os dados do site, trocar de navegador ou mudar o domínio pode tornar a biblioteca local inacessível.
 
 O pacote web self-hostable é anexado a cada GitHub Release.
 
+### Publicar no Netlify
+
+1. Execute `bash tool/build_web.sh` ou baixe e extraia o arquivo `sepia-*-web.tar.gz` da Release.
+2. No painel do Netlify, abra **Deploys** e arraste a pasta `build/web` inteira para a área de deploy manual.
+3. Em **Domain management**, defina o endereço desejado, como `sepia-md.netlify.app`.
+
+Os arquivos `_headers` e `_redirects` já são incluídos na build para compatibilidade com WebAssembly, rotas estáticas e uma política de conteúdo restrita à própria origem.
+
 ## Releases
 
-Tags semânticas publicam automaticamente um GitHub Release com o APK Android, o pacote web estático e checksums SHA-256:
+Tags semânticas publicam automaticamente um GitHub Release com um APK Android universal, um APK `arm64-v8a` menor para aparelhos modernos, o pacote web estático e checksums SHA-256:
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.0.1
+git push origin v1.0.1
 ```
 
-O APK automatizado usa a assinatura de desenvolvimento atual e é indicado para instalação direta/testes. Antes de distribuir pela Play Store, configure uma chave de assinatura permanente.
+O APK ARM64 é o download recomendado para a maioria dos aparelhos modernos; o universal fica disponível como opção de compatibilidade. Ambos usam a assinatura de desenvolvimento atual e são indicados para instalação direta/testes. Antes de distribuir pela Play Store, configure uma chave de assinatura permanente e prefira um Android App Bundle.
 
 ## Stack
 
-Flutter + Material 3, `flutter_markdown_plus`, `highlight`, `file_picker`, `file_saver`, `shared_preferences` e `google_fonts`.
+Flutter + Material 3, `flutter_markdown_plus`, `highlight`, `file_picker`, `file_saver`, `shared_preferences` e fontes OFL empacotadas localmente.
 
 ## Licença
 

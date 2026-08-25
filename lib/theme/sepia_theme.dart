@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../models/app_settings.dart';
 
@@ -15,9 +14,7 @@ ThemeData buildSepiaTheme(AppSettings settings, Brightness brightness) {
     brightness: brightness,
     colorScheme: scheme,
     scaffoldBackgroundColor: background,
-    textTheme: GoogleFonts.interTextTheme(
-      isDark ? ThemeData.dark().textTheme : ThemeData.light().textTheme,
-    ),
+    fontFamily: 'Inter',
     appBarTheme: AppBarTheme(
       backgroundColor: background,
       surfaceTintColor: Colors.transparent,
