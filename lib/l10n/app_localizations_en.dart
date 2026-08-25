@@ -32,6 +32,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dark => 'Dark';
 
   @override
+  String get amoled => 'AMOLED';
+
+  @override
   String get language => 'Language';
 
   @override
@@ -47,6 +50,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lightThemeBackground => 'Light theme background';
 
   @override
+  String get darkThemeBackground => 'Dark theme background';
+
+  @override
+  String get readerThemeHint =>
+      'Reading colors are independent unless “Follow app theme” is enabled in Reading settings.';
+
+  @override
   String get saveAppearance => 'Save appearance';
 
   @override
@@ -55,6 +65,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get readerSettingsDescription =>
       'These settings apply to every document.';
+
+  @override
+  String get followAppTheme => 'Follow app theme';
+
+  @override
+  String get followAppThemeDescription =>
+      'Use the current app surfaces and text colors while reading.';
 
   @override
   String get presets => 'Presets';
@@ -128,6 +145,70 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get importFiles => 'Import files';
+
+  @override
+  String get importFolder => 'Import folder';
+
+  @override
+  String get compatibleFilesOnly =>
+      'Only compatible text and code files will be added.';
+
+  @override
+  String get newFolder => 'New folder';
+
+  @override
+  String get folderName => 'Folder name';
+
+  @override
+  String get folderNameHint => 'Books to read';
+
+  @override
+  String get renameFolder => 'Rename folder';
+
+  @override
+  String get rename => 'Rename';
+
+  @override
+  String get root => 'Library root';
+
+  @override
+  String get moveTo => 'Move to…';
+
+  @override
+  String get moveDocument => 'Move document';
+
+  @override
+  String get openFolder => 'Open folder';
+
+  @override
+  String get folderNotEmpty =>
+      'This folder is not empty. Move or delete its contents first.';
+
+  @override
+  String get noCompatibleFiles =>
+      'No compatible files were found in this folder.';
+
+  @override
+  String folderCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count folders',
+      one: '1 folder',
+      zero: 'no folders',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String folderContents(int files, int folders) {
+    return '$files files · $folders folders';
+  }
+
+  @override
+  String folderImported(int imported, int skipped) {
+    return '$imported compatible files imported · $skipped skipped';
+  }
 
   @override
   String get libraryTitle => 'Library';

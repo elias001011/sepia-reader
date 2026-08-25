@@ -4,10 +4,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/app_settings.dart';
 import '../models/library_document.dart';
+import '../models/library_folder.dart';
 
 class StorageService {
   static const _documentsKey = 'sepia.documents.v1';
   static const _settingsKey = 'sepia.settings.v1';
+  static const _foldersKey = 'sepia.folders.v1';
 
   Future<List<LibraryDocument>> loadDocuments() async {
     final raw = (await SharedPreferences.getInstance()).getString(
@@ -39,6 +41,21 @@ class StorageService {
     }
   }
 
+  Future<List<LibraryFolder>> loadFolders() async {
+    final raw = (await SharedPreferences.getInstance()).getString(_foldersKey);
+    if (raw == null) return [];
+    try {
+      return (jsonDecode(raw) as List<dynamic>)
+          .map(
+            (item) =>
+                LibraryFolder.fromJson(Map<String, dynamic>.from(item as Map)),
+          )
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
   Future<void> saveDocuments(List<LibraryDocument> documents) async =>
       (await SharedPreferences.getInstance()).setString(
         _documentsKey,
@@ -48,5 +65,11 @@ class StorageService {
       (await SharedPreferences.getInstance()).setString(
         _settingsKey,
         jsonEncode(settings.toJson()),
+      );
+
+  Future<void> saveFolders(List<LibraryFolder> folders) async =>
+      (await SharedPreferences.getInstance()).setString(
+        _foldersKey,
+        jsonEncode(folders.map((folder) => folder.toJson()).toList()),
       );
 }

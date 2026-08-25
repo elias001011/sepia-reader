@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sepia_reader/models/app_settings.dart';
 
@@ -14,5 +15,21 @@ void main() {
     final restored = AppSettings.fromJson(const {});
 
     expect(restored.localeCode, 'system');
+    expect(restored.amoledTheme, isFalse);
+    expect(restored.readerFollowsTheme, isFalse);
+  });
+
+  test('preserva AMOLED, fundo escuro e integração do leitor', () {
+    const settings = AppSettings(
+      amoledTheme: true,
+      darkAppBackground: Color(0xFF102030),
+      readerFollowsTheme: true,
+    );
+
+    final restored = AppSettings.fromJson(settings.toJson());
+
+    expect(restored.amoledTheme, isTrue);
+    expect(restored.darkAppBackground, const Color(0xFF102030));
+    expect(restored.readerFollowsTheme, isTrue);
   });
 }

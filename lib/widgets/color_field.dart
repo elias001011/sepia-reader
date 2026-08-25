@@ -54,9 +54,12 @@ class ColorField extends StatelessWidget {
     );
     var selected = value;
     const palette = [
+      Color(0xFF000000),
+      Color(0xFF121212),
       Color(0xFF6B4933),
       Color(0xFF2B211D),
       Color(0xFF111827),
+      Color(0xFFFAFAFA),
       Color(0xFFF5EFE6),
       Color(0xFFFFFBF5),
       Color(0xFFFFF8ED),

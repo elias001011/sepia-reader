@@ -18,13 +18,23 @@ class DocumentView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final readerBackground = settings.readerFollowsTheme
+        ? scheme.surface
+        : settings.readerBackground;
+    final readerText = settings.readerFollowsTheme
+        ? scheme.onSurface
+        : settings.readerText;
+    final accent = settings.readerFollowsTheme
+        ? scheme.primary
+        : _accent(readerBackground);
     final base = readerTextStyle(settings).copyWith(
-      color: settings.readerText,
+      color: readerText,
       fontSize: settings.readerFontSize,
       height: settings.readerLineHeight,
     );
     return ColoredBox(
-      color: settings.readerBackground,
+      color: readerBackground,
       child: SelectionArea(
         child: SingleChildScrollView(
           padding: padding,
@@ -37,14 +47,14 @@ class DocumentView extends StatelessWidget {
                       selectable: false,
                       softLineBreak: true,
                       syntaxHighlighter: SepiaSyntaxHighlighter(
-                        baseColor: settings.readerText,
+                        baseColor: readerText,
                       ),
                       styleSheet: MarkdownStyleSheet(
                         p: base,
                         a: base.copyWith(
-                          color: _accent(settings.readerBackground),
+                          color: accent,
                           decoration: TextDecoration.underline,
-                          decorationColor: _accent(settings.readerBackground),
+                          decorationColor: accent,
                         ),
                         h1: base.copyWith(
                           fontSize: settings.readerFontSize * 2,
@@ -65,17 +75,14 @@ class DocumentView extends StatelessWidget {
                         strong: base.copyWith(fontWeight: FontWeight.w800),
                         em: base.copyWith(fontStyle: FontStyle.italic),
                         blockquote: base.copyWith(
-                          color: settings.readerText.withValues(alpha: .82),
+                          color: readerText.withValues(alpha: .82),
                           fontStyle: FontStyle.italic,
                         ),
                         blockquoteDecoration: BoxDecoration(
                           border: Border(
-                            left: BorderSide(
-                              color: _accent(settings.readerBackground),
-                              width: 4,
-                            ),
+                            left: BorderSide(color: accent, width: 4),
                           ),
-                          color: settings.readerText.withValues(alpha: .06),
+                          color: readerText.withValues(alpha: .06),
                         ),
                         blockquotePadding: const EdgeInsets.fromLTRB(
                           20,
@@ -85,20 +92,20 @@ class DocumentView extends StatelessWidget {
                         ),
                         code: TextStyle(
                           fontFamily: 'Roboto Mono',
-                          color: settings.readerText,
+                          color: readerText,
                           fontSize: settings.readerFontSize * .76,
                           height: 1.55,
                         ),
                         codeblockDecoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: .22),
+                          color: readerText.withValues(alpha: .075),
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                            color: settings.readerText.withValues(alpha: .12),
+                            color: readerText.withValues(alpha: .14),
                           ),
                         ),
                         codeblockPadding: const EdgeInsets.all(18),
                         listBullet: base.copyWith(
-                          color: _accent(settings.readerBackground),
+                          color: accent,
                           fontWeight: FontWeight.bold,
                         ),
                         tableHead: base.copyWith(fontWeight: FontWeight.w800),
@@ -106,13 +113,13 @@ class DocumentView extends StatelessWidget {
                           fontSize: settings.readerFontSize * .86,
                         ),
                         tableBorder: TableBorder.all(
-                          color: settings.readerText.withValues(alpha: .22),
+                          color: readerText.withValues(alpha: .22),
                         ),
                         tableCellsPadding: const EdgeInsets.all(10),
                         horizontalRuleDecoration: BoxDecoration(
                           border: Border(
                             top: BorderSide(
-                              color: settings.readerText.withValues(alpha: .25),
+                              color: readerText.withValues(alpha: .25),
                             ),
                           ),
                         ),
@@ -123,7 +130,7 @@ class DocumentView extends StatelessWidget {
                           ? highlightedSpan(
                               document.content,
                               document.extension,
-                              settings.readerText,
+                              readerText,
                               settings.readerFontSize,
                             )
                           : TextSpan(text: document.content, style: base),
@@ -203,12 +210,27 @@ List<TextSpan> _nodes(List<hl.Node> nodes, Color baseColor) =>
 
 TextStyle _tokenStyle(String? token, Color base) => TextStyle(
   color: switch (token) {
-    'keyword' || 'selector-tag' || 'title' => const Color(0xFFFF9DCD),
-    'string' || 'attribute' || 'addition' => const Color(0xFFB8E986),
-    'number' || 'literal' || 'variable' => const Color(0xFFFFC875),
+    'keyword' || 'selector-tag' || 'title' =>
+      base.computeLuminance() > .5
+          ? const Color(0xFFFF9DCD)
+          : const Color(0xFF9C1A63),
+    'string' || 'attribute' || 'addition' =>
+      base.computeLuminance() > .5
+          ? const Color(0xFFB8E986)
+          : const Color(0xFF3B6F1D),
+    'number' || 'literal' || 'variable' =>
+      base.computeLuminance() > .5
+          ? const Color(0xFFFFC875)
+          : const Color(0xFF925600),
     'comment' || 'quote' => base.withValues(alpha: .52),
-    'built_in' || 'type' || 'class' => const Color(0xFF8DD8FF),
-    'meta' || 'tag' => const Color(0xFFC8B6FF),
+    'built_in' || 'type' || 'class' =>
+      base.computeLuminance() > .5
+          ? const Color(0xFF8DD8FF)
+          : const Color(0xFF00658A),
+    'meta' || 'tag' =>
+      base.computeLuminance() > .5
+          ? const Color(0xFFC8B6FF)
+          : const Color(0xFF5B3A9B),
     _ => base,
   },
 );

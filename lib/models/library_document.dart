@@ -7,6 +7,7 @@ class LibraryDocument {
     required this.createdAt,
     required this.updatedAt,
     this.isFavorite = false,
+    this.folderId,
   });
   final String id;
   final String title;
@@ -15,6 +16,7 @@ class LibraryDocument {
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isFavorite;
+  final String? folderId;
 
   bool get isMarkdown => extension == 'md' || extension == 'markdown';
   int get wordCount =>
@@ -27,6 +29,8 @@ class LibraryDocument {
     String? extension,
     DateTime? updatedAt,
     bool? isFavorite,
+    String? folderId,
+    bool moveToRoot = false,
   }) => LibraryDocument(
     id: id,
     title: title ?? this.title,
@@ -35,6 +39,7 @@ class LibraryDocument {
     createdAt: createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     isFavorite: isFavorite ?? this.isFavorite,
+    folderId: moveToRoot ? null : folderId ?? this.folderId,
   );
 
   Map<String, dynamic> toJson() => {
@@ -45,6 +50,7 @@ class LibraryDocument {
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
     'isFavorite': isFavorite,
+    'folderId': folderId,
   };
 
   factory LibraryDocument.fromJson(Map<String, dynamic> json) =>
@@ -56,5 +62,6 @@ class LibraryDocument {
         createdAt: DateTime.parse(json['createdAt'] as String),
         updatedAt: DateTime.parse(json['updatedAt'] as String),
         isFavorite: json['isFavorite'] as bool? ?? false,
+        folderId: json['folderId'] as String?,
       );
 }

@@ -6,8 +6,11 @@ class AppSettings {
     this.themeMode = ThemeMode.system,
     this.seedColor = const Color(0xFF9A6B45),
     this.appBackground = const Color(0xFFF5EFE6),
+    this.darkAppBackground = const Color(0xFF171310),
+    this.amoledTheme = false,
     this.readerBackground = const Color(0xFF6B4933),
     this.readerText = const Color(0xFFFFF8ED),
+    this.readerFollowsTheme = false,
     this.readerFont = 'Merriweather',
     this.readerFontSize = 20,
     this.readerLineHeight = 1.75,
@@ -17,8 +20,11 @@ class AppSettings {
   final ThemeMode themeMode;
   final Color seedColor;
   final Color appBackground;
+  final Color darkAppBackground;
+  final bool amoledTheme;
   final Color readerBackground;
   final Color readerText;
+  final bool readerFollowsTheme;
   final String readerFont;
   final double readerFontSize;
   final double readerLineHeight;
@@ -29,8 +35,11 @@ class AppSettings {
     ThemeMode? themeMode,
     Color? seedColor,
     Color? appBackground,
+    Color? darkAppBackground,
+    bool? amoledTheme,
     Color? readerBackground,
     Color? readerText,
+    bool? readerFollowsTheme,
     String? readerFont,
     double? readerFontSize,
     double? readerLineHeight,
@@ -40,8 +49,11 @@ class AppSettings {
     themeMode: themeMode ?? this.themeMode,
     seedColor: seedColor ?? this.seedColor,
     appBackground: appBackground ?? this.appBackground,
+    darkAppBackground: darkAppBackground ?? this.darkAppBackground,
+    amoledTheme: amoledTheme ?? this.amoledTheme,
     readerBackground: readerBackground ?? this.readerBackground,
     readerText: readerText ?? this.readerText,
+    readerFollowsTheme: readerFollowsTheme ?? this.readerFollowsTheme,
     readerFont: readerFont ?? this.readerFont,
     readerFontSize: readerFontSize ?? this.readerFontSize,
     readerLineHeight: readerLineHeight ?? this.readerLineHeight,
@@ -53,8 +65,11 @@ class AppSettings {
     'themeMode': themeMode.name,
     'seedColor': seedColor.toARGB32(),
     'appBackground': appBackground.toARGB32(),
+    'darkAppBackground': darkAppBackground.toARGB32(),
+    'amoledTheme': amoledTheme,
     'readerBackground': readerBackground.toARGB32(),
     'readerText': readerText.toARGB32(),
+    'readerFollowsTheme': readerFollowsTheme,
     'readerFont': readerFont,
     'readerFontSize': readerFontSize,
     'readerLineHeight': readerLineHeight,
@@ -71,8 +86,11 @@ class AppSettings {
       ),
       seedColor: Color(json['seedColor'] as int? ?? 0xFF9A6B45),
       appBackground: Color(json['appBackground'] as int? ?? 0xFFF5EFE6),
+      darkAppBackground: Color(json['darkAppBackground'] as int? ?? 0xFF171310),
+      amoledTheme: json['amoledTheme'] as bool? ?? false,
       readerBackground: Color(json['readerBackground'] as int? ?? 0xFF6B4933),
       readerText: Color(json['readerText'] as int? ?? 0xFFFFF8ED),
+      readerFollowsTheme: json['readerFollowsTheme'] as bool? ?? false,
       readerFont: json['readerFont'] as String? ?? 'Merriweather',
       readerFontSize: (json['readerFontSize'] as num? ?? 20).toDouble(),
       readerLineHeight: (json['readerLineHeight'] as num? ?? 1.75).toDouble(),

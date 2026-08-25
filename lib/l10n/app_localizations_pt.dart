@@ -32,6 +32,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get dark => 'Escuro';
 
   @override
+  String get amoled => 'AMOLED';
+
+  @override
   String get language => 'Idioma';
 
   @override
@@ -47,6 +50,13 @@ class AppLocalizationsPt extends AppLocalizations {
   String get lightThemeBackground => 'Fundo do tema claro';
 
   @override
+  String get darkThemeBackground => 'Fundo do tema escuro';
+
+  @override
+  String get readerThemeHint =>
+      'As cores de leitura são independentes, exceto quando “Seguir tema do app” está ativo nos ajustes de leitura.';
+
+  @override
   String get saveAppearance => 'Salvar aparência';
 
   @override
@@ -55,6 +65,13 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get readerSettingsDescription =>
       'Os ajustes são usados em todos os documentos.';
+
+  @override
+  String get followAppTheme => 'Seguir tema do app';
+
+  @override
+  String get followAppThemeDescription =>
+      'Usa as superfícies e cores de texto atuais do app durante a leitura.';
 
   @override
   String get presets => 'Presets';
@@ -128,6 +145,70 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get importFiles => 'Importar arquivos';
+
+  @override
+  String get importFolder => 'Importar pasta';
+
+  @override
+  String get compatibleFilesOnly =>
+      'Somente arquivos de texto e código compatíveis serão adicionados.';
+
+  @override
+  String get newFolder => 'Nova pasta';
+
+  @override
+  String get folderName => 'Nome da pasta';
+
+  @override
+  String get folderNameHint => 'Fics para ler';
+
+  @override
+  String get renameFolder => 'Renomear pasta';
+
+  @override
+  String get rename => 'Renomear';
+
+  @override
+  String get root => 'Raiz da biblioteca';
+
+  @override
+  String get moveTo => 'Mover para…';
+
+  @override
+  String get moveDocument => 'Mover documento';
+
+  @override
+  String get openFolder => 'Abrir pasta';
+
+  @override
+  String get folderNotEmpty =>
+      'Esta pasta não está vazia. Mova ou exclua o conteúdo primeiro.';
+
+  @override
+  String get noCompatibleFiles =>
+      'Nenhum arquivo compatível foi encontrado nesta pasta.';
+
+  @override
+  String folderCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pastas',
+      one: '1 pasta',
+      zero: 'nenhuma pasta',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String folderContents(int files, int folders) {
+    return '$files arquivos · $folders pastas';
+  }
+
+  @override
+  String folderImported(int imported, int skipped) {
+    return '$imported arquivos compatíveis importados · $skipped ignorados';
+  }
 
   @override
   String get libraryTitle => 'Biblioteca';
