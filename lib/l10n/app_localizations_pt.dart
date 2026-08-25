@@ -439,4 +439,23 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get exitReadingMode => 'Sair do modo leitura';
+
+  @override
+  String get addBookmark => 'Marcar esta posição';
+
+  @override
+  String get bookmarkAdded => 'Marcador adicionado';
+
+  @override
+  String get bookmarks => 'Marcadores';
+
+  @override
+  String get bookmarksEmpty =>
+      'Nenhum marcador ainda. Toque no ícone de marcador na barra de leitura para guardar onde você parou.';
+
+  @override
+  String get removeBookmark => 'Remover marcador';
+
+  @override
+  String get goToBookmark => 'Ir para o marcador';
 }

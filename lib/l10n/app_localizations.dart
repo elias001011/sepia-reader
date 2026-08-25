@@ -817,6 +817,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Exit reading mode'**
   String get exitReadingMode;
+
+  /// No description provided for @addBookmark.
+  ///
+  /// In en, this message translates to:
+  /// **'Bookmark this spot'**
+  String get addBookmark;
+
+  /// No description provided for @bookmarkAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Bookmark added'**
+  String get bookmarkAdded;
+
+  /// No description provided for @bookmarks.
+  ///
+  /// In en, this message translates to:
+  /// **'Bookmarks'**
+  String get bookmarks;
+
+  /// No description provided for @bookmarksEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No bookmarks yet. Tap the bookmark icon on the reading bar to save where you left off.'**
+  String get bookmarksEmpty;
+
+  /// No description provided for @removeBookmark.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove bookmark'**
+  String get removeBookmark;
+
+  /// No description provided for @goToBookmark.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to bookmark'**
+  String get goToBookmark;
 }
 
 class _AppLocalizationsDelegate

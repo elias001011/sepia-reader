@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/app_settings.dart';
+import '../models/bookmark.dart';
 import '../models/library_document.dart';
 import '../models/library_folder.dart';
 
@@ -13,6 +14,7 @@ class StorageService {
   static const _documentsKey = 'sepia.documents.v1';
   static const _settingsKey = 'sepia.settings.v1';
   static const _foldersKey = 'sepia.folders.v1';
+  static const _bookmarksKey = 'sepia.bookmarks.v1';
 
   static const _networkTimeout = Duration(seconds: 6);
 
@@ -134,6 +136,47 @@ class StorageService {
       )
       .toList();
 
+  Future<List<ReadingBookmark>> loadBookmarks() async {
+    final prefs = await SharedPreferences.getInstance();
+    final localRaw = prefs.getString(_bookmarksKey);
+    final local = _decodeBookmarksRaw(localRaw);
+    final remote = await _fetchJson('/api/bookmarks');
+    if (remote is List) {
+      if (remote.isNotEmpty || local.isEmpty) {
+        await prefs.setString(_bookmarksKey, jsonEncode(remote));
+        return _decodeBookmarks(remote);
+      }
+      _pushJson('/api/bookmarks', local.map((b) => b.toJson()).toList());
+      return local;
+    }
+    return local;
+  }
+
+  List<ReadingBookmark> _decodeBookmarksRaw(String? raw) {
+    if (raw == null) return [];
+    try {
+      return _decodeBookmarks(jsonDecode(raw) as List<dynamic>);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  List<ReadingBookmark> _decodeBookmarks(List<dynamic> raw) => raw
+      .map(
+        (item) =>
+            ReadingBookmark.fromJson(Map<String, dynamic>.from(item as Map)),
+      )
+      .toList();
+
+  Future<void> saveBookmarks(List<ReadingBookmark> bookmarks) async {
+    final json = bookmarks.map((bookmark) => bookmark.toJson()).toList();
+    await (await SharedPreferences.getInstance()).setString(
+      _bookmarksKey,
+      jsonEncode(json),
+    );
+    _pushJson('/api/bookmarks', json);
+  }
+
   Future<void> saveDocuments(List<LibraryDocument> documents) async {
     final json = documents.map((document) => document.toJson()).toList();
     await (await SharedPreferences.getInstance()).setString(
@@ -170,6 +213,7 @@ class StorageService {
     ({
       List<LibraryDocument> documents,
       List<LibraryFolder> folders,
+      List<ReadingBookmark> bookmarks,
       AppSettings settings,
     })
   >
@@ -192,6 +236,14 @@ class StorageService {
       await prefs.setString(_foldersKey, jsonEncode(remoteFolders));
     }
 
+    final remoteBookmarks = await _fetchJson('/api/bookmarks');
+    final bookmarks = remoteBookmarks is List
+        ? _decodeBookmarks(remoteBookmarks)
+        : _decodeBookmarksRaw(prefs.getString(_bookmarksKey));
+    if (remoteBookmarks is List) {
+      await prefs.setString(_bookmarksKey, jsonEncode(remoteBookmarks));
+    }
+
     final remoteSettings = await _fetchJson('/api/settings');
     AppSettings settings;
     if (remoteSettings is Map) {
@@ -202,6 +254,11 @@ class StorageService {
       settings = await loadSettings();
     }
 
-    return (documents: documents, folders: folders, settings: settings);
+    return (
+      documents: documents,
+      folders: folders,
+      bookmarks: bookmarks,
+      settings: settings,
+    );
   }
 }
