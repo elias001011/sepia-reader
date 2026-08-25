@@ -310,11 +310,21 @@ class StorageService {
     encode: (bookmark) => bookmark.toJson(),
   );
 
+  // Bookmarks written before the chunk-index redesign carry a
+  // `scrollFraction` instead of `chunkIndex` and fail to parse; skip those
+  // individually instead of losing the whole list to one old record.
   List<ReadingBookmark> _decodeBookmarks(List<dynamic> raw) => raw
-      .map(
-        (item) =>
-            ReadingBookmark.fromJson(Map<String, dynamic>.from(item as Map)),
-      )
+      .map((item) {
+        try {
+          return ReadingBookmark.fromJson(
+            Map<String, dynamic>.from(item as Map),
+          );
+        } catch (error) {
+          debugPrint('sepia: dropping unreadable bookmark: $error');
+          return null;
+        }
+      })
+      .whereType<ReadingBookmark>()
       .toList();
 
   Future<void> saveBookmarks(List<ReadingBookmark> bookmarks) async {
