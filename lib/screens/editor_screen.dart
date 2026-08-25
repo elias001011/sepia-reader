@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../l10n/l10n.dart';
 import '../models/bookmark.dart';
@@ -28,8 +29,9 @@ class _EditorScreenState extends State<EditorScreen> {
   late final TextEditingController _contentController;
   late final TextEditingController _titleController;
   final UndoHistoryController _undoController = UndoHistoryController();
-  final ScrollController _readerScrollController = ScrollController();
-  final ValueNotifier<double> _readerScrollOffset = ValueNotifier(0);
+  final ItemScrollController _itemScrollController = ItemScrollController();
+  final ItemPositionsListener _itemPositionsListener =
+      ItemPositionsListener.create();
 
   /// Typing must not rebuild the whole screen. These notifiers let only the
   /// small widgets that actually depend on the text rebuild: the save
@@ -64,7 +66,6 @@ class _EditorScreenState extends State<EditorScreen> {
     _previewContent = ValueNotifier(document.content);
     _stats.value = _statsFor(document.content);
     widget.controller.addListener(_refresh);
-    _readerScrollController.addListener(_onReaderOffsetChanged);
   }
 
   @override
@@ -76,9 +77,6 @@ class _EditorScreenState extends State<EditorScreen> {
     if (_dirty.value) unawaited(_save());
     widget.controller.removeListener(_refresh);
     _undoController.dispose();
-    _readerScrollController.removeListener(_onReaderOffsetChanged);
-    _readerScrollController.dispose();
-    _readerScrollOffset.dispose();
     _dirty.dispose();
     _stats.dispose();
     _previewContent.dispose();
@@ -91,12 +89,6 @@ class _EditorScreenState extends State<EditorScreen> {
     final trimmed = content.trim();
     final words = trimmed.isEmpty ? 0 : trimmed.split(RegExp(r'\s+')).length;
     return (words: words, minutes: words == 0 ? 0 : (words / 220).ceil());
-  }
-
-  void _onReaderOffsetChanged() {
-    if (_readerScrollController.hasClients) {
-      _readerScrollOffset.value = _readerScrollController.offset;
-    }
   }
 
   void _refresh() {
@@ -145,26 +137,32 @@ class _EditorScreenState extends State<EditorScreen> {
     _scheduleReaderControlsHide();
   }
 
-  Future<void> _addBookmarkHere() async {
-    if (!_readerScrollController.hasClients) return;
-    final position = _readerScrollController.position;
-    final fraction = position.maxScrollExtent > 0
-        ? (position.pixels / position.maxScrollExtent).clamp(0.0, 1.0)
-        : 0.0;
-    final content = _stored?.content ?? '';
-    final anchor = (fraction * content.length).round().clamp(
-      0,
-      content.length,
+  /// The topmost chunk currently at least partially visible, or null before
+  /// the list has laid out anything yet.
+  ItemPosition? get _topVisibleChunk {
+    final positions = _itemPositionsListener.itemPositions.value;
+    if (positions.isEmpty) return null;
+    final sorted = positions.toList()
+      ..sort((a, b) => a.itemLeadingEdge.compareTo(b.itemLeadingEdge));
+    return sorted.firstWhere(
+      (p) => p.itemLeadingEdge >= 0,
+      orElse: () => sorted.first,
     );
-    final start = (anchor - 40).clamp(0, content.length);
-    final end = (anchor + 40).clamp(0, content.length);
-    final excerpt = content
-        .substring(start, end)
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
+  }
+
+  Future<void> _addBookmarkHere() async {
+    final top = _topVisibleChunk;
+    if (top == null) return;
+    final chunks = chunksForDocument(_stored!);
+    final index = top.index.clamp(0, chunks.length - 1).toInt();
+    final trimmed = chunks[index].replaceAll(RegExp(r'\s+'), ' ').trim();
+    final excerpt = trimmed.length > 80
+        ? '${trimmed.substring(0, 80)}…'
+        : trimmed;
     await widget.controller.addBookmark(
       widget.documentId,
-      scrollFraction: fraction,
+      chunkIndex: index,
+      alignment: top.itemLeadingEdge.clamp(0.0, 1.0),
       excerpt: excerpt.isEmpty ? context.l10n.untitled : excerpt,
     );
     if (!mounted) return;
@@ -177,10 +175,13 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 
   Future<void> _goToBookmark(ReadingBookmark bookmark) async {
-    if (!_readerScrollController.hasClients) return;
-    final maxExtent = _readerScrollController.position.maxScrollExtent;
-    await _readerScrollController.animateTo(
-      (bookmark.scrollFraction * maxExtent).clamp(0.0, maxExtent),
+    if (!_itemScrollController.isAttached) return;
+    final chunks = chunksForDocument(_stored!);
+    if (chunks.isEmpty) return;
+    final index = bookmark.chunkIndex.clamp(0, chunks.length - 1).toInt();
+    await _itemScrollController.scrollTo(
+      index: index,
+      alignment: bookmark.alignment,
       duration: const Duration(milliseconds: 350),
       curve: Curves.easeOut,
     );
@@ -579,7 +580,8 @@ class _EditorScreenState extends State<EditorScreen> {
                 child: DocumentView(
                   document: _draft,
                   settings: settings,
-                  scrollController: _readerScrollController,
+                  itemScrollController: _itemScrollController,
+                  itemPositionsListener: _itemPositionsListener,
                   padding: EdgeInsets.fromLTRB(
                     compact ? 20 : 28,
                     safeTop + (compact ? 54 : 72),
@@ -593,27 +595,31 @@ class _EditorScreenState extends State<EditorScreen> {
                 .bookmarksForDocument(widget.documentId)
                 .isNotEmpty)
               Positioned.fill(
-                child: ValueListenableBuilder<double>(
-                  valueListenable: _readerScrollOffset,
-                  builder: (context, offset, _) {
-                    if (!_readerScrollController.hasClients) {
-                      return const SizedBox.shrink();
-                    }
-                    final maxExtent =
-                        _readerScrollController.position.maxScrollExtent;
+                child: ValueListenableBuilder<Iterable<ItemPosition>>(
+                  valueListenable: _itemPositionsListener.itemPositions,
+                  builder: (context, positions, _) {
+                    // itemLeadingEdge is already a fraction of the viewport
+                    // (0 = aligned with its top edge), reported from the
+                    // list's real, currently-realized layout — not an
+                    // extrapolated maxScrollExtent — so this position is
+                    // exact for every visible chunk, and simply absent for
+                    // chunks that are not currently on screen.
+                    final byIndex = {
+                      for (final position in positions) position.index: position,
+                    };
                     final viewportHeight = constraints.maxHeight;
                     return Stack(
                       children: [
                         for (final bookmark in widget.controller
                             .bookmarksForDocument(widget.documentId))
-                          _bookmarkMarker(
-                            context,
-                            bookmark,
-                            offset,
-                            maxExtent,
-                            compact,
-                            viewportHeight,
-                          ),
+                          if (byIndex[bookmark.chunkIndex] case final position?)
+                            _bookmarkMarker(
+                              context,
+                              bookmark,
+                              position,
+                              compact,
+                              viewportHeight,
+                            ),
                       ],
                     );
                   },
@@ -735,13 +741,11 @@ class _EditorScreenState extends State<EditorScreen> {
   Widget _bookmarkMarker(
     BuildContext context,
     ReadingBookmark bookmark,
-    double scrollOffset,
-    double maxExtent,
+    ItemPosition position,
     bool compact,
     double viewportHeight,
   ) {
-    final top = bookmark.scrollFraction * maxExtent - scrollOffset;
-    if (top < -32 || top > viewportHeight + 32) return const SizedBox.shrink();
+    final top = position.itemLeadingEdge * viewportHeight;
     final isOpen = _activeBookmarkPopupId == bookmark.id;
     final scheme = Theme.of(context).colorScheme;
     return Positioned(

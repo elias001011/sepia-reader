@@ -57,8 +57,9 @@ class BookmarksSheet extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     subtitle: Text(
-                      '${(bookmark.scrollFraction * 100).round()}% · '
-                      '${MaterialLocalizations.of(context).formatCompactDate(bookmark.createdAt)}',
+                      MaterialLocalizations.of(
+                        context,
+                      ).formatCompactDate(bookmark.createdAt),
                     ),
                     trailing: IconButton(
                       tooltip: context.l10n.removeBookmark,

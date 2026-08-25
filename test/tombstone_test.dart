@@ -35,7 +35,7 @@ void main() {
     final document = await controller.createDocument(title: 'Fic');
     await controller.addBookmark(
       document.id,
-      scrollFraction: .5,
+      chunkIndex: 0,
       excerpt: 'onde parei',
     );
     expect(controller.bookmarksForDocument(document.id), hasLength(1));
@@ -51,7 +51,7 @@ void main() {
     final document = await controller.createDocument(title: 'Fic');
     final bookmark = await controller.addBookmark(
       document.id,
-      scrollFraction: .25,
+      chunkIndex: 0,
       excerpt: 'trecho',
     );
 

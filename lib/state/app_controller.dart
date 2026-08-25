@@ -54,7 +54,7 @@ class AppController extends ChangeNotifier {
               bookmark.documentId == documentId && !bookmark.isDeleted,
         )
         .toList()
-      ..sort((a, b) => a.scrollFraction.compareTo(b.scrollFraction));
+      ..sort((a, b) => a.chunkIndex.compareTo(b.chunkIndex));
     return List.unmodifiable(matches);
   }
 
@@ -332,13 +332,15 @@ class AppController extends ChangeNotifier {
 
   Future<ReadingBookmark> addBookmark(
     String documentId, {
-    required double scrollFraction,
+    required int chunkIndex,
+    double alignment = 0,
     required String excerpt,
   }) async {
     final bookmark = ReadingBookmark(
       id: _uuid.v4(),
       documentId: documentId,
-      scrollFraction: scrollFraction.clamp(0.0, 1.0),
+      chunkIndex: chunkIndex,
+      alignment: alignment,
       excerpt: excerpt,
       createdAt: DateTime.now(),
     );
