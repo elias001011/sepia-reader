@@ -8,13 +8,13 @@ A calm, local-first Markdown library, reader, and editor built with Flutter. Sé
 
 - Local library with search, favorites, folders, nested folders, and word counts.
 - Create `.md` and `.txt` documents at the root or directly inside a folder.
-- Move documents between folders or back to the library root.
-- Import individual files or whole folders while preserving compatible files and nested paths, up to 5 MB per file.
+- Rename and move documents between folders or back to the library root.
+- Import individual files, drag and drop them in the browser, or import whole folders while preserving compatible files and nested paths, up to 5 MB per file.
 - Responsive editor with shortcuts for headings, bold, italic, quotes, lists, links, and code.
 - Session-scoped undo/redo through the UI, `Ctrl/Cmd+Z`, `Ctrl+Y`, or `Ctrl/Cmd+Shift+Z`.
-- Markdown preview with tables, quotes, and fenced code blocks.
+- Markdown preview with tables, quotes, and fenced code blocks, with contrast independent from the app theme.
 - Syntax highlighting for Dart, JavaScript, TypeScript, JSON, YAML, HTML, CSS, Python, Java, Kotlin, Swift, shell, SQL, and XML.
-- Distraction-free reading mode that hides editing tools and locks the editor.
+- Distraction-free reading mode with compact controls, locked editing, and optional auto-hide.
 - Merriweather and the Sépia palette by default, plus Artifact, Paper, and Night presets.
 - Configurable font, size, line height, page width, background, and text colors.
 - Material 3 theme with light, dark, AMOLED, and system modes, plus configurable light and dark backgrounds.
@@ -31,7 +31,7 @@ Self-hosting is therefore the recommended focus for a private installation with 
 
 Every GitHub Release includes a self-hostable web archive. Extract it into the root directory of any static web server. If Sépia will be hosted under a URL subpath, rebuild it with Flutter's matching `--base-href` option.
 
-The release archive bundles Flutter's rendering runtime, Inter, Merriweather, Lora, Roboto Mono, and all other assets. The running app does not depend on Google Fonts or a public CDN.
+The release archive bundles Flutter's rendering runtime, Inter, Merriweather, Lora, Roboto Mono, and Noto emoji and symbol fallbacks. The running app does not depend on Google Fonts or a public CDN.
 
 ### Deploy to Netlify
 
@@ -76,8 +76,8 @@ flutter build apk --release --target-platform android-arm64
 Semantic version tags automatically publish a GitHub Release containing a universal Android APK, a smaller modern-device `arm64-v8a` APK, the self-hostable web archive, and SHA-256 checksums:
 
 ```bash
-git tag v1.1.0
-git push origin v1.1.0
+git tag v1.2.0
+git push origin v1.2.0
 ```
 
 The ARM64 APK is recommended for most modern devices; the universal APK remains available for compatibility. Both currently use the development signing configuration and are intended for direct installation and testing. Configure a permanent signing key and prefer an Android App Bundle before Play Store distribution.

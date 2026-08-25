@@ -8,13 +8,13 @@ Leitor, biblioteca e editor de Markdown feito em Flutter. O Sépia foi pensado p
 
 - biblioteca local com busca, favoritos, pastas, subpastas e contagem de palavras;
 - criação de `.md` e `.txt` na raiz ou diretamente dentro de uma pasta;
-- movimentação de documentos entre pastas e de volta à raiz;
-- importação múltipla ou de pastas inteiras, preservando a hierarquia e aceitando arquivos compatíveis de até 5 MB;
+- renomeação e movimentação de documentos entre pastas e de volta à raiz;
+- importação múltipla, por arrastar e soltar no navegador ou de pastas inteiras, preservando a hierarquia e aceitando arquivos compatíveis de até 5 MB;
 - editor responsivo com atalhos para títulos, negrito, itálico, citações, listas, links e código;
 - desfazer/refazer por sessão via interface, `Ctrl/Cmd+Z`, `Ctrl+Y` ou `Ctrl/Cmd+Shift+Z`;
-- preview correto de Markdown, tabelas, citações e blocos de código;
+- preview correto de Markdown, tabelas, citações e blocos de código, com contraste independente do tema do app;
 - syntax highlighting para Dart, JavaScript, TypeScript, JSON, YAML, HTML, CSS, Python, Java, Kotlin, Swift, shell, SQL e XML;
-- modo leitura que oculta as ferramentas e bloqueia edição;
+- modo leitura que bloqueia edição, usa controles compactos e permite ocultá-los automaticamente;
 - fonte Merriweather e tema Sépia como padrão, com presets Artifact, Papel e Noite;
 - fonte, tamanho, entrelinha, largura, fundo e texto configuráveis;
 - tema Material 3 claro, escuro, AMOLED ou do sistema, com fundos claro e escuro personalizados;
@@ -53,7 +53,7 @@ flutter build apk --release
 flutter build apk --release --target-platform android-arm64
 ```
 
-O script web inclui o runtime Flutter, as fontes Inter, Merriweather, Lora e Roboto Mono e todos os demais assets no próprio `build/web`; a aplicação não depende de Google Fonts nem de um CDN em execução.
+O script web inclui o runtime Flutter, as fontes Inter, Merriweather, Lora e Roboto Mono, além dos fallbacks Noto para emojis e símbolos, no próprio `build/web`; a aplicação não depende de Google Fonts nem de um CDN em execução.
 
 Os arquivos ficam armazenados localmente no dispositivo/navegador com `shared_preferences`. O Sépia não envia conteúdo para servidores.
 
@@ -78,8 +78,8 @@ Os arquivos `_headers` e `_redirects` já são incluídos na build para compatib
 Tags semânticas publicam automaticamente um GitHub Release com um APK Android universal, um APK `arm64-v8a` menor para aparelhos modernos, o pacote web estático e checksums SHA-256:
 
 ```bash
-git tag v1.1.0
-git push origin v1.1.0
+git tag v1.2.0
+git push origin v1.2.0
 ```
 
 O APK ARM64 é o download recomendado para a maioria dos aparelhos modernos; o universal fica disponível como opção de compatibilidade. Ambos usam a assinatura de desenvolvimento atual e são indicados para instalação direta/testes. Antes de distribuir pela Play Store, configure uma chave de assinatura permanente e prefira um Android App Bundle.

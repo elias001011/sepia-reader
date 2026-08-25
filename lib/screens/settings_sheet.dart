@@ -133,6 +133,19 @@ class _SettingsSheetState extends State<SettingsSheet> {
                   context.l10n.readerThemeHint,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
+                const SizedBox(height: 8),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(context.l10n.autoHideReaderControls),
+                  subtitle: Text(
+                    context.l10n.autoHideReaderControlsDescription,
+                  ),
+                  value: _draft.autoHideReaderControls,
+                  onChanged: (value) => setState(
+                    () =>
+                        _draft = _draft.copyWith(autoHideReaderControls: value),
+                  ),
+                ),
                 const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,

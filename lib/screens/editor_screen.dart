@@ -26,9 +26,12 @@ class _EditorScreenState extends State<EditorScreen> {
   late final TextEditingController _contentController;
   late final TextEditingController _titleController;
   final UndoHistoryController _undoController = UndoHistoryController();
+  final ScrollController _readerScrollController = ScrollController();
   Timer? _saveTimer;
+  Timer? _readerControlsTimer;
   bool _dirty = false;
   bool _readingMode = false;
+  bool _readerControlsVisible = true;
   bool _showPreview = false;
 
   LibraryDocument? get _stored =>
@@ -49,10 +52,12 @@ class _EditorScreenState extends State<EditorScreen> {
   @override
   void dispose() {
     _saveTimer?.cancel();
+    _readerControlsTimer?.cancel();
     if (_dirty) unawaited(_save());
     widget.controller.removeListener(_refresh);
     _undoController.removeListener(_refresh);
     _undoController.dispose();
+    _readerScrollController.dispose();
     _contentController.dispose();
     _titleController.dispose();
     super.dispose();
@@ -88,7 +93,11 @@ class _EditorScreenState extends State<EditorScreen> {
 
   void _enterReadingMode() {
     FocusScope.of(context).unfocus();
-    setState(() => _readingMode = true);
+    setState(() {
+      _readingMode = true;
+      _readerControlsVisible = true;
+    });
+    _scheduleReaderControlsHide();
   }
 
   @override
@@ -431,57 +440,99 @@ class _EditorScreenState extends State<EditorScreen> {
   );
 
   Widget _readerOnly(BuildContext context) => Scaffold(
-    body: Stack(
-      children: [
-        Positioned.fill(
-          child: DocumentView(
-            document: _draft,
-            settings: widget.controller.settings,
-            padding: EdgeInsets.fromLTRB(
-              28,
-              MediaQuery.paddingOf(context).top + 72,
-              28,
-              64,
+    body: LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 620;
+        final safeTop = MediaQuery.paddingOf(context).top;
+        final settings = widget.controller.settings;
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: NotificationListener<ScrollNotification>(
+                onNotification: _onReaderScroll,
+                child: DocumentView(
+                  document: _draft,
+                  settings: settings,
+                  scrollController: _readerScrollController,
+                  padding: EdgeInsets.fromLTRB(
+                    compact ? 20 : 28,
+                    safeTop + (compact ? 54 : 72),
+                    compact ? 20 : 28,
+                    compact ? 48 : 64,
+                  ),
+                ),
+              ),
             ),
-          ),
-        ),
-        Positioned(
-          top: MediaQuery.paddingOf(context).top + 12,
-          left: 16,
-          child: _readerButton(
-            context,
-            tooltip: context.l10n.backToLibrary,
-            icon: Icons.arrow_back_rounded,
-            onPressed: _close,
-          ),
-        ),
-        Positioned(
-          top: MediaQuery.paddingOf(context).top + 12,
-          right: 16,
-          child: Row(
-            children: [
-              _readerButton(
-                context,
-                tooltip: context.l10n.adjustments,
-                icon: Icons.text_fields_rounded,
-                onPressed: _openReaderSettings,
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: safeTop + 52,
+              child: IgnorePointer(
+                ignoring: _readerControlsVisible,
+                child: GestureDetector(
+                  key: const ValueKey('reader-controls-reveal-area'),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _showReaderControls,
+                ),
               ),
-              const SizedBox(width: 8),
-              _readerButton(
-                context,
-                tooltip: context.l10n.exitReadingMode,
-                icon: Icons.edit_rounded,
-                onPressed: () => setState(() => _readingMode = false),
+            ),
+            Positioned(
+              top: safeTop + (compact ? 7 : 12),
+              left: compact ? 10 : 16,
+              right: compact ? 10 : 16,
+              child: AnimatedSlide(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOut,
+                offset: _readerControlsVisible
+                    ? Offset.zero
+                    : const Offset(0, -.7),
+                child: AnimatedOpacity(
+                  key: const ValueKey('reader-controls'),
+                  duration: const Duration(milliseconds: 160),
+                  opacity: _readerControlsVisible ? 1 : 0,
+                  child: IgnorePointer(
+                    ignoring: !_readerControlsVisible,
+                    child: Row(
+                      children: [
+                        _readerButton(
+                          context,
+                          compact: compact,
+                          tooltip: context.l10n.backToLibrary,
+                          icon: Icons.arrow_back_rounded,
+                          onPressed: _close,
+                        ),
+                        const Spacer(),
+                        _readerButton(
+                          context,
+                          compact: compact,
+                          tooltip: context.l10n.adjustments,
+                          icon: Icons.text_fields_rounded,
+                          onPressed: _openReaderSettings,
+                        ),
+                        SizedBox(width: compact ? 5 : 8),
+                        _readerButton(
+                          context,
+                          compact: compact,
+                          tooltip: context.l10n.exitReadingMode,
+                          icon: Icons.edit_rounded,
+                          onPressed: _exitReadingMode,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-            ],
-          ),
-        ),
-      ],
+            ),
+          ],
+        );
+      },
     ),
   );
 
   Widget _readerButton(
     BuildContext context, {
+    required bool compact,
     required String tooltip,
     required IconData icon,
     required VoidCallback onPressed,
@@ -493,10 +544,59 @@ class _EditorScreenState extends State<EditorScreen> {
       child: IconButton(
         onPressed: onPressed,
         color: Colors.white,
+        constraints: BoxConstraints.tightFor(
+          width: compact ? 36 : 48,
+          height: compact ? 36 : 48,
+        ),
+        padding: EdgeInsets.zero,
+        visualDensity: VisualDensity.compact,
+        style: IconButton.styleFrom(
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          fixedSize: Size.square(compact ? 36 : 48),
+        ),
+        iconSize: compact ? 18 : 24,
         icon: Icon(icon),
       ),
     ),
   );
+
+  bool _onReaderScroll(ScrollNotification notification) {
+    if (!widget.controller.settings.autoHideReaderControls) return false;
+    if (notification is ScrollStartNotification) {
+      _readerControlsTimer?.cancel();
+    } else if (notification is ScrollUpdateNotification ||
+        notification is ScrollEndNotification) {
+      _scheduleReaderControlsHide(delay: const Duration(milliseconds: 650));
+    }
+    return false;
+  }
+
+  void _showReaderControls() {
+    if (!_readerControlsVisible) {
+      setState(() => _readerControlsVisible = true);
+    }
+    _scheduleReaderControlsHide();
+  }
+
+  void _scheduleReaderControlsHide({
+    Duration delay = const Duration(seconds: 3),
+  }) {
+    _readerControlsTimer?.cancel();
+    if (!widget.controller.settings.autoHideReaderControls) return;
+    _readerControlsTimer = Timer(delay, () {
+      if (mounted && _readingMode && _readerControlsVisible) {
+        setState(() => _readerControlsVisible = false);
+      }
+    });
+  }
+
+  void _exitReadingMode() {
+    _readerControlsTimer?.cancel();
+    setState(() {
+      _readingMode = false;
+      _readerControlsVisible = true;
+    });
+  }
 
   void _wrap(String before, String after, String placeholder) {
     final selection = _contentController.selection;

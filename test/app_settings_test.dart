@@ -17,6 +17,7 @@ void main() {
     expect(restored.localeCode, 'system');
     expect(restored.amoledTheme, isFalse);
     expect(restored.readerFollowsTheme, isFalse);
+    expect(restored.autoHideReaderControls, isFalse);
   });
 
   test('preserva AMOLED, fundo escuro e integração do leitor', () {
@@ -24,6 +25,7 @@ void main() {
       amoledTheme: true,
       darkAppBackground: Color(0xFF102030),
       readerFollowsTheme: true,
+      autoHideReaderControls: true,
     );
 
     final restored = AppSettings.fromJson(settings.toJson());
@@ -31,5 +33,6 @@ void main() {
     expect(restored.amoledTheme, isTrue);
     expect(restored.darkAppBackground, const Color(0xFF102030));
     expect(restored.readerFollowsTheme, isTrue);
+    expect(restored.autoHideReaderControls, isTrue);
   });
 }

@@ -96,4 +96,68 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('tabelas no preset Papel não herdam superfícies escuras', (
+    tester,
+  ) async {
+    const background = Color(0xFFFFFBF2);
+    const text = Color(0xFF322720);
+    const settings = AppSettings(
+      themeMode: ThemeMode.dark,
+      readerBackground: background,
+      readerText: text,
+    );
+    final now = DateTime(2026);
+    final expectedPanel = Color.alphaBlend(
+      text.withValues(alpha: .075),
+      background,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        darkTheme: buildSepiaTheme(settings, Brightness.dark),
+        themeMode: ThemeMode.dark,
+        home: DocumentView(
+          settings: settings,
+          document: LibraryDocument(
+            id: 'paper-document',
+            title: 'Papel',
+            content:
+                'Use `.md` para ler.\n\n'
+                '| Nome | Valor |\n| --- | --- |\n| Sépia | 1 |\n| Leitura | 2 |',
+            extension: 'md',
+            createdAt: now,
+            updatedAt: now,
+          ),
+        ),
+      ),
+    );
+
+    final table = tester.widget<Table>(find.byType(Table));
+    final headDecoration = table.children.first.decoration as BoxDecoration;
+    final bodyDecoration = table.children[2].decoration as BoxDecoration;
+    expect(headDecoration.color, isNot(Colors.black));
+    expect(bodyDecoration.color, expectedPanel);
+    final spanStyles = tester
+        .widgetList<RichText>(find.byType(RichText))
+        .expand((widget) => _textStyles(widget.text))
+        .toList();
+    expect(
+      spanStyles.any((style) => style.backgroundColor == expectedPanel),
+      isTrue,
+    );
+    expect(
+      spanStyles.any((style) => style.backgroundColor == Colors.black),
+      isFalse,
+    );
+  });
+}
+
+Iterable<TextStyle> _textStyles(InlineSpan span) sync* {
+  if (span.style != null) yield span.style!;
+  if (span is TextSpan) {
+    for (final child in span.children ?? const <InlineSpan>[]) {
+      yield* _textStyles(child);
+    }
+  }
 }
