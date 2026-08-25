@@ -9,8 +9,13 @@ import '../models/folder_import.dart';
 import '../models/library_document.dart';
 import '../models/library_folder.dart';
 import '../models/syncable.dart';
+import '../services/document_kind.dart';
 import '../services/storage_service.dart';
 import '../services/sync_merge.dart';
+
+/// Outcome of a user-triggered sync, so the library can say what actually
+/// happened instead of just spinning and stopping.
+enum SyncRunResult { done, failed, disabled }
 
 class AppController extends ChangeNotifier {
   AppController({StorageService? storage})
@@ -211,38 +216,89 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> deleteEmptyFolder(String id) async {
-    final index = _liveFolderIndex(id);
-    // Only live children count: a folder whose documents were all deleted is
-    // empty, even though their tombstones still name it as their parent.
-    if (index == -1 ||
-        live(_folders).any((folder) => folder.parentId == id) ||
-        live(_documents).any((document) => document.folderId == id)) {
-      return false;
+  /// Everything a folder holds, transitively: the ids of the folder itself
+  /// and every descendant folder, plus every live document inside any of
+  /// them. Used both to warn before a delete and to carry it out.
+  ({Set<String> folderIds, List<LibraryDocument> documents}) folderContents(
+    String id,
+  ) {
+    final folderIds = <String>{id};
+    var changed = true;
+    while (changed) {
+      changed = false;
+      for (final folder in live(_folders)) {
+        if (folder.parentId != null &&
+            folderIds.contains(folder.parentId) &&
+            folderIds.add(folder.id)) {
+          changed = true;
+        }
+      }
     }
-    final now = DateTime.now();
-    _folders[index] = _folders[index].copyWith(
-      updatedAt: now,
-      deletedAt: now,
-    );
-    await _persistFolders();
-    notifyListeners();
-    return true;
+    final documents = live(_documents)
+        .where((document) => folderIds.contains(document.folderId))
+        .toList(growable: false);
+    return (folderIds: folderIds, documents: documents);
   }
 
-  Future<int> importFolder(
+  /// Deletes a folder along with every subfolder and document it holds.
+  ///
+  /// Folders used to be undeletable while anything was inside them, which
+  /// just moved the work onto the user: empty it by hand, folder by folder,
+  /// before the delete would go through. The confirmation now names what is
+  /// about to go, and this does the whole job in one pass. Everything is
+  /// tombstoned rather than dropped, so the deletion still propagates to the
+  /// other devices instead of the server pushing the records back.
+  Future<void> deleteFolder(String id) async {
+    if (_liveFolderIndex(id) == -1) return;
+    final contents = folderContents(id);
+    final now = DateTime.now();
+    for (var i = 0; i < _folders.length; i++) {
+      if (contents.folderIds.contains(_folders[i].id) &&
+          !_folders[i].isDeleted) {
+        _folders[i] = _folders[i].copyWith(updatedAt: now, deletedAt: now);
+      }
+    }
+    final documentIds = contents.documents.map((d) => d.id).toSet();
+    for (var i = 0; i < _documents.length; i++) {
+      if (documentIds.contains(_documents[i].id)) {
+        _documents[i] = _documents[i].copyWith(updatedAt: now, deletedAt: now);
+      }
+    }
+    for (var i = 0; i < _bookmarks.length; i++) {
+      if (documentIds.contains(_bookmarks[i].documentId) &&
+          !_bookmarks[i].isDeleted) {
+        _bookmarks[i] = _bookmarks[i].copyWith(updatedAt: now, deletedAt: now);
+      }
+    }
+    await Future.wait([
+      _persistFolders(),
+      _persistDocuments(),
+      _persistBookmarks(),
+    ]);
+    notifyListeners();
+  }
+
+  /// Imports a picked folder tree. [rejected] counts files that looked
+  /// importable by name but turned out to hold binary data — see
+  /// [isBinaryPayload].
+  Future<({int imported, int rejected})> importFolder(
     FolderImportSelection selection, {
     String? parentId,
   }) async {
-    if (selection.files.isEmpty) return 0;
+    if (selection.files.isEmpty) return (imported: 0, rejected: 0);
     final root = _createFolderInMemory(
       name: selection.folderName,
       parentId: parentId,
     );
     final folderIds = <String, String>{'': root.id};
     var imported = 0;
+    var rejected = 0;
 
     for (final file in selection.files) {
+      if (isBinaryPayload(file.bytes)) {
+        rejected++;
+        continue;
+      }
       final parts = file.relativePath
           .replaceAll('\\', '/')
           .split('/')
@@ -278,7 +334,7 @@ class AppController extends ChangeNotifier {
 
     await _persistLibrary();
     notifyListeners();
-    return imported;
+    return (imported: imported, rejected: rejected);
   }
 
   LibraryDocument? documentById(String id) {
@@ -401,7 +457,8 @@ class AppController extends ChangeNotifier {
   /// at face value here, unlike the cautious startup load) and replaces the
   /// in-memory state with it. Wired to the pull-to-refresh gesture on the
   /// library screen.
-  Future<void> forceSync() async {
+  Future<SyncRunResult> forceSync() async {
+    if (!await _storage.isSyncEnabled()) return SyncRunResult.disabled;
     final result = await _storage.forcePull();
     _documents
       ..clear()
@@ -414,6 +471,7 @@ class AppController extends ChangeNotifier {
       ..addAll(result.bookmarks);
     _settings = result.settings;
     notifyListeners();
+    return result.reachedServer ? SyncRunResult.done : SyncRunResult.failed;
   }
 
   Future<void> _persistDocuments() => _storage.saveDocuments(_documents);

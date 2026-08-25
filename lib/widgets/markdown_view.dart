@@ -5,6 +5,7 @@ import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../models/app_settings.dart';
 import '../models/library_document.dart';
+import '../services/document_kind.dart';
 
 /// Splits a document's content into the same fixed, index-addressable chunks
 /// used both to render it (via [ScrollablePositionedList]) and to anchor
@@ -81,7 +82,7 @@ List<String> splitMarkdownBlocks(String content) {
 }
 
 /// Number of source lines rendered per chunk for plain-text/code documents.
-const int _chunkLines = 120;
+const int plainTextChunkLines = 120;
 
 /// Splits plain-text/code source into fixed-size line chunks. Highlighting a
 /// construct that spans a chunk boundary (a long block comment or string)
@@ -91,8 +92,8 @@ const int _chunkLines = 120;
 List<String> splitPlainTextChunks(String content) {
   final lines = content.split('\n');
   final chunks = <String>[];
-  for (var i = 0; i < lines.length; i += _chunkLines) {
-    final end = (i + _chunkLines).clamp(0, lines.length);
+  for (var i = 0; i < lines.length; i += plainTextChunkLines) {
+    final end = (i + plainTextChunkLines).clamp(0, lines.length);
     chunks.add(lines.sublist(i, end).join('\n'));
   }
   return chunks.isEmpty ? [''] : chunks;
@@ -106,6 +107,7 @@ class DocumentView extends StatelessWidget {
     this.padding = const EdgeInsets.symmetric(horizontal: 28, vertical: 44),
     this.itemScrollController,
     this.itemPositionsListener,
+    this.asSource = false,
   });
   final LibraryDocument document;
   final AppSettings settings;
@@ -113,8 +115,25 @@ class DocumentView extends StatelessWidget {
   final ItemScrollController? itemScrollController;
   final ItemPositionsListener? itemPositionsListener;
 
+  /// Forces the monospace viewer even for a kind that would normally be
+  /// rendered — how "show me the HTML source" is expressed.
+  final bool asSource;
+
   @override
   Widget build(BuildContext context) {
+    // Source code is not prose, and the prose reader was never right for it:
+    // a serif face at 20pt in a 760px column, with the reader's paper
+    // colours, makes a stylesheet harder to read than a plain editor would.
+    // Code gets its own viewer instead — monospace, full width, numbered
+    // lines, theme colours.
+    if (asSource || documentKindOf(document.extension) == DocumentKind.code) {
+      return CodeViewer(
+        document: document,
+        itemScrollController: itemScrollController,
+        itemPositionsListener: itemPositionsListener,
+        padding: padding,
+      );
+    }
     final scheme = Theme.of(context).colorScheme;
     final readerBackground = settings.readerFollowsTheme
         ? scheme.surface
@@ -417,4 +436,141 @@ String? _detectMarkdownCodeLanguage(String source) {
     return 'css';
   }
   return null;
+}
+
+
+/// Monospace viewer for source code and structured data.
+///
+/// Shares the chunked, index-addressable list the prose reader uses, so
+/// bookmarks and "read from here" keep working identically — only the
+/// presentation differs.
+class CodeViewer extends StatelessWidget {
+  const CodeViewer({
+    super.key,
+    required this.document,
+    this.itemScrollController,
+    this.itemPositionsListener,
+    this.padding = const EdgeInsets.symmetric(horizontal: 28, vertical: 44),
+  });
+
+  final LibraryDocument document;
+  final ItemScrollController? itemScrollController;
+  final ItemPositionsListener? itemPositionsListener;
+  final EdgeInsets padding;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final chunks = splitPlainTextChunks(document.content);
+    final totalLines = document.content.split('\n').length;
+    final gutterWidth = 14.0 + '$totalLines'.length * 8.5;
+
+    return ColoredBox(
+      color: scheme.surface,
+      child: SelectionArea(
+        child: ScrollablePositionedList.builder(
+          itemScrollController: itemScrollController,
+          itemPositionsListener: itemPositionsListener,
+          padding: EdgeInsets.fromLTRB(
+            padding.left / 2,
+            padding.top,
+            padding.right / 2,
+            padding.bottom,
+          ),
+          itemCount: chunks.length,
+          itemBuilder: (context, index) {
+            final firstLine = index * plainTextChunkLines + 1;
+            final lines = highlightedLines(
+              chunks[index],
+              document.extension,
+              scheme.onSurface,
+            );
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var i = 0; i < lines.length; i++)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: gutterWidth,
+                        child: Text(
+                          '${firstLine + i}',
+                          textAlign: TextAlign.right,
+                          style: TextStyle(
+                            fontFamily: 'Roboto Mono',
+                            fontSize: 12.5,
+                            height: 1.6,
+                            color: scheme.onSurfaceVariant.withValues(alpha: .55),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(child: Text.rich(lines[i])),
+                    ],
+                  ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+/// Highlights a chunk and then cuts the result into one span per source
+/// line, so a numbered gutter stays aligned even when a long line wraps.
+///
+/// Highlighting the whole chunk first and splitting afterwards (rather than
+/// highlighting each line on its own) keeps the parser's context across
+/// lines, which is what a multi-line string or block comment needs to stay
+/// one colour.
+List<TextSpan> highlightedLines(
+  String source,
+  String extension,
+  Color baseColor,
+) {
+  const style = TextStyle(
+    fontFamily: 'Roboto Mono',
+    fontSize: 13.5,
+    height: 1.6,
+  );
+  final pieces = <({String text, TextStyle? style})>[];
+  if (isCodeExtension(extension)) {
+    _flatten(
+      highlightedSpan(source, extension, baseColor, 16.5).children ?? const [],
+      pieces,
+    );
+  } else {
+    pieces.add((text: source, style: null));
+  }
+
+  final lines = <TextSpan>[];
+  var current = <TextSpan>[];
+  for (final piece in pieces) {
+    final parts = piece.text.split('\n');
+    for (var i = 0; i < parts.length; i++) {
+      if (i > 0) {
+        lines.add(TextSpan(style: style.copyWith(color: baseColor), children: current));
+        current = <TextSpan>[];
+      }
+      if (parts[i].isEmpty) continue;
+      current.add(TextSpan(text: parts[i], style: piece.style));
+    }
+  }
+  lines.add(TextSpan(style: style.copyWith(color: baseColor), children: current));
+  return lines;
+}
+
+void _flatten(
+  List<InlineSpan> spans,
+  List<({String text, TextStyle? style})> out, [
+  TextStyle? inherited,
+]) {
+  for (final span in spans) {
+    if (span is! TextSpan) continue;
+    final style = span.style ?? inherited;
+    if (span.text != null) out.add((text: span.text!, style: style));
+    if (span.children != null) _flatten(span.children!, out, style);
+  }
 }

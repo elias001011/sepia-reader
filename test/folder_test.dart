@@ -68,7 +68,8 @@ void main() {
       ),
     );
 
-    expect(imported, 2);
+    expect(imported.imported, 2);
+    expect(imported.rejected, 0);
     final root = controller.foldersIn(null).single;
     final chapterFolder = controller.foldersIn(root.id).single;
     expect(root.name, 'Minha fic');
