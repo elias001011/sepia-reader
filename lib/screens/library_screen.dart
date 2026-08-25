@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../l10n/l10n.dart';
 import '../models/library_document.dart';
 import '../services/document_io.dart';
 import '../state/app_controller.dart';
@@ -111,7 +112,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           ? FloatingActionButton.extended(
               onPressed: _createDocument,
               icon: const Icon(Icons.add_rounded),
-              label: const Text('Novo'),
+              label: Text(context.l10n.newLabel),
             )
           : null,
     );
@@ -130,19 +131,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
           constraints: const BoxConstraints(maxWidth: 1180),
           child: Row(
             children: [
-              Container(
+              SizedBox(
                 width: 42,
                 height: 42,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary,
+                child: ClipRRect(
                   borderRadius: BorderRadius.circular(13),
-                ),
-                child: Text(
-                  'S',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.onPrimary,
-                    fontWeight: FontWeight.w800,
+                  child: Image.asset(
+                    'assets/sepia_icon.png',
+                    fit: BoxFit.cover,
                   ),
                 ),
               ),
@@ -154,7 +150,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
               ),
               const Spacer(),
               IconButton(
-                tooltip: 'Aparência',
+                tooltip: context.l10n.appearance,
                 onPressed: _openSettings,
                 icon: const Icon(Icons.tune_rounded),
               ),
@@ -163,13 +159,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 OutlinedButton.icon(
                   onPressed: _importFiles,
                   icon: const Icon(Icons.upload_file_rounded),
-                  label: const Text('Importar'),
+                  label: Text(context.l10n.importLabel),
                 ),
                 const SizedBox(width: 8),
                 FilledButton.icon(
                   onPressed: _createDocument,
                   icon: const Icon(Icons.add_rounded),
-                  label: const Text('Novo documento'),
+                  label: Text(context.l10n.newDocument),
                 ),
               ],
             ],
@@ -195,13 +191,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Sua biblioteca,\nno seu ritmo.',
+                context.l10n.libraryHero,
                 style: Theme.of(context).textTheme.displaySmall
                     ?.copyWith(fontWeight: FontWeight.w800, height: 1.05),
               ),
               const SizedBox(height: 12),
               Text(
-                'Leia sem ruído. Escreva sem sair daqui.',
+                context.l10n.libraryHeroDescription,
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
             ],
@@ -210,7 +206,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             controller: _searchController,
             onChanged: (value) => setState(() => _query = value),
             decoration: InputDecoration(
-              hintText: 'Buscar por título ou conteúdo…',
+              hintText: context.l10n.searchHint,
               prefixIcon: const Icon(Icons.search_rounded),
               suffixIcon: _query.isEmpty
                   ? null
@@ -236,7 +232,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   child: OutlinedButton.icon(
                     onPressed: _importFiles,
                     icon: const Icon(Icons.upload_file_rounded),
-                    label: const Text('Importar arquivos'),
+                    label: Text(context.l10n.importFiles),
                   ),
                 ),
               ],
@@ -260,11 +256,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
     crossAxisAlignment: WrapCrossAlignment.center,
     children: [
       Text(
-        _query.isEmpty ? 'Biblioteca' : 'Resultados',
+        _query.isEmpty ? context.l10n.libraryTitle : context.l10n.results,
         style: Theme.of(context).textTheme.headlineSmall
             ?.copyWith(fontWeight: FontWeight.w700),
       ),
-      Chip(label: Text('$count ${count == 1 ? 'arquivo' : 'arquivos'}')),
+      Chip(label: Text(context.l10n.fileCount(count))),
     ],
   );
 
@@ -286,17 +282,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
         ),
         const SizedBox(height: 16),
         Text(
-          _query.isEmpty
-              ? 'Sua próxima leitura começa aqui'
-              : 'Nada encontrado',
+          _query.isEmpty ? context.l10n.nextReading : context.l10n.nothingFound,
           style: Theme.of(context).textTheme.titleLarge
               ?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 8),
         Text(
           _query.isEmpty
-              ? 'Crie um Markdown ou importe um arquivo de texto.'
-              : 'Tente buscar outro termo.',
+              ? context.l10n.emptyLibraryHelp
+              : context.l10n.emptySearchHelp,
         ),
       ],
     ),
@@ -320,7 +314,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Novo documento'),
+          title: Text(context.l10n.newDocument),
           content: SizedBox(
             width: 420,
             child: Column(
@@ -329,23 +323,23 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 TextField(
                   controller: title,
                   autofocus: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Nome do arquivo',
-                    hintText: 'Minhas anotações',
+                  decoration: InputDecoration(
+                    labelText: context.l10n.fileName,
+                    hintText: context.l10n.fileNameHint,
                   ),
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   initialValue: extension,
-                  decoration: const InputDecoration(labelText: 'Formato'),
-                  items: const [
+                  decoration: InputDecoration(labelText: context.l10n.format),
+                  items: [
                     DropdownMenuItem(
                       value: 'md',
-                      child: Text('Markdown (.md)'),
+                      child: Text(context.l10n.markdownFormat),
                     ),
                     DropdownMenuItem(
                       value: 'txt',
-                      child: Text('Texto simples (.txt)'),
+                      child: Text(context.l10n.plainTextFormat),
                     ),
                   ],
                   onChanged: (value) =>
@@ -357,7 +351,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
+              child: Text(context.l10n.cancel),
             ),
             FilledButton(
               onPressed: () async {
@@ -367,7 +361,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 );
                 if (context.mounted) Navigator.pop(context, document);
               },
-              child: const Text('Criar'),
+              child: Text(context.l10n.create),
             ),
           ],
         ),
@@ -420,19 +414,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
       }
       if (mounted && files.isNotEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              imported == 1
-                  ? '1 arquivo importado.'
-                  : '$imported arquivos importados.',
-            ),
-          ),
+          SnackBar(content: Text(context.l10n.importedCount(imported))),
         );
       }
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Não foi possível importar: $error')),
+          SnackBar(content: Text(context.l10n.importFailed('$error'))),
         );
       }
     }
@@ -443,12 +431,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
       await exportDocument(document);
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Arquivo exportado.')));
+            .showSnackBar(SnackBar(content: Text(context.l10n.exported)));
       }
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Não foi possível exportar: $error')),
+          SnackBar(content: Text(context.l10n.exportFailed('$error'))),
         );
       }
     }
@@ -458,18 +446,20 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Excluir arquivo?'),
+        title: Text(context.l10n.deleteFileQuestion),
         content: Text(
-          '“${document.title}.${document.extension}” será removido da biblioteca.',
+          context.l10n.deleteFileDescription(
+            '${document.title}.${document.extension}',
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Excluir'),
+            child: Text(context.l10n.delete),
           ),
         ],
       ),
@@ -533,7 +523,9 @@ class _DocumentCard extends StatelessWidget {
                   ),
                   const Spacer(),
                   IconButton(
-                    tooltip: document.isFavorite ? 'Desfavoritar' : 'Favoritar',
+                    tooltip: document.isFavorite
+                        ? context.l10n.unfavorite
+                        : context.l10n.favorite,
                     onPressed: onFavorite,
                     icon: Icon(
                       document.isFavorite
@@ -547,20 +539,20 @@ class _DocumentCard extends StatelessWidget {
                       if (value == 'export') onExport();
                       if (value == 'delete') onDelete();
                     },
-                    itemBuilder: (_) => const [
+                    itemBuilder: (_) => [
                       PopupMenuItem(
                         value: 'export',
                         child: ListTile(
-                          leading: Icon(Icons.download_rounded),
-                          title: Text('Exportar'),
+                          leading: const Icon(Icons.download_rounded),
+                          title: Text(context.l10n.exportLabel),
                           contentPadding: EdgeInsets.zero,
                         ),
                       ),
                       PopupMenuItem(
                         value: 'delete',
                         child: ListTile(
-                          leading: Icon(Icons.delete_outline_rounded),
-                          title: Text('Excluir'),
+                          leading: const Icon(Icons.delete_outline_rounded),
+                          title: Text(context.l10n.delete),
                           contentPadding: EdgeInsets.zero,
                         ),
                       ),
@@ -579,9 +571,7 @@ class _DocumentCard extends StatelessWidget {
               const SizedBox(height: 10),
               Expanded(
                 child: Text(
-                  preview.isEmpty
-                      ? 'Documento vazio — toque para começar.'
-                      : preview,
+                  preview.isEmpty ? context.l10n.emptyDocument : preview,
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -600,12 +590,12 @@ class _DocumentCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 5),
                   Text(
-                    _relativeDate(document.updatedAt),
+                    _relativeDate(context, document.updatedAt),
                     style: Theme.of(context).textTheme.labelMedium,
                   ),
                   const Spacer(),
                   Text(
-                    '${document.wordCount} palavras',
+                    context.l10n.wordCount(document.wordCount),
                     style: Theme.of(context).textTheme.labelMedium,
                   ),
                 ],
@@ -618,11 +608,13 @@ class _DocumentCard extends StatelessWidget {
   }
 }
 
-String _relativeDate(DateTime date) {
+String _relativeDate(BuildContext context, DateTime date) {
   final difference = DateTime.now().difference(date);
-  if (difference.inMinutes < 1) return 'agora';
-  if (difference.inHours < 1) return 'há ${difference.inMinutes} min';
-  if (difference.inDays < 1) return 'há ${difference.inHours} h';
-  if (difference.inDays < 7) return 'há ${difference.inDays} d';
-  return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  if (difference.inMinutes < 1) return context.l10n.now;
+  if (difference.inHours < 1) {
+    return context.l10n.minutesAgo(difference.inMinutes);
+  }
+  if (difference.inDays < 1) return context.l10n.hoursAgo(difference.inHours);
+  if (difference.inDays < 7) return context.l10n.daysAgo(difference.inDays);
+  return MaterialLocalizations.of(context).formatCompactDate(date);
 }

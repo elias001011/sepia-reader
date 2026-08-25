@@ -1,11 +1,37 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Sépia</title>
+  <desc id="desc">An open cream-colored book on a warm sepia background.</desc>
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#B98255"/>
-      <stop offset="1" stop-color="#6B4933"/>
+    <linearGradient id="cover" x1="156" y1="126" x2="850" y2="892" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#B98255"/>
+      <stop offset="1" stop-color="#684631"/>
+    </linearGradient>
+    <linearGradient id="paperLeft" x1="274" y1="316" x2="518" y2="724" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFDF7"/>
+      <stop offset="1" stop-color="#EEDFC8"/>
+    </linearGradient>
+    <linearGradient id="paperRight" x1="752" y1="316" x2="510" y2="724" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF9ED"/>
+      <stop offset="1" stop-color="#E7D2B7"/>
     </linearGradient>
   </defs>
+
   <rect width="1024" height="1024" rx="244" fill="#2B211D"/>
-  <rect x="116" y="116" width="792" height="792" rx="205" fill="url(#bg)"/>
-  <path d="M678 337c-43-44-100-66-168-66-106 0-181 56-181 143 0 72 47 115 145 139l63 15c49 12 69 30 69 59 0 38-38 63-95 63-62 0-112-25-153-76l-73 68c52 70 128 105 226 105 117 0 195-59 195-151 0-76-47-120-151-145l-61-15c-45-11-65-28-65-55 0-34 34-56 84-56 47 0 88 17 123 52l42-80Z" fill="#FFF8ED"/>
+  <rect x="112" y="112" width="800" height="800" rx="210" fill="url(#cover)"/>
+  <circle cx="742" cy="266" r="126" fill="#D5A471" opacity=".15"/>
+  <path d="M242 327c91-35 185-20 270 42v377c-86-53-178-66-270-31V327Z" fill="#241A16" opacity=".22" transform="translate(0 18)"/>
+  <path d="M782 327c-91-35-185-20-270 42v377c86-53 178-66 270-31V327Z" fill="#241A16" opacity=".22" transform="translate(0 18)"/>
+  <path d="M244 313c90-34 183-19 268 43v377c-86-53-177-66-268-31V313Z" fill="url(#paperLeft)"/>
+  <path d="M780 313c-90-34-183-19-268 43v377c86-53 177-66 268-31V313Z" fill="url(#paperRight)"/>
+  <path d="M512 356v377" stroke="#A36F4B" stroke-width="18" stroke-linecap="round" opacity=".7"/>
+  <path d="M512 370c-72-50-151-65-230-42M512 370c72-50 151-65 230-42" fill="none" stroke="#FFFDF7" stroke-width="15" stroke-linecap="round" opacity=".48"/>
+  <g fill="none" stroke="#9A6B45" stroke-width="16" stroke-linecap="round" opacity=".42">
+    <path d="M302 431c52-12 101-2 151 25"/>
+    <path d="M302 492c52-12 101-2 151 25"/>
+    <path d="M302 553c52-12 101-2 151 25"/>
+    <path d="M722 431c-52-12-101-2-151 25"/>
+    <path d="M722 492c-52-12-101-2-151 25"/>
+    <path d="M722 553c-52-12-101-2-151 25"/>
+  </g>
+  <path d="M477 351h70v150l-35-24-35 24V351Z" fill="#7C4F35" opacity=".9"/>
 </svg>

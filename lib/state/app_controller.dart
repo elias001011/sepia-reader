@@ -29,14 +29,15 @@ class AppController extends ChangeNotifier {
     _documents.addAll(await _storage.loadDocuments());
     if (_documents.isEmpty) {
       final now = DateTime.now();
+      final isEnglish = _usesEnglish;
       _documents.add(
         LibraryDocument(
           id: _uuid.v4(),
-          title: 'Bem-vindo ao Sépia',
+          title: isEnglish ? 'Welcome to Sépia' : 'Bem-vindo ao Sépia',
           extension: 'md',
           createdAt: now,
           updatedAt: now,
-          content: _welcomeDocument,
+          content: isEnglish ? _welcomeDocumentEn : _welcomeDocumentPt,
         ),
       );
       await _persistDocuments();
@@ -57,7 +58,9 @@ class AppController extends ChangeNotifier {
     }
     final document = LibraryDocument(
       id: _uuid.v4(),
-      title: cleanTitle.isEmpty ? 'Sem título' : cleanTitle,
+      title: cleanTitle.isEmpty
+          ? (_usesEnglish ? 'Untitled' : 'Sem título')
+          : cleanTitle,
       content: content,
       extension: ext,
       createdAt: now,
@@ -108,9 +111,15 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> _persistDocuments() => _storage.saveDocuments(_documents);
+
+  bool get _usesEnglish {
+    if (_settings.localeCode == 'en') return true;
+    if (_settings.localeCode == 'pt_BR') return false;
+    return PlatformDispatcher.instance.locale.languageCode == 'en';
+  }
 }
 
-const _welcomeDocument = '''# Bem-vindo ao Sépia
+const _welcomeDocumentPt = '''# Bem-vindo ao Sépia
 
 Um lugar calmo para **ler, escrever e guardar** seus textos.
 
@@ -131,4 +140,27 @@ void main() {
 ```
 
 Boa leitura. ☕
+''';
+
+const _welcomeDocumentEn = '''# Welcome to Sépia
+
+A calm place to **read, write, and keep** your texts.
+
+## Start here
+
+- Import `.md`, `.txt`, or source-code files.
+- Create a Markdown document directly in the library.
+- Adjust the font, size, width, and colors for your reading.
+- Turn on **reading mode** to hide the tools and lock editing.
+- Export your text whenever you want — it remains yours.
+
+> The best reading interface disappears when the text begins.
+
+```dart
+void main() {
+  print('Hello, Sépia!');
+}
+```
+
+Enjoy your reading. ☕
 ''';

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:highlight/highlight.dart' as hl;
 
 import '../models/app_settings.dart';
@@ -84,7 +83,8 @@ class DocumentView extends StatelessWidget {
                           16,
                           12,
                         ),
-                        code: GoogleFonts.robotoMono(
+                        code: TextStyle(
+                          fontFamily: 'Roboto Mono',
                           color: settings.readerText,
                           fontSize: settings.readerFontSize * .76,
                           height: 1.55,
@@ -136,14 +136,15 @@ class DocumentView extends StatelessWidget {
   }
 }
 
-TextStyle readerTextStyle(AppSettings settings) =>
-    switch (settings.readerFont) {
-      'Merriweather' => GoogleFonts.merriweather(),
-      'Lora' => GoogleFonts.lora(),
-      'Inter' => GoogleFonts.inter(),
-      'Roboto Mono' => GoogleFonts.robotoMono(),
-      _ => const TextStyle(),
-    };
+TextStyle readerTextStyle(AppSettings settings) => TextStyle(
+  fontFamily: switch (settings.readerFont) {
+    'Merriweather' => 'Merriweather',
+    'Lora' => 'Lora',
+    'Inter' => 'Inter',
+    'Roboto Mono' => 'Roboto Mono',
+    _ => null,
+  },
+);
 
 bool isCodeExtension(String extension) => const {
   'dart',
@@ -180,7 +181,8 @@ TextSpan highlightedSpan(
   };
   final result = hl.highlight.parse(source, language: normalized);
   return TextSpan(
-    style: GoogleFonts.robotoMono(
+    style: TextStyle(
+      fontFamily: 'Roboto Mono',
       color: baseColor,
       fontSize: fontSize * .82,
       height: 1.65,
@@ -220,10 +222,54 @@ class SepiaSyntaxHighlighter extends SyntaxHighlighter {
   final Color baseColor;
   @override
   TextSpan format(String source) {
-    final result = hl.highlight.parse(source, autoDetection: true);
-    return TextSpan(
-      style: GoogleFonts.robotoMono(color: baseColor),
-      children: _nodes(result.nodes ?? const [], baseColor),
-    );
+    final style = TextStyle(fontFamily: 'Roboto Mono', color: baseColor);
+    final language = _detectMarkdownCodeLanguage(source);
+    if (language == null) return TextSpan(text: source, style: style);
+    try {
+      final result = hl.highlight.parse(source, language: language);
+      return TextSpan(
+        style: style,
+        children: _nodes(result.nodes ?? const [], baseColor),
+      );
+    } catch (_) {
+      return TextSpan(text: source, style: style);
+    }
   }
+}
+
+String? _detectMarkdownCodeLanguage(String source) {
+  final trimmed = source.trimLeft();
+  if (RegExp(r'^\s*[\[{]').hasMatch(trimmed)) return 'json';
+  if (RegExp(r'^\s*<[/!?A-Za-z]').hasMatch(trimmed)) return 'xml';
+  if (RegExp(
+    r'\b(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\b',
+    caseSensitive: false,
+  ).hasMatch(source)) {
+    return 'sql';
+  }
+  if (trimmed.startsWith('#!') ||
+      RegExp(r'\b(echo|fi|done|esac)\b').hasMatch(source)) {
+    return 'bash';
+  }
+  if (RegExp(
+    r'^\s*(def|from|import)\s+\w+',
+    multiLine: true,
+  ).hasMatch(source)) {
+    return 'python';
+  }
+  if (RegExp(
+    r'\b(void main|Widget build|Future<|StatelessWidget|StatefulWidget)\b',
+  ).hasMatch(source)) {
+    return 'dart';
+  }
+  if (RegExp(r'\b(function|let|const|var)\b|=>').hasMatch(source)) {
+    return 'javascript';
+  }
+  if (RegExp(r'^[\w.-]+:\s*\S+', multiLine: true).hasMatch(source)) {
+    return 'yaml';
+  }
+  if (RegExp(r'[^{}]+\{\s*[\w-]+\s*:', multiLine: true).hasMatch(source)) {
+    return 'css';
+  }
+  return null;
 }
