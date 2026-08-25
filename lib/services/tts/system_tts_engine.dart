@@ -35,8 +35,10 @@ class SystemTtsEngine implements TtsEngine {
   Future<void> prepare() async {
     if (_tts != null) return;
     final tts = FlutterTts();
-    // Without this the browser keeps speaking after the reader is closed,
-    // and a second start overlaps the first.
+    // iOS/macOS only — it routes speech through the shared audio session so
+    // it mixes properly with whatever else is playing. Every other platform
+    // has no such method and throws, which is why the failure is swallowed
+    // rather than handled.
     await tts.setSharedInstance(true).catchError((_) => 1);
     tts.setCompletionHandler(_finishUtterance);
     tts.setCancelHandler(_finishUtterance);
