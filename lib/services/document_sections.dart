@@ -106,7 +106,12 @@ List<DocumentSection> sectionsOf(LibraryDocument document) {
 bool hasChapters(List<DocumentSection> sections) =>
     sections.any((section) => section.level > 0);
 
-final _fencedCode = RegExp(r'^(```|~~~).*$');
+/// A code fence, capturing the whole run of markers.
+///
+/// Capturing only three characters made a four-backtick fence indexed as a
+/// three-backtick one, so an inner ```` ``` ```` — the ordinary way to show a
+/// code block inside a code block — closed the outer fence.
+final _fencedCode = RegExp(r'^(`{3,}|~{3,})');
 final _imagePattern = RegExp(r'!\[([^\]]*)\]\([^)]*\)');
 final _linkPattern = RegExp(r'\[([^\]]+)\]\([^)]*\)');
 final _emphasis = RegExp(r'(\*{1,3}|_{1,3})(\S(?:.*?\S)?)\1');
@@ -151,7 +156,12 @@ String speakableText(String markdown) {
       final candidate = fenceWasQuoted
           ? rawLine.replaceFirst(_quoteMarker, '')
           : rawLine;
-      if (candidate.trimLeft().startsWith(fenceMarker!)) {
+      final closing = _fencedCode.firstMatch(candidate.trimLeft());
+      // A fence closes only on a run of the same character at least as long
+      // as the one that opened it — anything shorter is content.
+      if (closing != null &&
+          closing.group(1)![0] == fenceMarker![0] &&
+          closing.group(1)!.length >= fenceMarker.length) {
         inFence = false;
         fenceMarker = null;
       }

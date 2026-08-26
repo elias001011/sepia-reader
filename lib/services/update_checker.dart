@@ -145,22 +145,7 @@ class UpdateChecker {
         names[name] = url;
       }
     }
-    if (names.isEmpty) return null;
-    for (final abi in await _abiPreference()) {
-      for (final entry in names.entries) {
-        // A delimited match, not a substring one: 'x86' is contained in
-        // 'x86_64', so a 32-bit device was being handed a 64-bit APK its
-        // installer rejects outright.
-        if (entry.key.endsWith('-$abi.apk')) return entry.value;
-      }
-    }
-    for (final entry in names.entries) {
-      if (entry.key.contains('universal')) return entry.value;
-    }
-    // A release that published a single APK under some other name is still
-    // better offered than withheld: the installer will say no if it must,
-    // and a missing button says nothing at all.
-    return names.length == 1 ? names.values.first : null;
+    return pickApkFor(names, await _abiPreference());
   }
 
   /// The device's own ABIs, best first, with the universal build last.
@@ -178,6 +163,29 @@ class UpdateChecker {
     // guessing at an architecture.
     return const ['universal'];
   }
+}
+
+/// Chooses which published APK a device with [abis] should be offered.
+///
+/// Pure and top-level so it can be tested against a real asset list rather
+/// than by asserting things about string literals.
+///
+/// The ABI is matched as the whole trailing segment, never as a substring:
+/// 'x86' is contained in 'x86_64', and offering a 32-bit device a 64-bit APK
+/// gets it rejected with INSTALL_FAILED_NO_MATCHING_ABIS. When nothing
+/// matches, the universal build is offered — and if there is not one, nothing
+/// is, because a release page link is more use than an APK that cannot
+/// install.
+String? pickApkFor(Map<String, String> assets, List<String> abis) {
+  for (final abi in abis) {
+    for (final entry in assets.entries) {
+      if (entry.key.endsWith('-$abi.apk')) return entry.value;
+    }
+  }
+  for (final entry in assets.entries) {
+    if (entry.key.contains('universal')) return entry.value;
+  }
+  return null;
 }
 
 /// Small stand-in so this file does not need `dart:io`, which the web build
