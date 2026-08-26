@@ -30,7 +30,9 @@ Future<T?> showAppSheet<T>({
       // minimum would have crashed every sheet on open.
       maxHeight: (media.size.height - breathingRoom).clamp(
         math.min(220.0, media.size.height),
-        media.size.height,
+        // Cap at 700 px so sheets don't swallow the whole browser window
+        // on a tall desktop monitor.
+        math.min(media.size.height, 700.0),
       ),
     ),
     builder: builder,

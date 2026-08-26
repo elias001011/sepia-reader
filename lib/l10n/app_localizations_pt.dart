@@ -914,5 +914,5 @@ class AppLocalizationsPt extends AppLocalizations {
   String get chapterNavigationHere => 'Continuar lendo daqui';
 
   @override
-  String get chapterSeparatorToggle => 'Separador de capítulos';
+  String get chapterSeparatorToggle => 'Editar por capítulo';
 }

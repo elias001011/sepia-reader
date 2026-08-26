@@ -5,7 +5,7 @@ set -euo pipefail
 # shipped inside build/web instead of being fetched from public CDNs.
 (cd web/fonts/fallback && sha256sum --check SHA256SUMS.txt)
 
-flutter build web --release --wasm --no-web-resources-cdn
+flutter build web --release --wasm --no-web-resources-cdn --no-tree-shake-icons
 
 # Flutter's loader references a development source map that is not shipped in
 # release archives. Removing only that hint keeps browser consoles free of a
