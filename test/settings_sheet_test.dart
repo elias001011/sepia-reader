@@ -93,6 +93,32 @@ void main() {
     expect(find.byType(SheetScaffold), findsNothing);
   });
 
+  testWidgets('arrastar para baixo não descarta mudanças em silêncio', (
+    tester,
+  ) async {
+    final controller = await openSettings(tester);
+    await tester.drag(find.byType(Slider).first, const Offset(60, 0));
+    await tester.pump();
+    final changed = tester.widget<Slider>(find.byType(Slider).first).value;
+
+    // Dragging a sheet down calls Navigator.pop directly, which never asks
+    // PopScope — so the gesture has to be off on a sheet that can be dirty.
+    await tester.drag(find.byType(SheetScaffold), const Offset(0, 400));
+    await settle(tester);
+
+    expect(
+      find.byType(SheetScaffold),
+      findsOneWidget,
+      reason: 'the sheet slid away and took the change with it',
+    );
+    expect(controller.settings.uiScale, 1);
+    expect(
+      tester.widget<Slider>(find.byType(Slider).first).value,
+      changed,
+      reason: 'the pending change is still pending',
+    );
+  });
+
   testWidgets('sem mudança nenhuma, fecha direto', (tester) async {
     await openSettings(tester);
     await tester.tap(find.byIcon(Icons.close_rounded).first);

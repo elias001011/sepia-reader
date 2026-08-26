@@ -612,7 +612,7 @@ No modo leitura, o botão de fone lê o documento em voz alta.
 
 - Se o texto tem títulos `#` ou `##`, dá para escolher **de qual capítulo começar** — ou continuar de onde você parou.
 - A voz padrão é a do próprio Android ou do navegador: não baixa nada e funciona sem internet.
-- Em **Configurações → Leitura em voz alta** dá para mudar a **velocidade**, trocar de voz, e baixar uma **voz neural** que roda no próprio aparelho, sem mandar seu texto para servidor nenhum.
+- Em **Configurações → Leitura em voz alta** dá para mudar a **velocidade**, trocar de voz, e baixar uma **voz neural** que roda no próprio aparelho, sem mandar seu texto para servidor nenhum. São 35 vozes em 14 idiomas, em dois níveis: Piper (~80 MB, leve) e Kokoro (~400 MB, mais natural).
 
 ## Marcadores
 
@@ -636,6 +636,7 @@ void main() {
 |---|---|
 | Puxar a biblioteca para baixo | Sincroniza com o servidor |
 | Tocar no título | Renomeia o documento |
+| Configurações → Tamanho da interface | Deixa tudo maior ou menor |
 
 Boa leitura. ☕
 ''';
@@ -660,7 +661,7 @@ In reading mode, the headphone button reads the document out loud.
 
 - If the text has `#` or `##` headings, you can pick **which chapter to start from** — or carry on from where you stopped.
 - The default voice is the one Android or your browser already has: nothing to download, and it works offline.
-- Under **Settings → Read aloud** you can change the **speed**, switch voices, and download a **neural voice** that runs on the device itself, without sending your text to any server.
+- Under **Settings → Read aloud** you can change the **speed**, switch voices, and download a **neural voice** that runs on the device itself, without sending your text to any server. Thirty-five voices across fourteen languages, in two tiers: Piper (~80 MB, light) and Kokoro (~400 MB, more natural).
 
 ## Bookmarks
 
@@ -684,6 +685,7 @@ void main() {
 |---|---|
 | Pull the library down | Syncs with the server |
 | Tap the title | Renames the document |
+| Settings → Interface size | Makes everything bigger or smaller |
 
 Enjoy your reading. ☕
 ''';

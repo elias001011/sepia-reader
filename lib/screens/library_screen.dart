@@ -1080,6 +1080,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   void _openSettings() => showAppSheet<void>(
     context: context,
+    enableDrag: false,
     builder: (_) => SettingsSheet(controller: widget.controller),
   );
 }

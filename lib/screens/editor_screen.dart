@@ -1483,6 +1483,7 @@ class _EditorScreenState extends State<EditorScreen> {
 
   void _openReaderSettings() => showAppSheet<void>(
     context: context,
+    enableDrag: false,
     builder: (_) => ReaderSettingsSheet(controller: widget.controller),
   );
 }

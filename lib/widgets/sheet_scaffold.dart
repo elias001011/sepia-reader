@@ -9,13 +9,19 @@ import 'package:flutter/material.dart';
 Future<T?> showAppSheet<T>({
   required BuildContext context,
   required WidgetBuilder builder,
+  bool enableDrag = true,
 }) {
   final media = MediaQuery.of(context);
   final breathingRoom = media.padding.top + 28;
   return showModalBottomSheet<T>(
     context: context,
     isScrollControlled: true,
-    showDragHandle: true,
+    // Dragging a sheet down calls Navigator.pop directly, which does not
+    // consult PopScope — so a sheet holding unsaved changes must not be
+    // draggable, or they vanish without the question being asked. The
+    // handle goes with it, since it is what promises the gesture.
+    enableDrag: enableDrag,
+    showDragHandle: enableDrag,
     constraints: BoxConstraints(
       maxHeight: (media.size.height - breathingRoom).clamp(
         220.0,
