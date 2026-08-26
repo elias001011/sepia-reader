@@ -34,20 +34,29 @@ class ListenSheet extends StatelessWidget {
       endChunk: sections.isEmpty ? 0 : sections.last.endChunk,
     );
     final here = currentChunkIndex;
-    return SheetScaffold(
+    final resumeOffered = here != null && here > 0;
+    // Entries: "read it all", optionally "carry on from here", then a
+    // divider before the chapters.
+    final leading = resumeOffered ? 2 : 1;
+    final dividerAt = chapters.isEmpty ? -1 : leading;
+
+    return SheetScaffold.list(
       title: context.l10n.ttsChooseChapter,
       description: chapters.isEmpty
           ? context.l10n.ttsNoChapters
           : context.l10n.ttsChapterCount(chapters.length),
-      children: [
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.play_circle_fill_rounded),
-          title: Text(context.l10n.ttsWholeDocument),
-          onTap: () => onPick(whole),
-        ),
-        if (here != null && here > 0)
-          ListTile(
+      itemCount: leading + (chapters.isEmpty ? 0 : 1 + chapters.length),
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.play_circle_fill_rounded),
+            title: Text(context.l10n.ttsWholeDocument),
+            onTap: () => onPick(whole),
+          );
+        }
+        if (resumeOffered && index == 1) {
+          return ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.my_location_rounded),
             title: Text(context.l10n.ttsFromHere),
@@ -59,30 +68,29 @@ class ListenSheet extends StatelessWidget {
                 endChunk: whole.endChunk,
               ),
             ),
+          );
+        }
+        if (index == dividerAt) return const Divider();
+        final chapter = chapters[index - dividerAt - 1];
+        return ListTile(
+          contentPadding: EdgeInsets.only(left: chapter.level == 1 ? 0 : 18),
+          leading: Icon(
+            chapter.level == 1
+                ? Icons.bookmark_rounded
+                : Icons.subdirectory_arrow_right_rounded,
+            size: chapter.level == 1 ? 22 : 18,
           ),
-        if (chapters.isNotEmpty) const Divider(),
-        for (final chapter in chapters)
-          ListTile(
-            contentPadding: EdgeInsets.only(
-              left: chapter.level == 1 ? 0 : 18,
+          title: Text(
+            chapter.title,
+            style: TextStyle(
+              fontWeight: chapter.level == 1
+                  ? FontWeight.w700
+                  : FontWeight.w400,
             ),
-            leading: Icon(
-              chapter.level == 1
-                  ? Icons.bookmark_rounded
-                  : Icons.subdirectory_arrow_right_rounded,
-              size: chapter.level == 1 ? 22 : 18,
-            ),
-            title: Text(
-              chapter.title,
-              style: TextStyle(
-                fontWeight: chapter.level == 1
-                    ? FontWeight.w700
-                    : FontWeight.w400,
-              ),
-            ),
-            onTap: () => onPick(chapter),
           ),
-      ],
+          onTap: () => onPick(chapter),
+        );
+      },
     );
   }
 }

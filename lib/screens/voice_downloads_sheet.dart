@@ -47,6 +47,12 @@ class _VoiceDownloadsSheetState extends State<VoiceDownloadsSheet> {
   String? _previewing;
   TtsEngine? _previewEngine;
 
+  /// Identifies the current audition. Tapping a second voice while the first
+  /// is speaking used to release the engine out from under the awaited
+  /// `speak()`, which then threw and showed the user an error for something
+  /// they had not done.
+  int _previewToken = 0;
+
   @override
   void initState() {
     super.initState();
@@ -62,17 +68,18 @@ class _VoiceDownloadsSheetState extends State<VoiceDownloadsSheet> {
 
   Future<void> _preview(VoicePack pack, NeuralVoice voice) async {
     final sample = context.l10n.ttsPreviewText;
-    if (_previewing == voice.id) {
-      await _previewEngine?.stop();
-      if (mounted) setState(() => _previewing = null);
-      return;
-    }
-    await _previewEngine?.release();
-    final engine = NeuralTtsEngine(
-      pack: pack,
-      voice: voice,
-      store: _store,
-    );
+    final wasPlaying = _previewing == voice.id;
+    // Whatever was playing stops, and its own invocation learns that it is
+    // no longer current from the token rather than from an exception.
+    final token = ++_previewToken;
+    final previous = _previewEngine;
+    _previewEngine = null;
+    if (mounted) setState(() => _previewing = null);
+    await previous?.release();
+    if (wasPlaying || token != _previewToken) return;
+
+    final engine = NeuralTtsEngine(pack: pack, voice: voice, store: _store);
+    if (!mounted) return;
     setState(() {
       _previewEngine = engine;
       _previewing = voice.id;
@@ -82,14 +89,19 @@ class _VoiceDownloadsSheetState extends State<VoiceDownloadsSheet> {
       await engine.configure(rate: widget.rate, pitch: 1);
       await engine.speak(sample);
     } catch (error) {
-      if (mounted) {
+      if (mounted && token == _previewToken) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(context.l10n.ttsFailed('$error'))),
         );
       }
     } finally {
-      if (mounted && _previewing == voice.id) {
-        setState(() => _previewing = null);
+      // The model goes back as soon as the sample ends. Holding several
+      // hundred megabytes of Kokoro for as long as this sheet happens to be
+      // open is exactly what the engine is written to avoid.
+      if (token == _previewToken) {
+        _previewEngine = null;
+        await engine.release();
+        if (mounted) setState(() => _previewing = null);
       }
     }
   }

@@ -508,5 +508,21 @@
       }
     }
   },
-  "voiceDownloadBackgroundHint": "You can close settings: the download keeps going while the app is open."
+  "voiceDownloadBackgroundHint": "You can close settings: the download keeps going while the app is open.",
+  "updateOpenFailed": "Could not open the link. It is: {url}",
+  "@updateOpenFailed": {
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "updateInstalled": "Version {version} installed.",
+  "@updateInstalled": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  }
 }

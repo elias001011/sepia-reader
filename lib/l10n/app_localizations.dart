@@ -1513,6 +1513,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You can close settings: the download keeps going while the app is open.'**
   String get voiceDownloadBackgroundHint;
+
+  /// No description provided for @updateOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the link. It is: {url}'**
+  String updateOpenFailed(String url);
+
+  /// No description provided for @updateInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'Version {version} installed.'**
+  String updateInstalled(String version);
 }
 
 class _AppLocalizationsDelegate

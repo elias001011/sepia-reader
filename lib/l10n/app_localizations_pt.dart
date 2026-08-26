@@ -896,4 +896,14 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get voiceDownloadBackgroundHint =>
       'Pode fechar as configurações: o download continua enquanto o app estiver aberto.';
+
+  @override
+  String updateOpenFailed(String url) {
+    return 'Não foi possível abrir o link. Ele é: $url';
+  }
+
+  @override
+  String updateInstalled(String version) {
+    return 'Versão $version instalada.';
+  }
 }

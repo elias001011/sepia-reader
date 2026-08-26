@@ -5,6 +5,7 @@ import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../l10n/l10n.dart';
 import '../models/bookmark.dart';
+import '../models/app_settings.dart';
 import '../models/library_document.dart';
 import '../services/document_io.dart';
 import '../services/document_kind.dart';
@@ -315,8 +316,17 @@ class _EditorScreenState extends State<EditorScreen> {
         );
       }
     }
-    return SystemTtsEngine();
+    return SystemTtsEngine(preferredLanguage: _preferredLanguage(settings));
   }
+
+  /// The app's own language choice as a BCP-47 tag, or null when it follows
+  /// the system and the device's own answer should win.
+  static String? _preferredLanguage(AppSettings settings) =>
+      switch (settings.localeCode) {
+        'pt_BR' => 'pt-BR',
+        'en' => 'en-US',
+        _ => null,
+      };
 
   String get _wantedEngineKey {
     final settings = widget.controller.settings;

@@ -44,6 +44,21 @@ class VoiceDownloadManager extends ChangeNotifier {
   final Set<String> _installed = {};
   bool _draining = false;
   bool _loadedInstalled = false;
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    // A download in flight keeps reporting progress after the owner is
+    // gone; notifying then throws "used after being disposed".
+    _disposed = true;
+    super.dispose();
+  }
+
+  @override
+  void notifyListeners() {
+    if (_disposed) return;
+    super.notifyListeners();
+  }
 
   bool get isSupported => store.isSupported;
 

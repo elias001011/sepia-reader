@@ -45,6 +45,33 @@ class NeuralVoice {
   final int speakerId;
 
   String get languageLabel => languageLabelFor(language);
+
+  /// espeak-ng language for grapheme-to-phoneme conversion.
+  ///
+  /// Per voice, not per pack. Kokoro is one model holding speakers of eight
+  /// languages, and it was handing every one of them the pack's single
+  /// setting — so an English or Chinese voice was phonemised with Brazilian
+  /// Portuguese rules and mispronounced everything it said.
+  String get espeakLanguage => switch (language) {
+    'pt-BR' => 'pt-br',
+    'pt-PT' => 'pt',
+    'en-US' => 'en-us',
+    'en-GB' => 'en-gb',
+    'es-ES' || 'es-MX' => 'es',
+    'fr-FR' => 'fr-fr',
+    'de-DE' => 'de',
+    'it-IT' => 'it',
+    'nl-NL' => 'nl',
+    'pl-PL' => 'pl',
+    'ru-RU' => 'ru',
+    'sv-SE' => 'sv',
+    'tr-TR' => 'tr',
+    'zh-CN' => 'cmn',
+    'ja-JP' => 'ja',
+    'ko-KR' => 'ko',
+    'hi-IN' => 'hi',
+    _ => language.split('-').first.toLowerCase(),
+  };
 }
 
 /// A single downloadable unit: one Hugging Face repository, one model on
@@ -63,7 +90,6 @@ class VoicePack {
     this.dataDir = 'espeak-ng-data',
     this.dictDir,
     this.lexicon = const [],
-    this.espeakLang = '',
   });
 
   /// Stable identifier, e.g. `piper/pt_BR-faber-medium`.
@@ -80,8 +106,10 @@ class VoicePack {
   /// impossible one. Streaming each file straight to disk costs neither.
   final String repo;
 
-  /// Rough download size, for the picker. The real total comes from the
-  /// repository listing at install time.
+  /// Download size, for the picker — measured from each repository's own
+  /// listing rather than assumed, because it is the figure a phone with
+  /// little room left is deciding on. The exact total is read again at
+  /// install time.
   final int approxBytes;
 
   final String modelFile;
@@ -98,9 +126,6 @@ class VoicePack {
 
   /// Kokoro only: lexicon files, in the order sherpa-onnx expects.
   final List<String> lexicon;
-
-  /// espeak-ng language for Kokoro's G2P.
-  final String espeakLang;
 
   final List<NeuralVoice> voices;
 
@@ -145,7 +170,7 @@ VoicePack _piper({
   required String slug,
   required String label,
   required String language,
-  int approxMegabytes = 81,
+  int approxMegabytes = 77,
 }) => VoicePack(
   id: 'piper/$slug',
   label: label,
@@ -175,9 +200,9 @@ final voicePacks = <VoicePack>[
   _piper(slug: 'pt_BR-jeff-medium', label: 'Jeff', language: 'pt-BR'),
   _piper(slug: 'pt_PT-tugao-medium', label: 'Tugão', language: 'pt-PT'),
   _piper(slug: 'en_US-amy-medium', label: 'Amy', language: 'en-US'),
-  _piper(slug: 'en_US-ryan-high', label: 'Ryan', language: 'en-US'),
+  _piper(approxMegabytes: 132, slug: 'en_US-ryan-high', label: 'Ryan', language: 'en-US'),
   _piper(slug: 'en_GB-alba-medium', label: 'Alba', language: 'en-GB'),
-  _piper(slug: 'en_GB-cori-high', label: 'Cori', language: 'en-GB'),
+  _piper(approxMegabytes: 126, slug: 'en_GB-cori-high', label: 'Cori', language: 'en-GB'),
   _piper(slug: 'es_ES-davefx-medium', label: 'Davefx', language: 'es-ES'),
   _piper(slug: 'es_MX-claude-high', label: 'Claude', language: 'es-MX'),
   _piper(slug: 'fr_FR-siwis-medium', label: 'Siwis', language: 'fr-FR'),
@@ -204,7 +229,6 @@ final voicePacks = <VoicePack>[
     voicesFile: 'voices.bin',
     dictDir: 'dict',
     lexicon: ['lexicon-us-en.txt', 'lexicon-zh.txt'],
-    espeakLang: 'pt-br',
     voices: [
       NeuralVoice(id: 'kokoro/pf_dora', label: 'Dora', language: 'pt-BR', speakerId: 42),
       NeuralVoice(id: 'kokoro/pm_alex', label: 'Alex', language: 'pt-BR', speakerId: 43),

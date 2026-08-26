@@ -2,6 +2,21 @@ import 'package:flutter/material.dart';
 
 import '../models/app_settings.dart';
 
+VisualDensity _densityFor(double uiScale) {
+  final base = VisualDensity.adaptivePlatformDensity;
+  final offset = (uiScale - 1) * 4;
+  return VisualDensity(
+    horizontal: (base.horizontal + offset).clamp(
+      VisualDensity.minimumDensity,
+      VisualDensity.maximumDensity,
+    ),
+    vertical: (base.vertical + offset).clamp(
+      VisualDensity.minimumDensity,
+      VisualDensity.maximumDensity,
+    ),
+  );
+}
+
 ThemeData buildSepiaTheme(AppSettings settings, Brightness brightness) {
   final requestedDark = brightness == Brightness.dark;
   final isAmoled = requestedDark && settings.amoledTheme;
@@ -42,10 +57,13 @@ ThemeData buildSepiaTheme(AppSettings settings, Brightness brightness) {
     // Controls are sized around their text, so the same scale has to reach
     // them: without this, turning the interface up grew the labels inside
     // buttons that stayed the same height.
-    visualDensity: VisualDensity(
-      horizontal: ((settings.uiScale - 1) * 4).clamp(-2.0, 2.0),
-      vertical: ((settings.uiScale - 1) * 4).clamp(-2.0, 2.0),
-    ),
+    //
+    // Offset from the platform's own default rather than from zero. On
+    // desktop — and so in the web build, which is how this is mostly read —
+    // that default is `compact`, and starting from zero silently loosened
+    // every button, ListTile and Chip with no way to get the old spacing
+    // back.
+    visualDensity: _densityFor(settings.uiScale),
     appBarTheme: AppBarTheme(
       backgroundColor: background,
       surfaceTintColor: Colors.transparent,

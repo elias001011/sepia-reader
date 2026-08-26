@@ -17,41 +17,49 @@ class BookmarksSheet extends StatelessWidget {
   final ValueChanged<ReadingBookmark> onRemove;
 
   @override
-  Widget build(BuildContext context) => SheetScaffold(
-    title: context.l10n.bookmarks,
-    children: [
-      if (bookmarks.isEmpty)
-        Padding(
-          padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
-          child: Text(
-            context.l10n.bookmarksEmpty,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+  Widget build(BuildContext context) {
+    if (bookmarks.isEmpty) {
+      return SheetScaffold(
+        title: context.l10n.bookmarks,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
+            child: Text(
+              context.l10n.bookmarksEmpty,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
-        )
-      else
-        for (final bookmark in bookmarks)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.bookmark_rounded),
-            title: Text(
-              bookmark.excerpt,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(
-              MaterialLocalizations.of(
-                context,
-              ).formatCompactDate(bookmark.createdAt),
-            ),
-            trailing: IconButton(
-              tooltip: context.l10n.removeBookmark,
-              icon: const Icon(Icons.delete_outline_rounded),
-              onPressed: () => onRemove(bookmark),
-            ),
-            onTap: () => onOpen(bookmark),
+        ],
+      );
+    }
+    return SheetScaffold.list(
+      title: context.l10n.bookmarks,
+      itemCount: bookmarks.length,
+      itemBuilder: (context, index) {
+        final bookmark = bookmarks[index];
+        return ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.bookmark_rounded),
+          title: Text(
+            bookmark.excerpt,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
-    ],
-  );
+          subtitle: Text(
+            MaterialLocalizations.of(
+              context,
+            ).formatCompactDate(bookmark.createdAt),
+          ),
+          trailing: IconButton(
+            tooltip: context.l10n.removeBookmark,
+            icon: const Icon(Icons.delete_outline_rounded),
+            onPressed: () => onRemove(bookmark),
+          ),
+          onTap: () => onOpen(bookmark),
+        );
+      },
+    );
+  }
 }

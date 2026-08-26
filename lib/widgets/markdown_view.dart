@@ -39,7 +39,22 @@ List<String> chunksForDocument(LibraryDocument document) {
 ///
 /// Keyed by identity rather than equality on purpose — comparing two 180 kB
 /// strings would cost as much as redoing the work.
+///
+/// One entry, deliberately: the reader shows one document at a time, and a
+/// cache that grew would keep every document ever opened alive in memory.
 ({String content, bool markdown, List<String> chunks})? _chunkCache;
+
+/// Drops the cached split and link definitions.
+///
+/// Nothing in the app needs this — the entries are replaced as soon as
+/// another document is rendered — but a test that measures splitting must
+/// be able to start from a known state rather than from whatever the
+/// previous test in the file left behind.
+@visibleForTesting
+void clearMarkdownCaches() {
+  _chunkCache = null;
+  _definitionCache = null;
+}
 
 /// Same reasoning for the link definitions, which are also a full pass and
 /// are needed on every reader rebuild.
@@ -148,7 +163,11 @@ List<String> splitMarkdownBlocks(String content) {
           (previousKind == _BlockKind.list || _indented.hasMatch(previous)) &&
               (_listItem.hasMatch(line) || _indented.hasMatch(line)),
         _BlockKind.quote => _quoteLine.hasMatch(line),
-        _BlockKind.other => false,
+        // An indented code block keeps going across a blank line, as long
+        // as what follows is still indented: splitting there rendered one
+        // block of code as two boxes with a gap between them.
+        _BlockKind.other =>
+          _indented.hasMatch(previous) && _indented.hasMatch(line),
       };
       if (continues) {
         current.addAll(List.filled(pendingBlanks, ''));

@@ -508,5 +508,21 @@
       }
     }
   },
-  "voiceDownloadBackgroundHint": "Pode fechar as configurações: o download continua enquanto o app estiver aberto."
+  "voiceDownloadBackgroundHint": "Pode fechar as configurações: o download continua enquanto o app estiver aberto.",
+  "updateOpenFailed": "Não foi possível abrir o link. Ele é: {url}",
+  "@updateOpenFailed": {
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "updateInstalled": "Versão {version} instalada.",
+  "@updateInstalled": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  }
 }

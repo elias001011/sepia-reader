@@ -47,6 +47,11 @@ class _SettingsSheetState extends State<SettingsSheet> {
   bool _checkingUpdate = false;
   String? _updateError;
 
+  /// Whether a check has actually happened in this sheet. Saying "you are on
+  /// the latest" before asking anyone asserts something nobody verified —
+  /// and it said it even with the check switched off.
+  bool _checkedUpdate = false;
+
   @override
   void initState() {
     super.initState();
@@ -501,7 +506,9 @@ class _SettingsSheetState extends State<SettingsSheet> {
                 _updateError ??
                     (_checkingUpdate
                         ? context.l10n.updateChecking
-                        : context.l10n.updateCurrent(_appVersion ?? '…')),
+                        : _checkedUpdate
+                        ? context.l10n.updateCurrent(_appVersion ?? '…')
+                        : context.l10n.updateInstalled(_appVersion ?? '…')),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
@@ -517,7 +524,12 @@ class _SettingsSheetState extends State<SettingsSheet> {
     });
     try {
       final update = await widget.controller.updates.check(force: true);
-      if (mounted) setState(() => _update = update);
+      if (mounted) {
+        setState(() {
+          _update = update;
+          _checkedUpdate = true;
+        });
+      }
     } catch (error) {
       if (mounted) setState(() => _updateError = context.l10n.updateFailed('$error'));
     } finally {
@@ -525,7 +537,13 @@ class _SettingsSheetState extends State<SettingsSheet> {
     }
   }
 
-  TtsEngine get _engine => _voiceEngine ??= SystemTtsEngine();
+  TtsEngine get _engine => _voiceEngine ??= SystemTtsEngine(
+    preferredLanguage: switch (_draft.localeCode) {
+      'pt_BR' => 'pt-BR',
+      'en' => 'en-US',
+      _ => null,
+    },
+  );
 
   bool get _neuralSupported => widget.controller.voiceDownloads.isSupported;
 
@@ -799,12 +817,12 @@ class UpdateCard extends StatelessWidget {
               children: [
                 if (apkUrl != null)
                   FilledButton.icon(
-                    onPressed: () => _open(apkUrl),
+                    onPressed: () => _open(context, apkUrl),
                     icon: const Icon(Icons.download_rounded),
                     label: Text(context.l10n.updateDownload),
                   ),
                 OutlinedButton.icon(
-                  onPressed: () => _open(update.pageUrl),
+                  onPressed: () => _open(context, update.pageUrl),
                   icon: const Icon(Icons.open_in_new_rounded),
                   label: Text(context.l10n.updateOpen),
                 ),
@@ -819,7 +837,22 @@ class UpdateCard extends StatelessWidget {
   // The download is handed to the browser and the system installer rather
   // than fetched in-app: an APK this app downloaded still needs the user to
   // approve installing it, so there is nothing to gain by hiding the step.
-  Future<void> _open(String url) async {
-    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  //
+  // Guarded, because launching can fail for reasons the user can act on —
+  // no browser installed, or the address blocked — and a button that throws
+  // into the void looks exactly like a button that is broken.
+  Future<void> _open(BuildContext context, String url) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final failed = context.l10n.updateOpenFailed(url);
+    try {
+      final launched = await launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched) messenger.showSnackBar(SnackBar(content: Text(failed)));
+    } catch (error) {
+      debugPrint('sepia: could not open $url: $error');
+      messenger.showSnackBar(SnackBar(content: Text(failed)));
+    }
   }
 }

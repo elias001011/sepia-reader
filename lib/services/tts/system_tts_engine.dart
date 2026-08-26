@@ -14,6 +14,13 @@ import 'tts_engine.dart';
 /// the network first. The trade-off is voice quality, which is the platform's
 /// to decide, not ours.
 class SystemTtsEngine extends TtsEngine {
+  SystemTtsEngine({this.preferredLanguage});
+
+  /// Language to fall back on when no specific voice was chosen — the app's
+  /// own setting, so a reader who set the interface to English is not read
+  /// to in Portuguese because that is what the device is set to.
+  final String? preferredLanguage;
+
   FlutterTts? _tts;
   Completer<void>? _utterance;
 
@@ -101,10 +108,15 @@ class SystemTtsEngine extends TtsEngine {
     }
     if (!selected) {
       // Without a language the engine has nothing to speak with, and
-      // "nothing happened" is what that looks like from the outside. Ask for
-      // the device's own, and fall back to whatever the engine will accept.
-      final wanted = PlatformDispatcher.instance.locale.toLanguageTag();
-      for (final candidate in [wanted, 'pt-BR', 'en-US']) {
+      // "nothing happened" is what that looks like from the outside. The
+      // app's own choice comes first, then the device's, then whatever the
+      // engine will accept.
+      final candidates = <String>[
+        ?preferredLanguage,
+        PlatformDispatcher.instance.locale.toLanguageTag(),
+        'en-US',
+      ];
+      for (final candidate in candidates) {
         try {
           final available = await tts.isLanguageAvailable(candidate);
           if (available == true) {
@@ -146,12 +158,15 @@ class SystemTtsEngine extends TtsEngine {
     // failure stops playback forever and leaves the pause button doing
     // nothing. The bound is generous: far longer than any sentence takes to
     // say, so a slow voice is never cut off.
-    await completer.future.timeout(
-      _budgetFor(text),
-      onTimeout: () {
-        debugPrint('sepia: no completion callback for an utterance');
-      },
-    );
+    try {
+      await completer.future.timeout(_budgetFor(text));
+    } on TimeoutException {
+      // The platform never reported the utterance finishing. Silence the
+      // engine before giving up, or a callback that was merely slow lets
+      // the next sentence start over the top of this one.
+      debugPrint('sepia: no completion callback for an utterance');
+      await _tts?.stop();
+    }
   }
 
   /// Time to allow one utterance, from a deliberately slow reading pace.

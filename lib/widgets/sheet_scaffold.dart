@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 /// Opens a bottom sheet that stops short of the top of the screen.
@@ -23,8 +25,11 @@ Future<T?> showAppSheet<T>({
     enableDrag: enableDrag,
     showDragHandle: enableDrag,
     constraints: BoxConstraints(
+      // The lower bound has to bend too: `clamp` throws outright when the
+      // lower limit exceeds the upper, so a browser window shorter than the
+      // minimum would have crashed every sheet on open.
       maxHeight: (media.size.height - breathingRoom).clamp(
-        220.0,
+        math.min(220.0, media.size.height),
         media.size.height,
       ),
     ),
@@ -44,11 +49,30 @@ class SheetScaffold extends StatelessWidget {
     this.footer,
     this.onClose,
     this.maxWidth = 560,
-  });
+  }) : itemCount = null,
+       itemBuilder = null;
+
+  /// A sheet whose body is a long list, built lazily.
+  ///
+  /// A chapter picker for a book-length document has hundreds of entries,
+  /// and a Column inside a scroll view builds every one of them in the frame
+  /// the sheet opens.
+  const SheetScaffold.list({
+    super.key,
+    required this.title,
+    required int this.itemCount,
+    required Widget? Function(BuildContext, int) this.itemBuilder,
+    this.description,
+    this.footer,
+    this.onClose,
+    this.maxWidth = 560,
+  }) : children = const [];
 
   final String title;
   final String? description;
   final List<Widget> children;
+  final int? itemCount;
+  final Widget? Function(BuildContext, int)? itemBuilder;
 
   /// Pinned below the scrolling body — a save button stays reachable however
   /// long the content is.
@@ -58,6 +82,13 @@ class SheetScaffold extends StatelessWidget {
   /// (unsaved changes, most obviously).
   final Future<void> Function()? onClose;
   final double maxWidth;
+
+  static EdgeInsets _bodyPadding(BuildContext context) => EdgeInsets.fromLTRB(
+    24,
+    4,
+    24,
+    16 + MediaQuery.viewInsetsOf(context).bottom,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -107,18 +138,20 @@ class SheetScaffold extends StatelessWidget {
                   ),
                 ),
               Flexible(
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.fromLTRB(
-                    24,
-                    4,
-                    24,
-                    16 + MediaQuery.viewInsetsOf(context).bottom,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: children,
-                  ),
-                ),
+                child: itemBuilder == null
+                    ? SingleChildScrollView(
+                        padding: _bodyPadding(context),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: children,
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: _bodyPadding(context),
+                        shrinkWrap: true,
+                        itemCount: itemCount,
+                        itemBuilder: itemBuilder!,
+                      ),
               ),
               if (footer != null)
                 Padding(

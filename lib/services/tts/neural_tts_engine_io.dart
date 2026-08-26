@@ -151,7 +151,7 @@ class NeuralTtsEngine extends TtsEngine {
         'tokens': at(pack.tokensFile),
         'dataDir': at(pack.dataDir),
         'lexicon': pack.lexicon.map(at).join(','),
-        'lang': pack.espeakLang,
+        'lang': voice.espeakLanguage,
       };
     }
     return {

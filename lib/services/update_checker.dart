@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
@@ -115,18 +116,26 @@ class UpdateChecker {
           decoded['html_url'] as String? ??
           'https://github.com/$repository/releases/latest',
       notes: (decoded['body'] as String? ?? '').trim(),
-      apkUrl: _preferredApk(decoded['assets']),
+      apkUrl: await _preferredApk(decoded['assets']),
     );
   }
 
   /// Picks the APK this device can actually install.
   ///
-  /// Releases ship one per architecture plus a universal build; handing an
-  /// arm64 phone the 134 MB universal APK when a 48 MB one exists would be
-  /// a poor trade. The web build gets nothing — there is no APK to install
-  /// into a browser.
-  String? _preferredApk(Object? assets) {
-    if (kIsWeb || assets is! List) return null;
+  /// Releases ship one per architecture plus a universal build. Handing an
+  /// arm64 phone the 134 MB universal APK when a 48 MB one exists is a poor
+  /// trade — and handing a 32-bit phone the arm64 one is worse, because the
+  /// installer rejects it outright with INSTALL_FAILED_NO_MATCHING_ABIS.
+  /// So the device is actually asked what it supports.
+  ///
+  /// Anywhere that is not Android gets nothing: there is no APK to install
+  /// into a browser or an iPhone.
+  Future<String?> _preferredApk(Object? assets) async {
+    if (kIsWeb ||
+        defaultTargetPlatform != TargetPlatform.android ||
+        assets is! List) {
+      return null;
+    }
     final names = <String, String>{};
     for (final asset in assets) {
       if (asset is! Map) continue;
@@ -137,19 +146,33 @@ class UpdateChecker {
       }
     }
     if (names.isEmpty) return null;
-    final wanted = _abiPreference();
-    for (final abi in wanted) {
+    for (final abi in await _abiPreference()) {
       for (final entry in names.entries) {
         if (entry.key.contains(abi)) return entry.value;
       }
     }
-    return names.values.first;
+    // Nothing matched what this device runs: the universal build is the one
+    // that always installs, and is better than an APK that cannot.
+    for (final entry in names.entries) {
+      if (entry.key.contains('universal')) return entry.value;
+    }
+    return null;
   }
 
-  List<String> _abiPreference() {
-    if (defaultTargetPlatform != TargetPlatform.android) return const [];
-    // Ordered best-first; the universal build is the last resort.
-    return const ['arm64-v8a', 'armeabi-v7a', 'x86_64', 'universal'];
+  /// The device's own ABIs, best first, with the universal build last.
+  Future<List<String>> _abiPreference() async {
+    try {
+      final android = await DeviceInfoPlugin().androidInfo;
+      final supported = android.supportedAbis
+          .where((abi) => abi.isNotEmpty)
+          .toList();
+      if (supported.isNotEmpty) return [...supported, 'universal'];
+    } catch (error) {
+      debugPrint('sepia: could not read the device ABIs: $error');
+    }
+    // Without an answer, take the one that installs everywhere rather than
+    // guessing at an architecture.
+    return const ['universal'];
   }
 }
 
