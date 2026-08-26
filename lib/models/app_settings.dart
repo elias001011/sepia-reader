@@ -24,6 +24,8 @@ class AppSettings {
     this.ttsNeuralVoiceId = '',
     this.ttsRate = 1,
     this.ttsPitch = 1,
+    this.uiScale = 1,
+    this.checkForUpdates = true,
   });
   final String localeCode;
   final ThemeMode themeMode;
@@ -78,6 +80,16 @@ class AppSettings {
   /// Voice pitch as a multiplier, 1.0 being unmodified.
   final double ttsPitch;
 
+  /// Overall interface size, 1.0 being the platform default.
+  ///
+  /// The same layout reads as cramped on a phone and undersized on a
+  /// desktop monitor, and no single default suits both. This scales the text
+  /// and, through visual density, the controls sized around it.
+  final double uiScale;
+
+  /// Whether to ask GitHub for a newer release on launch.
+  final bool checkForUpdates;
+
   AppSettings copyWith({
     String? localeCode,
     ThemeMode? themeMode,
@@ -101,6 +113,8 @@ class AppSettings {
     String? ttsNeuralVoiceId,
     double? ttsRate,
     double? ttsPitch,
+    double? uiScale,
+    bool? checkForUpdates,
   }) => AppSettings(
     localeCode: localeCode ?? this.localeCode,
     themeMode: themeMode ?? this.themeMode,
@@ -125,6 +139,8 @@ class AppSettings {
     ttsNeuralVoiceId: ttsNeuralVoiceId ?? this.ttsNeuralVoiceId,
     ttsRate: ttsRate ?? this.ttsRate,
     ttsPitch: ttsPitch ?? this.ttsPitch,
+    uiScale: uiScale ?? this.uiScale,
+    checkForUpdates: checkForUpdates ?? this.checkForUpdates,
   );
 
   Map<String, dynamic> toJson() => {
@@ -150,6 +166,8 @@ class AppSettings {
     'ttsNeuralVoiceId': ttsNeuralVoiceId,
     'ttsRate': ttsRate,
     'ttsPitch': ttsPitch,
+    'uiScale': uiScale,
+    'checkForUpdates': checkForUpdates,
   };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
@@ -180,6 +198,8 @@ class AppSettings {
       ttsNeuralVoiceId: json['ttsNeuralVoiceId'] as String? ?? '',
       ttsRate: (json['ttsRate'] as num? ?? 1).toDouble().clamp(0.5, 2.0),
       ttsPitch: (json['ttsPitch'] as num? ?? 1).toDouble().clamp(0.5, 2.0),
+      uiScale: (json['uiScale'] as num? ?? 1).toDouble().clamp(0.8, 1.6),
+      checkForUpdates: json['checkForUpdates'] as bool? ?? true,
     );
   }
 }

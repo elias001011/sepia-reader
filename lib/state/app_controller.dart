@@ -11,16 +11,36 @@ import '../models/library_folder.dart';
 import '../models/syncable.dart';
 import '../services/document_kind.dart';
 import '../services/storage_service.dart';
+import '../services/tts/voice_download_manager.dart';
+import '../services/update_checker.dart';
 import '../services/sync_merge.dart';
+
+/// Identifier of the welcome document, deliberately fixed rather than a
+/// fresh UUID.
+///
+/// Every empty library seeds one, and a browser and a phone that both start
+/// empty each used to seed their own — with different random ids, so syncing
+/// merged them into two copies, then three. A constant id makes them the
+/// same record, and merging collapses them.
+const welcomeDocumentId = 'sepia.welcome.v1';
 
 /// Outcome of a user-triggered sync, so the library can say what actually
 /// happened instead of just spinning and stopping.
 enum SyncRunResult { done, failed, disabled }
 
 class AppController extends ChangeNotifier {
-  AppController({StorageService? storage})
-    : _storage = storage ?? StorageService();
+  AppController({StorageService? storage, UpdateChecker? updateChecker})
+    : _storage = storage ?? StorageService(),
+      updates = updateChecker ?? UpdateChecker();
   final StorageService _storage;
+
+  /// Shared so screens do not each open their own, and so a test can hand
+  /// in one that never touches the network.
+  final UpdateChecker updates;
+
+  /// Voice downloads live here, above any screen, so closing the sheet that
+  /// started one does not take a several-hundred-megabyte install with it.
+  final VoiceDownloadManager voiceDownloads = VoiceDownloadManager();
   final Uuid _uuid = const Uuid();
   final List<LibraryDocument> _documents = [];
   final List<LibraryFolder> _folders = [];
@@ -73,16 +93,25 @@ class AppController extends ChangeNotifier {
     if (live(_documents).isEmpty) {
       final now = DateTime.now();
       final isEnglish = _usesEnglish;
-      _documents.add(
-        LibraryDocument(
-          id: _uuid.v4(),
-          title: isEnglish ? 'Welcome to Sépia' : 'Bem-vindo ao Sépia',
-          extension: 'md',
-          createdAt: now,
-          updatedAt: now,
-          content: isEnglish ? _welcomeDocumentEn : _welcomeDocumentPt,
-        ),
+      final welcome = LibraryDocument(
+        id: welcomeDocumentId,
+        title: isEnglish ? 'Welcome to Sépia' : 'Bem-vindo ao Sépia',
+        extension: 'md',
+        createdAt: now,
+        updatedAt: now,
+        content: isEnglish ? _welcomeDocumentEn : _welcomeDocumentPt,
       );
+      // Replace rather than append: a tombstoned copy from an earlier
+      // emptying is still in the list, and two records with the same id
+      // would make the merge's behaviour depend on their order.
+      final existing = _documents.indexWhere(
+        (document) => document.id == welcomeDocumentId,
+      );
+      if (existing == -1) {
+        _documents.add(welcome);
+      } else {
+        _documents[existing] = welcome;
+      }
       await _persistDocuments();
     }
   }
@@ -472,6 +501,12 @@ class AppController extends ChangeNotifier {
     _settings = result.settings;
     notifyListeners();
     return result.reachedServer ? SyncRunResult.done : SyncRunResult.failed;
+  }
+
+  @override
+  void dispose() {
+    voiceDownloads.dispose();
+    super.dispose();
   }
 
   Future<void> _persistDocuments() => _storage.saveDocuments(_documents);

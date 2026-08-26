@@ -788,9 +788,92 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ttsTierBestHint =>
-      'Kokoro · more natural, wants more space and memory';
+      'Kokoro · one model with many voices and languages, more natural, but wants plenty of space and memory';
 
   @override
   String get ttsFellBackToSystem =>
       'The neural voice could not be used right now; reading with the system voice.';
+
+  @override
+  String get ttsVoiceQueued => 'Queued…';
+
+  @override
+  String ttsVoiceCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count voices',
+      one: '1 voice',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get unsavedTitle => 'Leave without saving?';
+
+  @override
+  String get unsavedBody => 'You changed something here and have not saved it.';
+
+  @override
+  String get unsavedSaveAndLeave => 'Save and leave';
+
+  @override
+  String get unsavedDiscard => 'Leave without saving';
+
+  @override
+  String get interfaceScale => 'Interface size';
+
+  @override
+  String get interfaceScaleDescription =>
+      'Makes everything bigger or smaller: text, buttons and spacing.';
+
+  @override
+  String get interfaceScaleReset => 'Back to default';
+
+  @override
+  String get updateSection => 'Updates';
+
+  @override
+  String get updateCheckAutomatically => 'Check for updates on launch';
+
+  @override
+  String get updateCheckAutomaticallyDescription =>
+      'Asks GitHub releases when there is internet. Nothing is downloaded on its own.';
+
+  @override
+  String updateAvailable(String version) {
+    return 'Sépia $version available';
+  }
+
+  @override
+  String updateCurrent(String version) {
+    return 'You are on $version, the latest.';
+  }
+
+  @override
+  String get updateCheckNow => 'Check now';
+
+  @override
+  String get updateChecking => 'Checking…';
+
+  @override
+  String updateFailed(String error) {
+    return 'Could not check for updates: $error';
+  }
+
+  @override
+  String get updateOpen => 'View the release';
+
+  @override
+  String get updateDownload => 'Download APK';
+
+  @override
+  String get updateLater => 'Not now';
+
+  @override
+  String get updateWebHint =>
+      'This is the web build: the server hosting it is what updates.';
+
+  @override
+  String get updateNotes => 'What\'s new';
 }

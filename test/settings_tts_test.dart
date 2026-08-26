@@ -8,6 +8,8 @@ import 'package:sepia_reader/app.dart';
 import 'package:sepia_reader/models/app_settings.dart';
 import 'package:sepia_reader/state/app_controller.dart';
 
+import 'support/offline_updates.dart';
+
 /// The read-aloud controls have to be *findable* on a phone, which is where
 /// this app is actually used: the settings sheet is a bottom sheet with a
 /// long scrolling body, and a section that never comes into view might as
@@ -25,7 +27,7 @@ void main() {
         const AppSettings(localeCode: 'pt_BR').toJson(),
       ),
     });
-    final controller = AppController();
+    final controller = AppController(updateChecker: offlineUpdateChecker());
     await controller.initialize();
     await tester.pumpWidget(SepiaApp(controller: controller));
     await tester.pumpAndSettle();

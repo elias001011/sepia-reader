@@ -3,107 +3,97 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../l10n/l10n.dart';
+import '../services/tts/neural_tts_engine.dart';
+import '../services/tts/tts_engine.dart';
 import '../services/tts/voice_catalog.dart';
-import '../services/tts/voice_store.dart';
+import '../services/tts/voice_download_manager.dart';
+import '../widgets/sheet_scaffold.dart';
 
 /// Manages the neural voices stored on the device.
 ///
-/// The download is the whole cost of this feature — tens to hundreds of
-/// megabytes, once — so it is deliberately explicit: sizes up front, real
-/// progress, cancellable mid-way, and removable afterwards. Nothing is
-/// fetched because a switch was flipped.
+/// Organised around the *pack*, not the voice, because that is what a
+/// download actually is. Piper ships one voice per model, so the two are the
+/// same thing there; Kokoro is a single 400 MB model holding dozens of
+/// speakers, and offering to download it once per speaker — as this screen
+/// used to — invited the user to fetch the same file eighteen times.
 class VoiceDownloadsSheet extends StatefulWidget {
   const VoiceDownloadsSheet({
     super.key,
-    required this.store,
+    required this.downloads,
     required this.selectedVoiceId,
     required this.onSelected,
+    required this.rate,
   });
 
-  final VoiceStore store;
+  final VoiceDownloadManager downloads;
   final String selectedVoiceId;
   final ValueChanged<String> onSelected;
+  final double rate;
 
   @override
   State<VoiceDownloadsSheet> createState() => _VoiceDownloadsSheetState();
 }
 
 class _VoiceDownloadsSheetState extends State<VoiceDownloadsSheet> {
-  final Set<String> _installed = {};
-  final Map<String, VoiceInstallProgress> _progress = {};
-  final Set<String> _cancelling = {};
   late String _selected;
-  bool _loading = true;
+
+  /// Voice currently being auditioned, and the engine doing it. A neural
+  /// model takes a moment to load, so the button has to say so.
+  String? _previewing;
+  TtsEngine? _previewEngine;
 
   @override
   void initState() {
     super.initState();
     _selected = widget.selectedVoiceId;
-    unawaited(_refresh());
+    unawaited(widget.downloads.refreshInstalled());
   }
 
-  Future<void> _refresh() async {
-    final installed = await widget.store.installedVoices();
-    if (!mounted) return;
-    setState(() {
-      _installed
-        ..clear()
-        ..addAll(installed.map((voice) => voice.id));
-      _loading = false;
-    });
+  @override
+  void dispose() {
+    unawaited(_previewEngine?.release());
+    super.dispose();
   }
 
-  Future<void> _install(NeuralVoice voice) async {
+  Future<void> _preview(VoicePack pack, NeuralVoice voice) async {
+    final sample = context.l10n.ttsPreviewText;
+    if (_previewing == voice.id) {
+      await _previewEngine?.stop();
+      if (mounted) setState(() => _previewing = null);
+      return;
+    }
+    await _previewEngine?.release();
+    final engine = NeuralTtsEngine(
+      pack: pack,
+      voice: voice,
+      store: widget.downloads.store,
+    );
     setState(() {
-      _progress[voice.id] = const VoiceInstallProgress(
-        filesDone: 0,
-        filesTotal: 0,
-        bytesDone: 0,
-        bytesTotal: 0,
-      );
+      _previewEngine = engine;
+      _previewing = voice.id;
     });
     try {
-      await widget.store.install(
-        voice,
-        onProgress: (progress) {
-          if (mounted) setState(() => _progress[voice.id] = progress);
-        },
-        shouldCancel: () => _cancelling.contains(voice.id),
-      );
-      // Voices sharing a model are all installed at once.
-      for (final shared in voicesSharing(voice)) {
-        _installed.add(shared.id);
-      }
-      if (_selected.isEmpty) {
-        _selected = voice.id;
-        widget.onSelected(voice.id);
-      }
-    } on VoiceInstallCancelled {
-      await widget.store.remove(voice);
+      await engine.prepare();
+      await engine.configure(rate: widget.rate, pitch: 1);
+      await engine.speak(sample);
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.ttsVoiceInstallFailed('$error'))),
+          SnackBar(content: Text(context.l10n.ttsFailed('$error'))),
         );
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _progress.remove(voice.id);
-          _cancelling.remove(voice.id);
-        });
+      if (mounted && _previewing == voice.id) {
+        setState(() => _previewing = null);
       }
     }
   }
 
-  Future<void> _remove(NeuralVoice voice) async {
-    final shared = voicesSharing(voice);
+  Future<void> _remove(VoicePack pack) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        content: Text(
-          dialogContext.l10n.ttsVoiceRemoveConfirm(voice.label),
-        ),
+        content: Text(dialogContext.l10n.ttsVoiceRemoveConfirm(pack.label)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -117,123 +107,238 @@ class _VoiceDownloadsSheetState extends State<VoiceDownloadsSheet> {
       ),
     );
     if (confirmed != true) return;
-    await widget.store.remove(voice);
+    await _previewEngine?.release();
+    await widget.downloads.remove(pack);
     if (!mounted) return;
-    setState(() {
-      for (final other in shared) {
-        _installed.remove(other.id);
-        if (_selected == other.id) {
-          _selected = '';
-          widget.onSelected('');
-        }
-      }
-    });
+    if (pack.voices.any((voice) => voice.id == _selected)) {
+      setState(() => _selected = '');
+      widget.onSelected('');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Grouped by how heavy they are rather than by language: the download
-    // size is the decision being made here, and it is the one thing a phone
-    // with little room left cares about.
-    final byTier = <NeuralVoiceTier, List<NeuralVoice>>{};
-    for (final voice in neuralVoices) {
-      byTier.putIfAbsent(voice.tier, () => []).add(voice);
-    }
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(0, 4, 0, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return ListenableBuilder(
+      listenable: widget.downloads,
+      builder: (context, _) {
+        final light = voicePacks
+            .where((pack) => pack.tier == NeuralVoiceTier.light)
+            .toList();
+        final best = voicePacks
+            .where((pack) => pack.tier == NeuralVoiceTier.best)
+            .toList();
+        return SheetScaffold(
+          title: context.l10n.ttsVoicesTitle,
+          description: context.l10n.ttsVoicesDescription,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 4, 24, 4),
-              child: Text(
-                context.l10n.ttsVoicesTitle,
-                style: Theme.of(context).textTheme.headlineSmall
-                    ?.copyWith(fontWeight: FontWeight.w700),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
-              child: Text(
-                context.l10n.ttsVoicesDescription,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ),
-            if (_loading)
+            if (!widget.downloads.hasLoadedInstalled)
               const Padding(
                 padding: EdgeInsets.all(24),
                 child: Center(child: CircularProgressIndicator()),
               )
-            else
-              Flexible(
-                child: ListView(
-                  shrinkWrap: true,
-                  children: [
-                    for (final tier in NeuralVoiceTier.values)
-                      if (byTier[tier] case final voices?) ...[
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(24, 16, 24, 2),
-                          child: Text(
-                            tier == NeuralVoiceTier.light
-                                ? context.l10n.ttsTierLight
-                                : context.l10n.ttsTierBest,
-                            style: Theme.of(context).textTheme.titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(24, 0, 24, 6),
-                          child: Text(
-                            tier == NeuralVoiceTier.light
-                                ? context.l10n.ttsTierLightHint
-                                : context.l10n.ttsTierBestHint,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ),
-                        for (final voice in voices) _voiceTile(context, voice),
-                      ],
-                  ],
-                ),
+            else ...[
+              _tierHeader(
+                context,
+                context.l10n.ttsTierLight,
+                context.l10n.ttsTierLightHint,
               ),
+              ..._groupedByLanguage(light),
+              _tierHeader(
+                context,
+                context.l10n.ttsTierBest,
+                context.l10n.ttsTierBestHint,
+              ),
+              for (final pack in best) ..._kokoroPack(context, pack),
+            ],
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 
-  Widget _voiceTile(BuildContext context, NeuralVoice voice) {
-    final installed = _installed.contains(voice.id);
-    final progress = _progress[voice.id];
-    final selected = _selected == voice.id;
-    final megabytes = (voice.approxBytes / (1024 * 1024)).round();
+  Widget _tierHeader(BuildContext context, String title, String hint) =>
+      Padding(
+        padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            Text(hint, style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ),
+      );
 
-    Widget trailing;
-    if (progress != null) {
+  /// Piper packs, grouped by the language of their single voice.
+  List<Widget> _groupedByLanguage(List<VoicePack> packs) {
+    final byLanguage = <String, List<VoicePack>>{};
+    for (final pack in packs) {
+      byLanguage.putIfAbsent(pack.voices.first.language, () => []).add(pack);
+    }
+    final languages = byLanguage.keys.toList()
+      ..sort((a, b) => languageLabelFor(a).compareTo(languageLabelFor(b)));
+    return [
+      for (final language in languages) ...[
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 12, 4, 2),
+          child: Text(
+            languageLabelFor(language),
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
+        ),
+        for (final pack in byLanguage[language]!)
+          _packTile(context, pack, pack.voices.first),
+      ],
+    ];
+  }
+
+  /// The one multi-speaker pack: a single download, then a voice list.
+  List<Widget> _kokoroPack(BuildContext context, VoicePack pack) {
+    final installed = widget.downloads.isInstalled(pack);
+    final byLanguage = <String, List<NeuralVoice>>{};
+    for (final voice in pack.voices) {
+      byLanguage.putIfAbsent(voice.language, () => []).add(voice);
+    }
+    return [
+      _packTile(context, pack, null),
+      if (installed)
+        for (final entry in byLanguage.entries) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 10, 4, 2),
+            child: Text(
+              languageLabelFor(entry.key),
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
+          ),
+          for (final voice in entry.value)
+            _voiceRow(context, pack, voice, indent: 20),
+        ],
+    ];
+  }
+
+  /// A downloadable pack. [soleVoice] is set when the pack has exactly one,
+  /// in which case the row doubles as that voice's row.
+  Widget _packTile(BuildContext context, VoicePack pack, NeuralVoice? soleVoice) {
+    final installed = widget.downloads.isInstalled(pack);
+    final job = widget.downloads.jobFor(pack);
+    final megabytes = (pack.approxBytes / (1024 * 1024)).round();
+
+    if (installed && soleVoice != null) {
+      return _voiceRow(context, pack, soleVoice, onRemove: () => _remove(pack));
+    }
+
+    final Widget trailing;
+    if (job != null) {
       trailing = Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
-            width: 26,
-            height: 26,
-            child: CircularProgressIndicator(
-              strokeWidth: 2.5,
-              value: progress.bytesTotal == 0 ? null : progress.fraction,
+          if (job.state == VoiceDownloadState.failed)
+            IconButton(
+              tooltip: context.l10n.ttsVoiceInstall,
+              onPressed: () {
+                widget.downloads.dismiss(pack);
+                widget.downloads.enqueue(pack);
+              },
+              icon: const Icon(Icons.refresh_rounded),
+            )
+          else
+            SizedBox(
+              width: 26,
+              height: 26,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                value: job.state == VoiceDownloadState.queued || job.fraction == 0
+                    ? null
+                    : job.fraction,
+              ),
             ),
-          ),
           IconButton(
             tooltip: context.l10n.ttsVoiceCancel,
-            onPressed: () => setState(() => _cancelling.add(voice.id)),
+            onPressed: () => widget.downloads.cancel(pack),
             icon: const Icon(Icons.close_rounded),
           ),
         ],
       );
     } else if (installed) {
-      trailing = Row(
+      trailing = IconButton(
+        tooltip: context.l10n.ttsVoiceRemove,
+        onPressed: () => _remove(pack),
+        icon: const Icon(Icons.delete_outline_rounded),
+      );
+    } else {
+      trailing = FilledButton.tonal(
+        onPressed: () => widget.downloads.enqueue(pack),
+        child: Text(context.l10n.ttsVoiceInstall),
+      );
+    }
+
+    final subtitle = switch (job?.state) {
+      VoiceDownloadState.queued => context.l10n.ttsVoiceQueued,
+      VoiceDownloadState.running => context.l10n.ttsVoiceDownloading(
+        (job!.fraction * 100).round(),
+      ),
+      VoiceDownloadState.failed => context.l10n.ttsVoiceInstallFailed(
+        job!.error ?? '?',
+      ),
+      null => installed
+          ? context.l10n.ttsVoiceInstalled
+          : pack.isKokoro
+          ? '${context.l10n.ttsVoiceSize(megabytes)} · '
+                '${context.l10n.ttsVoiceCount(pack.voices.length)}'
+          : context.l10n.ttsVoiceSize(megabytes),
+    };
+
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        installed ? Icons.download_done_rounded : Icons.download_rounded,
+        color: installed ? Theme.of(context).colorScheme.primary : null,
+      ),
+      title: Text(pack.label),
+      subtitle: Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+      trailing: trailing,
+    );
+  }
+
+  /// An installed voice: audition it, use it, and (for a one-voice pack)
+  /// remove the model behind it.
+  Widget _voiceRow(
+    BuildContext context,
+    VoicePack pack,
+    NeuralVoice voice, {
+    double indent = 0,
+    VoidCallback? onRemove,
+  }) {
+    final selected = _selected == voice.id;
+    final playing = _previewing == voice.id;
+    return ListTile(
+      contentPadding: EdgeInsets.only(left: indent),
+      leading: IconButton(
+        tooltip: playing ? context.l10n.ttsStop : context.l10n.ttsPreview,
+        onPressed: () => _preview(pack, voice),
+        icon: Icon(
+          playing ? Icons.stop_circle_rounded : Icons.play_circle_rounded,
+          size: 30,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+      ),
+      title: Text(voice.label),
+      subtitle: Text(
+        selected ? context.l10n.ttsVoiceInUse : voice.languageLabel,
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
+      trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (!selected)
+          if (selected)
+            Icon(
+              Icons.check_circle_rounded,
+              color: Theme.of(context).colorScheme.primary,
+            )
+          else
             TextButton(
               onPressed: () {
                 setState(() => _selected = voice.id);
@@ -241,46 +346,14 @@ class _VoiceDownloadsSheetState extends State<VoiceDownloadsSheet> {
               },
               child: Text(context.l10n.ttsVoiceUse),
             ),
-          IconButton(
-            tooltip: context.l10n.ttsVoiceRemove,
-            onPressed: () => _remove(voice),
-            icon: const Icon(Icons.delete_outline_rounded),
-          ),
+          if (onRemove != null)
+            IconButton(
+              tooltip: context.l10n.ttsVoiceRemove,
+              onPressed: onRemove,
+              icon: const Icon(Icons.delete_outline_rounded),
+            ),
         ],
-      );
-    } else {
-      trailing = FilledButton.tonal(
-        onPressed: () => _install(voice),
-        child: Text(context.l10n.ttsVoiceInstall),
-      );
-    }
-
-    final subtitleParts = <String>[
-      if (progress != null)
-        context.l10n.ttsVoiceDownloading((progress.fraction * 100).round())
-      else if (selected)
-        context.l10n.ttsVoiceInUse
-      else if (installed)
-        context.l10n.ttsVoiceInstalled
-      else
-        context.l10n.ttsVoiceSize(megabytes),
-      if (voice.note == 'kokoro-heavy') context.l10n.ttsVoiceHeavy,
-    ];
-
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 24),
-      leading: Icon(
-        selected
-            ? Icons.record_voice_over_rounded
-            : Icons.graphic_eq_rounded,
-        color: selected ? Theme.of(context).colorScheme.primary : null,
       ),
-      title: Text('${voice.label} · ${voice.languageLabel}'),
-      subtitle: Text(
-        subtitleParts.join(' · '),
-        style: Theme.of(context).textTheme.bodySmall,
-      ),
-      trailing: trailing,
     );
   }
 }

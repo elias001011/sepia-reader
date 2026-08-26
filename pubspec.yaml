@@ -52,6 +52,8 @@ dependencies:
   audioplayers: ^6.8.1
   crypto: ^3.0.7
   convert: ^3.1.2
+  package_info_plus: ^10.2.1
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

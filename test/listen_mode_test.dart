@@ -9,6 +9,8 @@ import 'package:sepia_reader/models/app_settings.dart';
 import 'package:sepia_reader/state/app_controller.dart';
 import 'package:sepia_reader/widgets/markdown_view.dart';
 
+import 'support/offline_updates.dart';
+
 /// Reading aloud is opt-in: nothing about the reader changes until it is
 /// switched on, and once it is, the button leads to a chapter picker rather
 /// than starting from the top of the document every time.
@@ -27,7 +29,7 @@ void main() {
         AppSettings(localeCode: 'pt_BR', ttsEnabled: ttsEnabled).toJson(),
       ),
     });
-    final controller = AppController();
+    final controller = AppController(updateChecker: offlineUpdateChecker());
     await controller.initialize();
     await controller.createDocument(title: 'Fic', content: content);
 
@@ -79,7 +81,7 @@ void main() {
         const AppSettings(localeCode: 'pt_BR').toJson(),
       ),
     });
-    final controller = AppController();
+    final controller = AppController(updateChecker: offlineUpdateChecker());
     await controller.initialize();
     await controller.createDocument(
       title: 'Pagina',

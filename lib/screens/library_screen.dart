@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
@@ -11,7 +12,9 @@ import '../services/document_drop.dart';
 import '../services/document_kind.dart';
 import '../services/document_io.dart';
 import '../services/folder_importer.dart';
+import '../services/update_checker.dart';
 import '../state/app_controller.dart';
+import '../widgets/sheet_scaffold.dart';
 import 'editor_screen.dart';
 import 'settings_sheet.dart';
 
@@ -40,6 +43,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       onDragActive: _setFileDragActive,
       onDrop: _importDroppedFiles,
     );
+    unawaited(_checkForUpdate());
   }
 
   @override
@@ -52,6 +56,21 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   void _refresh() {
     if (mounted) setState(() {});
+  }
+
+  /// A newer release, once one has been found. Checked when the library
+  /// opens, quietly: a missing connection is not worth interrupting anyone
+  /// for, so a failure here leaves the banner simply absent.
+  AppUpdate? _update;
+
+  Future<void> _checkForUpdate() async {
+    if (!widget.controller.settings.checkForUpdates) return;
+    try {
+      final update = await widget.controller.updates.check();
+      if (mounted && update != null) setState(() => _update = update);
+    } catch (error) {
+      debugPrint('sepia: update check failed: $error');
+    }
   }
 
   @override
@@ -80,6 +99,21 @@ class _LibraryScreenState extends State<LibraryScreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
                 SliverToBoxAdapter(child: _topBar(context)),
+                if (_update case final update?)
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                    sliver: SliverToBoxAdapter(
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 1180),
+                          child: UpdateCard(
+                            update: update,
+                            onDismiss: () => setState(() => _update = null),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 if (_isImportingFolder || _isImportingFiles)
                   const SliverToBoxAdapter(child: LinearProgressIndicator()),
                 SliverPadding(
@@ -1030,10 +1064,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
     return available < preferred ? available.clamp(200.0, preferred) : preferred;
   }
 
-  void _openSettings() => showModalBottomSheet<void>(
+  void _openSettings() => showAppSheet<void>(
     context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
     builder: (_) => SettingsSheet(controller: widget.controller),
   );
 }

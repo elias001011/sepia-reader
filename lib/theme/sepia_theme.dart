@@ -39,6 +39,13 @@ ThemeData buildSepiaTheme(AppSettings settings, Brightness brightness) {
     scaffoldBackgroundColor: background,
     canvasColor: background,
     fontFamily: 'Inter',
+    // Controls are sized around their text, so the same scale has to reach
+    // them: without this, turning the interface up grew the labels inside
+    // buttons that stayed the same height.
+    visualDensity: VisualDensity(
+      horizontal: ((settings.uiScale - 1) * 4).clamp(-2.0, 2.0),
+      vertical: ((settings.uiScale - 1) * 4).clamp(-2.0, 2.0),
+    ),
     appBarTheme: AppBarTheme(
       backgroundColor: background,
       surfaceTintColor: Colors.transparent,

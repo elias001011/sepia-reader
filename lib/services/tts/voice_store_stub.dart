@@ -11,16 +11,16 @@ class VoiceStore {
 
   bool get isSupported => false;
 
-  Future<bool> isInstalled(NeuralVoice voice) async => false;
+  Future<bool> isInstalled(VoicePack pack) async => false;
 
-  Future<List<NeuralVoice>> installedVoices() async => const [];
+  Future<List<VoicePack>> installedPacks() async => const [];
 
-  Future<int> installedSize(NeuralVoice voice) async => 0;
+  Future<int> installedSize(VoicePack pack) async => 0;
 
-  Future<void> remove(NeuralVoice voice) async {}
+  Future<void> remove(VoicePack pack) async {}
 
   Future<void> install(
-    NeuralVoice voice, {
+    VoicePack pack, {
     void Function(VoiceInstallProgress)? onProgress,
     bool Function()? shouldCancel,
   }) async =>

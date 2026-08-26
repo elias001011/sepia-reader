@@ -115,8 +115,24 @@ class SystemTtsEngine extends TtsEngine {
     final completer = Completer<void>();
     _utterance = completer;
     await _tts!.speak(text);
-    await completer.future;
+    // The completion callback is the platform's to fire, and some engines
+    // never do — a browser voice that fails to start, an Android engine
+    // that was swapped out mid-utterance. Without a bound, one silent
+    // failure stops playback forever and leaves the pause button doing
+    // nothing. The bound is generous: far longer than any sentence takes to
+    // say, so a slow voice is never cut off.
+    await completer.future.timeout(
+      _budgetFor(text),
+      onTimeout: () {
+        debugPrint('sepia: no completion callback for an utterance');
+      },
+    );
   }
+
+  /// Time to allow one utterance, from a deliberately slow reading pace.
+  static Duration _budgetFor(String text) => Duration(
+    milliseconds: 4000 + text.length * 220,
+  );
 
   @override
   Future<void> stop() async {

@@ -8,6 +8,8 @@ import 'package:sepia_reader/app.dart';
 import 'package:sepia_reader/models/app_settings.dart';
 import 'package:sepia_reader/state/app_controller.dart';
 
+import 'support/offline_updates.dart';
+
 /// The document title used to be a live [TextField] in the editor's AppBar,
 /// which made it the first focusable node of the route: whenever a modal
 /// sheet on top of the editor closed, focus restoration landed there, the
@@ -26,7 +28,7 @@ void main() {
         const AppSettings(localeCode: 'pt_BR').toJson(),
       ),
     });
-    final controller = AppController();
+    final controller = AppController(updateChecker: offlineUpdateChecker());
     await controller.initialize();
     await tester.pumpWidget(SepiaApp(controller: controller));
     await tester.pumpAndSettle();
