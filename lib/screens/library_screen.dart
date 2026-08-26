@@ -100,15 +100,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
                 SliverToBoxAdapter(child: _topBar(context)),
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                  sliver: SliverToBoxAdapter(
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 1180),
-                        child: VoiceDownloadBanner(
-                          downloads: widget.controller.voiceDownloads,
-                        ),
+                // No SliverPadding around this one: an idle banner must
+                // take up no space at all, and padding a shrunk child still
+                // pushes everything below it down.
+                SliverToBoxAdapter(
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1180),
+                      child: VoiceDownloadBanner(
+                        downloads: widget.controller.voiceDownloads,
                       ),
                     ),
                   ),

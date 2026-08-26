@@ -26,7 +26,7 @@ class VoiceDownloadBanner extends StatelessWidget {
       final scheme = Theme.of(context).colorScheme;
       return Card(
         elevation: 0,
-        margin: EdgeInsets.zero,
+        margin: const EdgeInsets.fromLTRB(20, 8, 20, 0),
         color: scheme.surfaceContainerHigh,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
