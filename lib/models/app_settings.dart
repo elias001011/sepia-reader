@@ -26,6 +26,7 @@ class AppSettings {
     this.ttsPitch = 1,
     this.uiScale = 1,
     this.checkForUpdates = true,
+    this.sectionedEditing = true,
   });
   final String localeCode;
   final ThemeMode themeMode;
@@ -90,6 +91,14 @@ class AppSettings {
   /// Whether to ask GitHub for a newer release on launch.
   final bool checkForUpdates;
 
+  /// Whether large documents are split into chapters for editing.
+  ///
+  /// On by default: a keystroke in a 90 000 character field costs ~42 ms
+  /// versus ~10 ms in an 8 000 character slice, so sectioned editing keeps
+  /// typing fast. Turning this off loads the whole document into the field,
+  /// which is slower but lets you search and edit across chapter boundaries.
+  final bool sectionedEditing;
+
   AppSettings copyWith({
     String? localeCode,
     ThemeMode? themeMode,
@@ -115,6 +124,7 @@ class AppSettings {
     double? ttsPitch,
     double? uiScale,
     bool? checkForUpdates,
+    bool? sectionedEditing,
   }) => AppSettings(
     localeCode: localeCode ?? this.localeCode,
     themeMode: themeMode ?? this.themeMode,
@@ -141,6 +151,7 @@ class AppSettings {
     ttsPitch: ttsPitch ?? this.ttsPitch,
     uiScale: uiScale ?? this.uiScale,
     checkForUpdates: checkForUpdates ?? this.checkForUpdates,
+    sectionedEditing: sectionedEditing ?? this.sectionedEditing,
   );
 
   Map<String, dynamic> toJson() => {
@@ -168,6 +179,7 @@ class AppSettings {
     'ttsPitch': ttsPitch,
     'uiScale': uiScale,
     'checkForUpdates': checkForUpdates,
+    'sectionedEditing': sectionedEditing,
   };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
@@ -200,6 +212,7 @@ class AppSettings {
       ttsPitch: (json['ttsPitch'] as num? ?? 1).toDouble().clamp(0.5, 2.0),
       uiScale: (json['uiScale'] as num? ?? 1).toDouble().clamp(0.8, 1.6),
       checkForUpdates: json['checkForUpdates'] as bool? ?? true,
+      sectionedEditing: json['sectionedEditing'] as bool? ?? true,
     );
   }
 }

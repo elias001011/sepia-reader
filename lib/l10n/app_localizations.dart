@@ -1541,7 +1541,7 @@ abstract class AppLocalizations {
   /// No description provided for @chapterSeparatorToggle.
   ///
   /// In en, this message translates to:
-  /// **'Chapter separator'**
+  /// **'Edit by chapter'**
   String get chapterSeparatorToggle;
 }
 
