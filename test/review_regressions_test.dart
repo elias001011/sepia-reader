@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sepia_reader/models/app_settings.dart';
 import 'package:sepia_reader/services/document_sections.dart';
 import 'package:sepia_reader/services/tts/voice_catalog.dart';
+import 'package:sepia_reader/services/update_checker.dart';
 import 'package:sepia_reader/theme/sepia_theme.dart';
 import 'package:sepia_reader/widgets/markdown_view.dart';
 import 'package:sepia_reader/widgets/sheet_scaffold.dart';
@@ -144,6 +145,18 @@ void main() {
       expect(spoken, isNot(contains('const a = 1')));
     });
 
+    test('uma cerca aninhada sem citação também não fecha a de fora', () {
+      // Showing a code block inside a code block is the ordinary way to
+      // write about markdown, and the outer fence is longer for exactly
+      // that reason.
+      final spoken = speakableText(
+        'Antes.\n\n````markdown\n```dart\nfinal x = 1;\n```\n````\n\nDepois.',
+      );
+      expect(spoken, contains('Antes.'));
+      expect(spoken, contains('Depois.'));
+      expect(spoken, isNot(contains('final x = 1')));
+    });
+
     test('uma cerca de til não é fechada por crase', () {
       final spoken = speakableText('Antes.\n\n~~~py\n```\nx = 1\n~~~\n\nDepois.');
       expect(spoken, isNot(contains('x = 1')));
@@ -154,15 +167,42 @@ void main() {
   test('cano escapado não parte a célula da tabela', () {
     final spoken = speakableText('| a \\| b | c |\n|---|---|\n| d | e |');
     expect(spoken, contains('a | b'));
-    expect(spoken, isNot(contains(r'\\')));
+    expect(spoken, isNot(contains('\\')));
   });
 
-  test('a escolha de APK casa a arquitetura inteira, não um pedaço', () {
-    // 'x86' is a substring of 'x86_64': a 32-bit device offered the 64-bit
-    // APK gets INSTALL_FAILED_NO_MATCHING_ABIS.
-    expect('sepia-2.0.0-android-x86_64.apk'.endsWith('-x86.apk'), isFalse);
-    expect('sepia-2.0.0-android-x86.apk'.endsWith('-x86.apk'), isTrue);
-    expect('sepia-2.0.0-android-arm64-v8a.apk'.endsWith('-arm64-v8a.apk'), isTrue);
+  group('escolha de APK', () {
+    const published = {
+      'sepia-2.0.0-android-arm64-v8a.apk': 'u/arm64',
+      'sepia-2.0.0-android-armeabi-v7a.apk': 'u/v7a',
+      'sepia-2.0.0-android-x86_64.apk': 'u/x64',
+      'sepia-2.0.0-android-universal.apk': 'u/universal',
+    };
+
+    test('cada arquitetura recebe o seu', () {
+      expect(pickApkFor(published, ['arm64-v8a', 'universal']), 'u/arm64');
+      expect(pickApkFor(published, ['armeabi-v7a', 'universal']), 'u/v7a');
+      expect(pickApkFor(published, ['x86_64', 'universal']), 'u/x64');
+    });
+
+    test('x86 de 32 bits não recebe o APK de 64', () {
+      // 'x86' is contained in 'x86_64'; a substring match handed a 32-bit
+      // device an APK the installer rejects outright.
+      expect(pickApkFor(published, ['x86', 'universal']), 'u/universal');
+    });
+
+    test('arquitetura desconhecida cai no universal', () {
+      expect(pickApkFor(published, ['riscv64', 'universal']), 'u/universal');
+    });
+
+    test('sem universal e sem correspondência, não oferece nada', () {
+      const partial = {'sepia-2.0.0-android-arm64-v8a.apk': 'u/arm64'};
+      expect(
+        pickApkFor(partial, ['x86_64', 'universal']),
+        isNull,
+        reason: 'um link para a release é mais útil que um APK que não instala',
+      );
+      expect(pickApkFor(partial, ['arm64-v8a']), 'u/arm64');
+    });
   });
 
   test('o cache de blocos é de uma entrada só e pode ser limpo', () {
