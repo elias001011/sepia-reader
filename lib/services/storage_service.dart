@@ -190,7 +190,14 @@ class StorageService {
       if (decoded is! List) {
         return (ok: false, documentCount: 0, error: 'Resposta inesperada');
       }
-      return (ok: true, documentCount: decoded.length, error: null);
+      // Live records only. The payload also carries tombstones — the marker
+      // a deletion travels to other devices as — and counting those told the
+      // user their server held ten documents when it held one.
+      final live = decoded
+          .whereType<Map>()
+          .where((record) => record['deletedAt'] == null)
+          .length;
+      return (ok: true, documentCount: live, error: null);
     } catch (error) {
       return (ok: false, documentCount: 0, error: '$error');
     }
