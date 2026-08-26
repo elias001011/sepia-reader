@@ -74,6 +74,12 @@ class _VoiceDownloadsSheetState extends State<VoiceDownloadsSheet> {
   /// never asked for.
   Future<void> _stopPreview() async {
     _previewToken++;
+    await _stopPreviewEngine();
+  }
+
+  /// Hands back whatever engine is loaded, without touching the token —
+  /// for callers that have already claimed one.
+  Future<void> _stopPreviewEngine() async {
     final engine = _previewEngine;
     _previewEngine = null;
     await engine?.release();
@@ -85,9 +91,13 @@ class _VoiceDownloadsSheetState extends State<VoiceDownloadsSheet> {
     // Whatever was playing stops, and its own invocation learns that it is
     // no longer current from the token rather than from an exception.
     if (mounted) setState(() => _previewing = null);
-    await _stopPreview();
-    final token = _previewToken;
-    if (wasPlaying) return;
+    // Captured before the await, not after: read afterwards it is always the
+    // current value, and the comparison below can never fail — which let a
+    // tap superseded during the release resume and speak over the one that
+    // replaced it.
+    final token = ++_previewToken;
+    await _stopPreviewEngine();
+    if (wasPlaying || token != _previewToken) return;
 
     final engine = NeuralTtsEngine(pack: pack, voice: voice, store: _store);
     if (!mounted) return;

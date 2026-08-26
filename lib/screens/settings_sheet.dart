@@ -565,14 +565,18 @@ class _SettingsSheetState extends State<SettingsSheet> {
     if (_loadingVoices || _voices != null) return;
     setState(() => _loadingVoices = true);
     List<TtsVoice> voices = const [];
+    // Read once into a local: the getter releases and rebuilds the engine
+    // when the language changes, so evaluating it again after an await can
+    // hand back a different instance from the one just set up.
+    final engine = _engine;
     try {
-      voices = await _engine.availableVoices();
+      voices = await engine.availableVoices();
       // The browser populates its voice list asynchronously and reports an
       // empty one until it has: a single retry turns "no voices found" into
       // the real list on the web build.
       if (voices.isEmpty) {
         await Future<void>.delayed(const Duration(milliseconds: 600));
-        voices = await _engine.availableVoices();
+        voices = await engine.availableVoices();
       }
     } catch (error) {
       debugPrint('sepia: could not list voices: $error');
@@ -586,15 +590,16 @@ class _SettingsSheetState extends State<SettingsSheet> {
 
   Future<void> _previewVoice() async {
     final sample = context.l10n.ttsPreviewText;
+    final engine = _engine;
     try {
-      await _engine.stop();
-      await _engine.prepare();
-      await _engine.configure(
+      await engine.stop();
+      await engine.prepare();
+      await engine.configure(
         voiceId: _draft.ttsVoiceId.isEmpty ? null : _draft.ttsVoiceId,
         rate: _draft.ttsRate,
         pitch: _draft.ttsPitch,
       );
-      await _engine.speak(sample);
+      await engine.speak(sample);
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
