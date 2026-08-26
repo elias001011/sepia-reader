@@ -88,13 +88,32 @@ class SystemTtsEngine extends TtsEngine {
   }) async {
     await prepare();
     final tts = _tts!;
+    var selected = false;
     if (voiceId != null && voiceId.contains('::')) {
       final parts = voiceId.split('::');
       try {
         await tts.setVoice({'name': parts[0], 'locale': parts[1]});
         await tts.setLanguage(parts[1]);
+        selected = true;
       } catch (error) {
         debugPrint('sepia: could not select voice $voiceId: $error');
+      }
+    }
+    if (!selected) {
+      // Without a language the engine has nothing to speak with, and
+      // "nothing happened" is what that looks like from the outside. Ask for
+      // the device's own, and fall back to whatever the engine will accept.
+      final wanted = PlatformDispatcher.instance.locale.toLanguageTag();
+      for (final candidate in [wanted, 'pt-BR', 'en-US']) {
+        try {
+          final available = await tts.isLanguageAvailable(candidate);
+          if (available == true) {
+            await tts.setLanguage(candidate);
+            break;
+          }
+        } catch (error) {
+          debugPrint('sepia: language $candidate unavailable: $error');
+        }
       }
     }
     // Android's own scale is 0.0-1.0 with 0.5 as normal speed, while iOS,
@@ -112,6 +131,12 @@ class SystemTtsEngine extends TtsEngine {
     if (text.trim().isEmpty) return;
     await prepare();
     _finishUtterance();
+    // Android's engine drops an utterance handed to it in the same beat as
+    // a stop. A tick is enough for it to have settled, and is imperceptible.
+    if (_stoppedAt != null &&
+        DateTime.now().difference(_stoppedAt!) < const Duration(milliseconds: 60)) {
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+    }
     final completer = Completer<void>();
     _utterance = completer;
     await _tts!.speak(text);
@@ -134,9 +159,12 @@ class SystemTtsEngine extends TtsEngine {
     milliseconds: 4000 + text.length * 220,
   );
 
+  DateTime? _stoppedAt;
+
   @override
   Future<void> stop() async {
     await _tts?.stop();
+    _stoppedAt = DateTime.now();
     _finishUtterance();
   }
 
