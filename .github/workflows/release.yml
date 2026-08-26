@@ -30,6 +30,22 @@ jobs:
             exit 1
           fi
 
+      - name: Restore Android signing keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo '::warning::No KEYSTORE_BASE64 secret — APKs will be signed with debug key'
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > android/app/release-keystore.jks
+          cat > android/key.properties <<EOF
+          storePassword=${{ secrets.KEY_STORE_PASSWORD }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          storeFile=release-keystore.jks
+          EOF
+
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test

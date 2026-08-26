@@ -1525,6 +1525,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Version {version} installed.'**
   String updateInstalled(String version);
+
+  /// No description provided for @chapterNavigation.
+  ///
+  /// In en, this message translates to:
+  /// **'Chapters'**
+  String get chapterNavigation;
+
+  /// No description provided for @chapterNavigationHere.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue reading here'**
+  String get chapterNavigationHere;
+
+  /// No description provided for @chapterSeparatorToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Chapter separator'**
+  String get chapterSeparatorToggle;
 }
 
 class _AppLocalizationsDelegate

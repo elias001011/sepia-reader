@@ -906,4 +906,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String updateInstalled(String version) {
     return 'Version $version installed.';
   }
+
+  @override
+  String get chapterNavigation => 'Chapters';
+
+  @override
+  String get chapterNavigationHere => 'Continue reading here';
+
+  @override
+  String get chapterSeparatorToggle => 'Chapter separator';
 }
