@@ -46,14 +46,21 @@ http.Client fakeClient({
   });
 }
 
-const testVoice = NeuralVoice(
+const testPack = VoicePack(
   id: 'piper/test',
   label: 'Teste',
-  language: 'pt-BR',
   kind: NeuralVoiceKind.piper,
   repo: 'fake/voice',
   approxBytes: 6000,
   modelFile: 'model.onnx',
+  voices: [
+    NeuralVoice(
+      id: 'piper/test',
+      label: 'Teste',
+      language: 'pt-BR',
+      speakerId: 0,
+    ),
+  ],
 );
 
 void main() {
@@ -79,13 +86,13 @@ void main() {
 
   test('instala todos os arquivos e marca a voz como instalada', () async {
     final store = VoiceStore(client: fakeClient());
-    expect(await store.isInstalled(testVoice), isFalse);
+    expect(await store.isInstalled(testPack), isFalse);
 
     final seen = <VoiceInstallProgress>[];
-    await store.install(testVoice, onProgress: seen.add);
+    await store.install(testPack, onProgress: seen.add);
 
-    expect(await store.isInstalled(testVoice), isTrue);
-    final dir = await store.voiceDirectory(testVoice);
+    expect(await store.isInstalled(testPack), isTrue);
+    final dir = await store.packDirectory(testPack);
     for (final entry in _files.entries) {
       final file = File('${dir.path}/${entry.key}');
       expect(file.existsSync(), isTrue, reason: 'faltou ${entry.key}');
@@ -99,12 +106,12 @@ void main() {
   test('reinstalar não baixa de novo o que já está certo', () async {
     final firstFetches = <String>[];
     await VoiceStore(client: fakeClient(onFetch: firstFetches.add))
-        .install(testVoice);
+        .install(testPack);
     expect(firstFetches.toSet(), _files.keys.toSet());
 
     final secondFetches = <String>[];
     await VoiceStore(client: fakeClient(onFetch: secondFetches.add))
-        .install(testVoice);
+        .install(testPack);
     expect(
       secondFetches,
       isEmpty,
@@ -114,14 +121,14 @@ void main() {
 
   test('arquivo truncado é rebaixado em vez de aceito', () async {
     final store = VoiceStore(client: fakeClient());
-    await store.install(testVoice);
-    final dir = await store.voiceDirectory(testVoice);
+    await store.install(testPack);
+    final dir = await store.packDirectory(testPack);
     final model = File('${dir.path}/model.onnx');
     model.writeAsBytesSync(List<int>.filled(10, 0));
 
     final fetches = <String>[];
     await VoiceStore(client: fakeClient(onFetch: fetches.add))
-        .install(testVoice);
+        .install(testPack);
     expect(fetches, contains('model.onnx'));
     expect(model.lengthSync(), _files['model.onnx']!.length);
   });
@@ -129,14 +136,14 @@ void main() {
   test('uma falha de rede não deixa arquivo pela metade', () async {
     final store = VoiceStore(client: fakeClient(failOnce: {'model.onnx'}));
     await expectLater(
-      store.install(testVoice),
+      store.install(testPack),
       throwsA(isA<HttpException>()),
     );
-    final dir = await store.voiceDirectory(testVoice);
+    final dir = await store.packDirectory(testPack);
     expect(File('${dir.path}/model.onnx').existsSync(), isFalse);
     expect(File('${dir.path}/model.onnx.part').existsSync(), isFalse);
     expect(
-      await store.isInstalled(testVoice),
+      await store.isInstalled(testPack),
       isFalse,
       reason: 'sem manifesto, uma instalação incompleta não conta como pronta',
     );
@@ -145,32 +152,67 @@ void main() {
   test('cancelar interrompe e a voz não fica instalada', () async {
     final store = VoiceStore(client: fakeClient());
     await expectLater(
-      store.install(testVoice, shouldCancel: () => true),
+      store.install(testPack, shouldCancel: () => true),
       throwsA(isA<VoiceInstallCancelled>()),
     );
-    expect(await store.isInstalled(testVoice), isFalse);
+    expect(await store.isInstalled(testPack), isFalse);
   });
 
   test('remover apaga tudo do aparelho', () async {
     final store = VoiceStore(client: fakeClient());
-    await store.install(testVoice);
-    expect(await store.installedSize(testVoice), greaterThan(0));
+    await store.install(testPack);
+    expect(await store.installedSize(testPack), greaterThan(0));
 
-    await store.remove(testVoice);
+    await store.remove(testPack);
 
-    expect(await store.isInstalled(testVoice), isFalse);
-    expect((await store.voiceDirectory(testVoice)).existsSync(), isFalse);
+    expect(await store.isInstalled(testPack), isFalse);
+    expect((await store.packDirectory(testPack)).existsSync(), isFalse);
   });
 
-  test('vozes que compartilham o modelo compartilham a instalação', () {
-    final kokoro = neuralVoices.where((v) => v.isKokoro).toList();
-    expect(kokoro, hasLength(3));
-    expect(kokoro.map((v) => v.repo).toSet(), hasLength(1));
-    expect(voicesSharing(kokoro.first), hasLength(3));
-    // Distinct speakers inside that one model.
-    expect(kokoro.map((v) => v.speakerId).toSet(), {42, 43, 44});
-    // And a Piper voice shares with nobody.
-    final piper = neuralVoices.firstWhere((v) => !v.isKokoro);
-    expect(voicesSharing(piper), hasLength(1));
+  test('o Kokoro é um download só, com várias vozes dentro', () {
+    final kokoro = voicePacks.where((pack) => pack.isKokoro).toList();
+    expect(
+      kokoro,
+      hasLength(1),
+      reason: 'um modelo de 400 MB não pode aparecer uma vez por voz',
+    );
+    expect(kokoro.single.voices.length, greaterThan(3));
+    // The Brazilian speakers, at the ids sherpa-onnx packed them at.
+    final brazilian = kokoro.single.voices
+        .where((voice) => voice.language == 'pt-BR')
+        .toList();
+    expect(brazilian.map((voice) => voice.speakerId).toSet(), {42, 43, 44});
+    // Every speaker id is distinct, or two voices would sound identical.
+    final ids = kokoro.single.voices.map((voice) => voice.speakerId).toList();
+    expect(ids.toSet().length, ids.length);
+  });
+
+  test('cada pacote Piper é uma voz só', () {
+    for (final pack in voicePacks.where((pack) => !pack.isKokoro)) {
+      expect(pack.voices, hasLength(1), reason: pack.id);
+      expect(pack.voices.single.speakerId, 0, reason: pack.id);
+    }
+  });
+
+  test('nenhum identificador de voz se repete no catálogo', () {
+    final ids = allNeuralVoices.map((voice) => voice.id).toList();
+    expect(ids.toSet().length, ids.length);
+    for (final id in ids) {
+      expect(resolveVoice(id), isNotNull);
+    }
+    expect(resolveVoice('nada/disso'), isNull);
+  });
+
+  test('todo pacote tem repositório e arquivo de modelo próprios', () {
+    final repos = <String>{};
+    for (final pack in voicePacks) {
+      expect(pack.repo, isNotEmpty, reason: pack.id);
+      expect(pack.modelFile, endsWith('.onnx'), reason: pack.id);
+      expect(pack.voices, isNotEmpty, reason: pack.id);
+      expect(repos.add(pack.repo), isTrue, reason: 'repo repetido: ${pack.repo}');
+      if (pack.isKokoro) {
+        expect(pack.voicesFile, isNotNull, reason: pack.id);
+      }
+    }
   });
 }

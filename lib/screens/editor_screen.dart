@@ -5,6 +5,7 @@ import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../l10n/l10n.dart';
 import '../models/bookmark.dart';
+import '../models/app_settings.dart';
 import '../models/library_document.dart';
 import '../services/document_io.dart';
 import '../services/document_kind.dart';
@@ -18,6 +19,7 @@ import '../services/tts/voice_catalog.dart';
 import '../services/tts/voice_store.dart';
 import '../state/app_controller.dart';
 import '../widgets/markdown_view.dart';
+import '../widgets/sheet_scaffold.dart';
 import 'bookmarks_sheet.dart';
 import 'listen_sheet.dart';
 import 'reader_settings_sheet.dart';
@@ -58,7 +60,14 @@ class _EditorScreenState extends State<EditorScreen> {
   Timer? _previewTimer;
   Timer? _readerControlsTimer;
   bool _readingMode = false;
-  bool _readerControlsVisible = true;
+  /// Reader chrome visibility, as a notifier rather than as state.
+  ///
+  /// It used to be a plain field flipped with setState, which rebuilt the
+  /// whole reader — including the document — every time the controls faded
+  /// in or out or the auto-hide timer fired. On a 180 kB document that
+  /// rebuild measured ~18 ms, so simply tapping the screen cost most of a
+  /// frame. Only the chrome listens to this now.
+  final ValueNotifier<bool> _readerControls = ValueNotifier(true);
   bool _showPreview = false;
   String? _activeBookmarkPopupId;
 
@@ -133,6 +142,7 @@ class _EditorScreenState extends State<EditorScreen> {
     _statsTimer?.cancel();
     _previewTimer?.cancel();
     _readerControlsTimer?.cancel();
+    _readerControls.dispose();
     _tts?.dispose();
     if (_dirty.value) unawaited(_save());
     widget.controller.removeListener(_refresh);
@@ -297,13 +307,26 @@ class _EditorScreenState extends State<EditorScreen> {
   TtsEngine _buildEngine() {
     final settings = widget.controller.settings;
     if (settings.ttsEngine == 'neural' && _voiceStore.isSupported) {
-      final voice = neuralVoiceById(settings.ttsNeuralVoiceId);
-      if (voice != null) {
-        return NeuralTtsEngine(voice: voice, store: _voiceStore);
+      final resolved = resolveVoice(settings.ttsNeuralVoiceId);
+      if (resolved != null) {
+        return NeuralTtsEngine(
+          pack: resolved.pack,
+          voice: resolved.voice,
+          store: _voiceStore,
+        );
       }
     }
-    return SystemTtsEngine();
+    return SystemTtsEngine(preferredLanguage: _preferredLanguage(settings));
   }
+
+  /// The app's own language choice as a BCP-47 tag, or null when it follows
+  /// the system and the device's own answer should win.
+  static String? _preferredLanguage(AppSettings settings) =>
+      switch (settings.localeCode) {
+        'pt_BR' => 'pt-BR',
+        'en' => 'en-US',
+        _ => null,
+      };
 
   String get _wantedEngineKey {
     final settings = widget.controller.settings;
@@ -330,7 +353,8 @@ class _EditorScreenState extends State<EditorScreen> {
   /// that is not the one on screen, scroll to it.
   void _onSpeechChanged() {
     if (!mounted) return;
-    setState(() {});
+    // No setState: the player bar listens to the controller itself. Calling
+    // it here would rebuild the whole document once per sentence.
     final controller = _tts;
     if (controller == null || !controller.isPlaying) return;
     final target = controller.currentChunkIndex;
@@ -355,10 +379,8 @@ class _EditorScreenState extends State<EditorScreen> {
     final document = _readerDocument;
     final sections = sectionsOf(document);
     final here = _topVisibleChunk?.index;
-    await showModalBottomSheet<void>(
+    await showAppSheet<void>(
       context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
       builder: (sheetContext) => ListenSheet(
         sections: sections,
         currentChunkIndex: here,
@@ -376,6 +398,9 @@ class _EditorScreenState extends State<EditorScreen> {
   ) async {
     final settings = widget.controller.settings;
     await _ensureEngine();
+    // One rebuild, to put the player bar's listener into the tree. Every
+    // update after this comes through the listener instead.
+    if (mounted) setState(() {});
 
     Future<void> run() => _speech.start(
       document: document,
@@ -422,10 +447,8 @@ class _EditorScreenState extends State<EditorScreen> {
 
   void _enterReadingMode() {
     FocusScope.of(context).unfocus();
-    setState(() {
-      _readingMode = true;
-      _readerControlsVisible = true;
-    });
+    _readerControls.value = true;
+    setState(() => _readingMode = true);
     _scheduleReaderControlsHide();
   }
 
@@ -480,10 +503,8 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 
   void _openBookmarksSheet() {
-    showModalBottomSheet<void>(
+    showAppSheet<void>(
       context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
       builder: (sheetContext) => BookmarksSheet(
         bookmarks: widget.controller.bookmarksForDocument(widget.documentId),
         onOpen: (bookmark) {
@@ -1033,36 +1054,41 @@ class _EditorScreenState extends State<EditorScreen> {
                   },
                 ),
               ),
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              height: safeTop + 52,
-              child: IgnorePointer(
-                ignoring: _readerControlsVisible,
-                child: GestureDetector(
-                  key: const ValueKey('reader-controls-reveal-area'),
-                  behavior: HitTestBehavior.opaque,
-                  onTap: _showReaderControls,
-                ),
-              ),
-            ),
-            Positioned(
-              top: safeTop + (compact ? 7 : 12),
-              left: compact ? 10 : 16,
-              right: compact ? 10 : 16,
-              child: AnimatedSlide(
+            // Only this subtree listens to the chrome's visibility, so
+            // showing and hiding the controls no longer rebuilds the
+            // document underneath them.
+            ValueListenableBuilder<bool>(
+              valueListenable: _readerControls,
+              builder: (context, visible, controls) => Stack(
+                children: [
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: safeTop + 52,
+                    child: IgnorePointer(
+                      ignoring: visible,
+                      child: GestureDetector(
+                        key: const ValueKey('reader-controls-reveal-area'),
+                        behavior: HitTestBehavior.opaque,
+                        onTap: _showReaderControls,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: safeTop + (compact ? 7 : 12),
+                    left: compact ? 10 : 16,
+                    right: compact ? 10 : 16,
+                    child: AnimatedSlide(
                 duration: const Duration(milliseconds: 180),
                 curve: Curves.easeOut,
-                offset: _readerControlsVisible
-                    ? Offset.zero
-                    : const Offset(0, -.7),
+                offset: visible ? Offset.zero : const Offset(0, -.7),
                 child: AnimatedOpacity(
                   key: const ValueKey('reader-controls'),
                   duration: const Duration(milliseconds: 160),
-                  opacity: _readerControlsVisible ? 1 : 0,
+                  opacity: visible ? 1 : 0,
                   child: IgnorePointer(
-                    ignoring: !_readerControlsVisible,
+                    ignoring: !visible,
                     child: Row(
                       children: [
                         _readerButton(
@@ -1136,13 +1162,24 @@ class _EditorScreenState extends State<EditorScreen> {
                   ),
                 ),
               ),
+                  ),
+                ],
+              ),
             ),
-            if (_tts?.isActive ?? false)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: _playerBar(context, compact),
+            // The player bar listens to the speech controller directly, so
+            // moving from one sentence to the next redraws the bar and
+            // nothing else.
+            if (_tts case final speech?)
+              ListenableBuilder(
+                listenable: speech,
+                builder: (context, _) => speech.isActive
+                    ? Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: _playerBar(context, compact),
+                      )
+                    : const SizedBox.shrink(),
               ),
           ],
         );
@@ -1356,8 +1393,8 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 
   void _showReaderControls() {
-    if (!_readerControlsVisible) {
-      setState(() => _readerControlsVisible = true);
+    if (!_readerControls.value) {
+      _readerControls.value = true;
     }
     _scheduleReaderControlsHide();
   }
@@ -1368,8 +1405,8 @@ class _EditorScreenState extends State<EditorScreen> {
     _readerControlsTimer?.cancel();
     if (!widget.controller.settings.autoHideReaderControls) return;
     _readerControlsTimer = Timer(delay, () {
-      if (mounted && _readingMode && _readerControlsVisible) {
-        setState(() => _readerControlsVisible = false);
+      if (mounted && _readingMode && _readerControls.value) {
+        _readerControls.value = false;
       }
     });
   }
@@ -1380,10 +1417,8 @@ class _EditorScreenState extends State<EditorScreen> {
     // speaking over the editor, and nothing should stay loaded for a
     // document the user is no longer reading.
     unawaited(_tts?.release());
-    setState(() {
-      _readingMode = false;
-      _readerControlsVisible = true;
-    });
+    _readerControls.value = true;
+    setState(() => _readingMode = false);
   }
 
   void _wrap(String before, String after, String placeholder) {
@@ -1456,10 +1491,9 @@ class _EditorScreenState extends State<EditorScreen> {
     }
   }
 
-  void _openReaderSettings() => showModalBottomSheet<void>(
+  void _openReaderSettings() => showAppSheet<void>(
     context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
+    enableDrag: false,
     builder: (_) => ReaderSettingsSheet(controller: widget.controller),
   );
 }

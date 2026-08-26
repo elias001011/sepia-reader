@@ -437,6 +437,92 @@
   "ttsTierLight": "Light",
   "ttsTierBest": "Best",
   "ttsTierLightHint": "Piper · runs well on any device",
-  "ttsTierBestHint": "Kokoro · more natural, wants more space and memory",
-  "ttsFellBackToSystem": "The neural voice could not be used right now; reading with the system voice."
+  "ttsTierBestHint": "Kokoro · one model with many voices and languages, more natural, but wants plenty of space and memory",
+  "ttsFellBackToSystem": "The neural voice could not be used right now; reading with the system voice.",
+  "ttsVoiceQueued": "Queued…",
+  "ttsVoiceCount": "{count, plural, =1{1 voice} other{{count} voices}}",
+  "@ttsVoiceCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "unsavedTitle": "Leave without saving?",
+  "unsavedBody": "You changed something here and have not saved it.",
+  "unsavedSaveAndLeave": "Save and leave",
+  "unsavedDiscard": "Leave without saving",
+  "interfaceScale": "Interface size",
+  "interfaceScaleDescription": "Makes everything bigger or smaller: text, buttons and spacing.",
+  "interfaceScaleReset": "Back to default",
+  "updateSection": "Updates",
+  "updateCheckAutomatically": "Check for updates on launch",
+  "updateCheckAutomaticallyDescription": "Asks GitHub releases when there is internet. Nothing is downloaded on its own.",
+  "updateAvailable": "Sépia {version} available",
+  "@updateAvailable": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "updateCurrent": "You are on {version}, the latest.",
+  "@updateCurrent": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "updateCheckNow": "Check now",
+  "updateChecking": "Checking…",
+  "updateFailed": "Could not check for updates: {error}",
+  "@updateFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "updateOpen": "View the release",
+  "updateDownload": "Download APK",
+  "updateLater": "Not now",
+  "updateWebHint": "This is the web build: the server hosting it is what updates.",
+  "updateNotes": "What's new",
+  "voiceDownloadRunning": "Downloading {name} · {percent}%",
+  "@voiceDownloadRunning": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "voiceDownloadQueued": "{count, plural, =1{1 more queued} other{{count} more queued}}",
+  "@voiceDownloadQueued": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "voiceDownloadBackgroundHint": "You can close settings: the download keeps going while the app is open.",
+  "updateOpenFailed": "Could not open the link. It is: {url}",
+  "@updateOpenFailed": {
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "updateInstalled": "Version {version} installed.",
+  "@updateInstalled": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  }
 }

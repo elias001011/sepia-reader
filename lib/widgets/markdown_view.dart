@@ -13,84 +13,171 @@ import '../services/document_kind.dart';
 /// bookmarks. An index into this list is stable regardless of how much of
 /// the list has actually been laid out, unlike a scroll-pixel fraction — see
 /// [splitMarkdownBlocks] and [splitPlainTextChunks] for why that matters.
-List<String> chunksForDocument(LibraryDocument document) =>
-    document.isMarkdown
-    ? splitMarkdownBlocks(document.content)
-    : splitPlainTextChunks(document.content);
+List<String> chunksForDocument(LibraryDocument document) {
+  final cached = _chunkCache;
+  if (cached != null &&
+      cached.markdown == document.isMarkdown &&
+      identical(cached.content, document.content)) {
+    return cached.chunks;
+  }
+  final chunks = document.isMarkdown
+      ? splitMarkdownBlocks(document.content)
+      : splitPlainTextChunks(document.content);
+  _chunkCache = (
+    content: document.content,
+    markdown: document.isMarkdown,
+    chunks: chunks,
+  );
+  return chunks;
+}
+
+/// Last split, kept because splitting is a full pass over the document and
+/// the same one is asked for repeatedly: once per reader rebuild, again to
+/// place a bookmark, again to build a chapter's utterances. On a 180 kB
+/// document that pass costs about 4 ms, which is most of a frame's budget
+/// to spend on an answer that has not changed.
+///
+/// Keyed by identity rather than equality on purpose — comparing two 180 kB
+/// strings would cost as much as redoing the work.
+///
+/// One entry, deliberately: the reader shows one document at a time, and a
+/// cache that grew would keep every document ever opened alive in memory.
+({String content, bool markdown, List<String> chunks})? _chunkCache;
+
+/// Drops the cached split and link definitions.
+///
+/// Nothing in the app needs this — the entries are replaced as soon as
+/// another document is rendered — but a test that measures splitting must
+/// be able to start from a known state rather than from whatever the
+/// previous test in the file left behind.
+@visibleForTesting
+void clearMarkdownCaches() {
+  _chunkCache = null;
+  _definitionCache = null;
+}
+
+/// Same reasoning for the link definitions, which are also a full pass and
+/// are needed on every reader rebuild.
+({String content, String definitions})? _definitionCache;
 
 final _fence = RegExp(r'^(```|~~~)');
-final _listOrQuote = RegExp(r'^(\s*([-*+]|\d+[.)])\s+|\s*>)');
+final _listItem = RegExp(r'^\s*([-*+]|\d+[.)])\s+');
+final _quoteLine = RegExp(r'^\s*>');
+final _indented = RegExp(r'^(\s{2,}|\t)');
 
-/// Splits markdown source into block-level chunks separated by blank lines,
-/// without ever cutting inside a fenced code block, and without treating a
-/// blank line inside a loose list or a multi-paragraph blockquote as a real
-/// separator (a line before or after the blank that looks like a list/quote
-/// continuation keeps the block together).
+/// What kind of block a line opens, for deciding what may continue it.
+enum _BlockKind { list, quote, other }
+
+_BlockKind _kindOf(String line) {
+  if (_quoteLine.hasMatch(line)) return _BlockKind.quote;
+  if (_listItem.hasMatch(line)) return _BlockKind.list;
+  return _BlockKind.other;
+}
+
+/// Splits markdown source into block-level chunks separated by blank lines.
+///
+/// Three things have to survive the split, and each one was learned the hard
+/// way from a document that used them together:
+///
+///  * a fenced code block is never cut, and a fence indented inside a list
+///    item stays with that item rather than becoming a block of its own;
+///  * a blank line inside a loose list or a multi-paragraph quote is not a
+///    real separator — but only the *same* kind continues, so a list
+///    followed by a quote, or a heading followed by a list, still separate;
+///  * everything else splits on the blank line, so the reader can build one
+///    block at a time.
 List<String> splitMarkdownBlocks(String content) {
   final lines = content.split('\n');
   final blocks = <String>[];
   final current = <String>[];
   var inFence = false;
   String? fenceMarker;
+  var fenceIsIndented = false;
   var pendingBlanks = 0;
+  var blockKind = _BlockKind.other;
 
   void flush() {
     if (current.isNotEmpty) {
       blocks.add(current.join('\n'));
       current.clear();
+      blockKind = _BlockKind.other;
     }
   }
 
+  /// The last line that actually carries content, which is what decides
+  /// whether the block can keep going across a blank line.
+  String lastMeaningful() => current.lastWhere(
+    (candidate) => candidate.trim().isNotEmpty,
+    orElse: () => '',
+  );
+
   for (final line in lines) {
-    final fenceMatch = _fence.firstMatch(line.trimLeft());
-    if (fenceMatch != null &&
-        (!inFence || line.trimLeft().startsWith(fenceMarker!))) {
-      // A code fence opening after a blank line starts its own block. This
-      // used to fall through to `pendingBlanks = 0`, which swallowed the
-      // separator and glued the fence onto whatever came before it — so a
-      // "## Blocks of code" heading and the code under it became one
-      // indivisible chunk.
-      if (!inFence && pendingBlanks > 0) flush();
-      inFence = !inFence;
-      fenceMarker = inFence ? fenceMatch.group(1) : null;
-      current.add(line);
-      pendingBlanks = 0;
-      if (!inFence) flush();
-      continue;
-    }
+    final trimmedLeft = line.trimLeft();
+    final fenceMatch = _fence.firstMatch(trimmedLeft);
+
     if (inFence) {
       current.add(line);
+      if (fenceMatch != null && trimmedLeft.startsWith(fenceMarker!)) {
+        inFence = false;
+        fenceMarker = null;
+        // A fence that belongs to a list item leaves the item open; a
+        // top-level one ends its block right here.
+        if (!(fenceIsIndented && blockKind == _BlockKind.list)) flush();
+      }
       continue;
     }
+
+    if (fenceMatch != null) {
+      final indented = line.length != trimmedLeft.length;
+      // A fence opening after a blank line starts its own block — unless it
+      // is indented under a list item that is still open, in which case it
+      // is part of that item.
+      if (pendingBlanks > 0) {
+        if (indented && blockKind == _BlockKind.list) {
+          current.addAll(List.filled(pendingBlanks, ''));
+        } else {
+          flush();
+        }
+      }
+      pendingBlanks = 0;
+      if (current.isEmpty) blockKind = _kindOf(line);
+      fenceIsIndented = indented;
+      inFence = true;
+      fenceMarker = fenceMatch.group(1);
+      current.add(line);
+      continue;
+    }
+
     if (line.trim().isEmpty) {
       pendingBlanks++;
       continue;
     }
+
     if (pendingBlanks > 0) {
-      // Both sides of the blank line get a say. The line *after* must look
-      // like a list/quote marker or an indented continuation, and the block
-      // *before* must already be a list or quote — otherwise a heading or a
-      // paragraph followed by a list swallowed the list into itself, which
-      // is how "### Unordered" and every bullet under it ended up as one
-      // indivisible chunk with no spacing between them.
-      final previous = current.lastWhere(
-        (candidate) => candidate.trim().isNotEmpty,
-        orElse: () => '',
-      );
-      final continues =
-          (_listOrQuote.hasMatch(previous) ||
-              previous.startsWith('  ') ||
-              previous.startsWith('\t')) &&
-          (_listOrQuote.hasMatch(line) ||
-              line.startsWith('  ') ||
-              line.startsWith('\t'));
-      if (!continues) {
-        flush();
-      } else {
+      final previous = lastMeaningful();
+      final previousKind = previous.isEmpty ? blockKind : _kindOf(previous);
+      final continues = switch (blockKind) {
+        // An indented line under a list is a continuation paragraph of the
+        // item it sits under; another marker is the next item.
+        _BlockKind.list =>
+          (previousKind == _BlockKind.list || _indented.hasMatch(previous)) &&
+              (_listItem.hasMatch(line) || _indented.hasMatch(line)),
+        _BlockKind.quote => _quoteLine.hasMatch(line),
+        // An indented code block keeps going across a blank line, as long
+        // as what follows is still indented: splitting there rendered one
+        // block of code as two boxes with a gap between them.
+        _BlockKind.other =>
+          _indented.hasMatch(previous) && _indented.hasMatch(line),
+      };
+      if (continues) {
         current.addAll(List.filled(pendingBlanks, ''));
+      } else {
+        flush();
       }
       pendingBlanks = 0;
     }
+
+    if (current.isEmpty) blockKind = _kindOf(line);
     current.add(line);
   }
   flush();
@@ -138,6 +225,16 @@ final _mathBlock = RegExp(r'^\s*\$\$[\s\S]*\$\$\s*$');
 /// chunk puts them back within reach — they render as nothing on their own,
 /// so the cost is only in the parse.
 String collectLinkDefinitions(String content) {
+  final cached = _definitionCache;
+  if (cached != null && identical(cached.content, content)) {
+    return cached.definitions;
+  }
+  final result = _scanLinkDefinitions(content);
+  _definitionCache = (content: content, definitions: result);
+  return result;
+}
+
+String _scanLinkDefinitions(String content) {
   final definitions = <String>[];
   for (final line in content.split('\n')) {
     if (_linkDefinition.hasMatch(line)) definitions.add(line.trim());

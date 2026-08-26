@@ -9,6 +9,8 @@ import 'package:sepia_reader/models/folder_import.dart';
 import 'package:sepia_reader/services/folder_import_rules.dart';
 import 'package:sepia_reader/state/app_controller.dart';
 
+import 'support/offline_updates.dart';
+
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({
@@ -19,7 +21,7 @@ void main() {
   });
 
   test('cria, renomeia e move documentos entre pasta e raiz', () async {
-    final controller = AppController();
+    final controller = AppController(updateChecker: offlineUpdateChecker());
     await controller.initialize();
     final folder = await controller.createFolder(name: 'Fics');
     final document = await controller.createDocument(
@@ -41,7 +43,7 @@ void main() {
       contains(document.id),
     );
 
-    final restored = AppController();
+    final restored = AppController(updateChecker: offlineUpdateChecker());
     await restored.initialize();
     expect(restored.folderById(folder.id)?.name, 'Leituras');
     expect(restored.documentById(document.id)?.title, 'Capítulo revisado');
@@ -49,7 +51,7 @@ void main() {
   });
 
   test('importa uma árvore de pastas preservando os caminhos', () async {
-    final controller = AppController();
+    final controller = AppController(updateChecker: offlineUpdateChecker());
     await controller.initialize();
     final imported = await controller.importFolder(
       FolderImportSelection(

@@ -437,6 +437,92 @@
   "ttsTierLight": "Leve",
   "ttsTierBest": "Melhor",
   "ttsTierLightHint": "Piper · roda bem em qualquer aparelho",
-  "ttsTierBestHint": "Kokoro · voz mais natural, pede mais espaço e memória",
-  "ttsFellBackToSystem": "A voz neural não pôde ser usada agora; lendo com a voz do sistema."
+  "ttsTierBestHint": "Kokoro · um único modelo com várias vozes e idiomas, mais natural, mas pede bastante espaço e memória",
+  "ttsFellBackToSystem": "A voz neural não pôde ser usada agora; lendo com a voz do sistema.",
+  "ttsVoiceQueued": "Na fila…",
+  "ttsVoiceCount": "{count, plural, =1{1 voz} other{{count} vozes}}",
+  "@ttsVoiceCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "unsavedTitle": "Sair sem salvar?",
+  "unsavedBody": "Você mudou algo aqui e ainda não salvou.",
+  "unsavedSaveAndLeave": "Salvar e sair",
+  "unsavedDiscard": "Sair sem salvar",
+  "interfaceScale": "Tamanho da interface",
+  "interfaceScaleDescription": "Deixa tudo maior ou menor: textos, botões e espaçamentos.",
+  "interfaceScaleReset": "Voltar ao padrão",
+  "updateSection": "Atualizações",
+  "updateCheckAutomatically": "Procurar atualizações ao abrir",
+  "updateCheckAutomaticallyDescription": "Consulta as releases no GitHub quando há internet. Nada é baixado sozinho.",
+  "updateAvailable": "Sépia {version} disponível",
+  "@updateAvailable": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "updateCurrent": "Você está na versão {version}, a mais recente.",
+  "@updateCurrent": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "updateCheckNow": "Procurar agora",
+  "updateChecking": "Procurando…",
+  "updateFailed": "Não deu para consultar as atualizações: {error}",
+  "@updateFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "updateOpen": "Ver a release",
+  "updateDownload": "Baixar APK",
+  "updateLater": "Agora não",
+  "updateWebHint": "Esta é a versão web: quem atualiza é o servidor que a hospeda.",
+  "updateNotes": "Novidades",
+  "voiceDownloadRunning": "Baixando {name} · {percent}%",
+  "@voiceDownloadRunning": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "voiceDownloadQueued": "{count, plural, =1{mais 1 na fila} other{mais {count} na fila}}",
+  "@voiceDownloadQueued": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "voiceDownloadBackgroundHint": "Pode fechar as configurações: o download continua enquanto o app estiver aberto.",
+  "updateOpenFailed": "Não foi possível abrir o link. Ele é: {url}",
+  "@updateOpenFailed": {
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "updateInstalled": "Versão {version} instalada.",
+  "@updateInstalled": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  }
 }

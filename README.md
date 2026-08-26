@@ -24,7 +24,7 @@ Leitor, biblioteca e editor de Markdown feito em Flutter. O Sépia foi pensado p
   - **Piper** (~80 MB) — voz neural que roda bem em qualquer aparelho;
   - **Kokoro** (~400 MB) — mais natural, para quem tem espaço e memória sobrando;
 - as duas neurais rodam offline no próprio aparelho via sherpa-onnx: nenhum texto sai do dispositivo, sem API e sem chave;
-- vozes baixadas sob demanda, com progresso, cancelamento, retomada de download interrompido e remoção;
+- vozes baixadas sob demanda, com progresso, cancelamento, retomada de download interrompido e remoção; o download continua se você fechar as configurações e fica visível na biblioteca;
 - a sintaxe do Markdown não é lida em voz alta — tabelas viram texto, código e diagramas são pulados.
 
 ### Escrever
@@ -47,6 +47,8 @@ Leitor, biblioteca e editor de Markdown feito em Flutter. O Sépia foi pensado p
 - tema Material 3 claro, escuro, AMOLED ou do sistema, com fundos claro e escuro personalizados;
 - opção para a leitura seguir integralmente as cores do app ou usar sua própria paleta;
 - interface localizada em português do Brasil e inglês, com opção de seguir o sistema;
+- tamanho da interface ajustável por barra, somando-se à escala de fonte do próprio sistema;
+- aviso de nova versão ao abrir, com link direto para o APK da arquitetura do aparelho — nada é baixado nem instalado sem você escolher;
 - versões web, Android e iOS a partir da mesma base Flutter (as vozes neurais são exclusivas das versões nativas).
 
 ## Branches

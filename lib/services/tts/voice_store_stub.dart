@@ -6,21 +6,26 @@ import 'voice_store_types.dart';
 /// Web stand-in: neural voices need native inference and a filesystem, so on
 /// the web this reports "unsupported" and the reader stays on the platform
 /// voice.
-class VoiceStore {
+class VoiceStore implements VoiceStorage {
   VoiceStore({http.Client? client});
 
+  @override
   bool get isSupported => false;
 
-  Future<bool> isInstalled(NeuralVoice voice) async => false;
+  @override
+  Future<bool> isInstalled(VoicePack pack) async => false;
 
-  Future<List<NeuralVoice>> installedVoices() async => const [];
+  @override
+  Future<List<VoicePack>> installedPacks() async => const [];
 
-  Future<int> installedSize(NeuralVoice voice) async => 0;
+  Future<int> installedSize(VoicePack pack) async => 0;
 
-  Future<void> remove(NeuralVoice voice) async {}
+  @override
+  Future<void> remove(VoicePack pack) async {}
 
+  @override
   Future<void> install(
-    NeuralVoice voice, {
+    VoicePack pack, {
     void Function(VoiceInstallProgress)? onProgress,
     bool Function()? shouldCancel,
   }) async =>

@@ -1355,7 +1355,7 @@ abstract class AppLocalizations {
   /// No description provided for @ttsTierBestHint.
   ///
   /// In en, this message translates to:
-  /// **'Kokoro · more natural, wants more space and memory'**
+  /// **'Kokoro · one model with many voices and languages, more natural, but wants plenty of space and memory'**
   String get ttsTierBestHint;
 
   /// No description provided for @ttsFellBackToSystem.
@@ -1363,6 +1363,168 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The neural voice could not be used right now; reading with the system voice.'**
   String get ttsFellBackToSystem;
+
+  /// No description provided for @ttsVoiceQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued…'**
+  String get ttsVoiceQueued;
+
+  /// No description provided for @ttsVoiceCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 voice} other{{count} voices}}'**
+  String ttsVoiceCount(int count);
+
+  /// No description provided for @unsavedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave without saving?'**
+  String get unsavedTitle;
+
+  /// No description provided for @unsavedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You changed something here and have not saved it.'**
+  String get unsavedBody;
+
+  /// No description provided for @unsavedSaveAndLeave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save and leave'**
+  String get unsavedSaveAndLeave;
+
+  /// No description provided for @unsavedDiscard.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave without saving'**
+  String get unsavedDiscard;
+
+  /// No description provided for @interfaceScale.
+  ///
+  /// In en, this message translates to:
+  /// **'Interface size'**
+  String get interfaceScale;
+
+  /// No description provided for @interfaceScaleDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Makes everything bigger or smaller: text, buttons and spacing.'**
+  String get interfaceScaleDescription;
+
+  /// No description provided for @interfaceScaleReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to default'**
+  String get interfaceScaleReset;
+
+  /// No description provided for @updateSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Updates'**
+  String get updateSection;
+
+  /// No description provided for @updateCheckAutomatically.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for updates on launch'**
+  String get updateCheckAutomatically;
+
+  /// No description provided for @updateCheckAutomaticallyDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Asks GitHub releases when there is internet. Nothing is downloaded on its own.'**
+  String get updateCheckAutomaticallyDescription;
+
+  /// No description provided for @updateAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Sépia {version} available'**
+  String updateAvailable(String version);
+
+  /// No description provided for @updateCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'You are on {version}, the latest.'**
+  String updateCurrent(String version);
+
+  /// No description provided for @updateCheckNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Check now'**
+  String get updateCheckNow;
+
+  /// No description provided for @updateChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking…'**
+  String get updateChecking;
+
+  /// No description provided for @updateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not check for updates: {error}'**
+  String updateFailed(String error);
+
+  /// No description provided for @updateOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'View the release'**
+  String get updateOpen;
+
+  /// No description provided for @updateDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Download APK'**
+  String get updateDownload;
+
+  /// No description provided for @updateLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get updateLater;
+
+  /// No description provided for @updateWebHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This is the web build: the server hosting it is what updates.'**
+  String get updateWebHint;
+
+  /// No description provided for @updateNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s new'**
+  String get updateNotes;
+
+  /// No description provided for @voiceDownloadRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading {name} · {percent}%'**
+  String voiceDownloadRunning(String name, int percent);
+
+  /// No description provided for @voiceDownloadQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 more queued} other{{count} more queued}}'**
+  String voiceDownloadQueued(int count);
+
+  /// No description provided for @voiceDownloadBackgroundHint.
+  ///
+  /// In en, this message translates to:
+  /// **'You can close settings: the download keeps going while the app is open.'**
+  String get voiceDownloadBackgroundHint;
+
+  /// No description provided for @updateOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the link. It is: {url}'**
+  String updateOpenFailed(String url);
+
+  /// No description provided for @updateInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'Version {version} installed.'**
+  String updateInstalled(String version);
 }
 
 class _AppLocalizationsDelegate
