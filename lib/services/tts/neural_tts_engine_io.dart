@@ -50,8 +50,16 @@ class _WorkerBootstrap {
 /// a Piper voice holds tens of megabytes and Kokoro several hundred, and none
 /// of that has any business being resident while somebody is only reading.
 class NeuralTtsEngine extends TtsEngine {
-  NeuralTtsEngine({required this.voice, required this.store});
+  NeuralTtsEngine({
+    required this.pack,
+    required this.voice,
+    required this.store,
+  });
 
+  /// The downloaded model this voice comes out of. For Piper the pack holds
+  /// exactly this voice; for Kokoro it holds dozens, and the voice is chosen
+  /// per utterance by speaker id.
+  final VoicePack pack;
   final NeuralVoice voice;
   final VoiceStore store;
 
@@ -81,15 +89,15 @@ class NeuralTtsEngine extends TtsEngine {
   bool get supportsPitch => false;
 
   @override
-  Future<bool> isAvailable() => store.isInstalled(voice);
+  Future<bool> isAvailable() => store.isInstalled(pack);
 
   @override
   Future<void> prepare() async {
     if (_toWorker != null) return;
-    if (!await store.isInstalled(voice)) {
+    if (!await store.isInstalled(pack)) {
       throw StateError('the voice ${voice.id} is not installed');
     }
-    final dir = await store.voiceDirectory(voice);
+    final dir = await store.packDirectory(pack);
     final scratch = Directory('${dir.path}/.audio');
     if (scratch.existsSync()) scratch.deleteSync(recursive: true);
     scratch.createSync(recursive: true);
@@ -135,22 +143,22 @@ class NeuralTtsEngine extends TtsEngine {
   /// the sherpa types have to cross the isolate boundary.
   Map<String, dynamic> _describeModel(String dirPath) {
     String at(String name) => '$dirPath/$name';
-    if (voice.isKokoro) {
+    if (pack.isKokoro) {
       return {
         'kind': 'kokoro',
-        'model': at(voice.modelFile),
-        'voices': at(voice.voicesFile!),
-        'tokens': at(voice.tokensFile),
-        'dataDir': at(voice.dataDir),
-        'lexicon': voice.lexicon.map(at).join(','),
-        'lang': voice.espeakLang,
+        'model': at(pack.modelFile),
+        'voices': at(pack.voicesFile!),
+        'tokens': at(pack.tokensFile),
+        'dataDir': at(pack.dataDir),
+        'lexicon': pack.lexicon.map(at).join(','),
+        'lang': voice.espeakLanguage,
       };
     }
     return {
       'kind': 'piper',
-      'model': at(voice.modelFile),
-      'tokens': at(voice.tokensFile),
-      'dataDir': at(voice.dataDir),
+      'model': at(pack.modelFile),
+      'tokens': at(pack.tokensFile),
+      'dataDir': at(pack.dataDir),
     };
   }
 

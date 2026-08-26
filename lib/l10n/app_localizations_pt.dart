@@ -788,9 +788,122 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get ttsTierBestHint =>
-      'Kokoro · voz mais natural, pede mais espaço e memória';
+      'Kokoro · um único modelo com várias vozes e idiomas, mais natural, mas pede bastante espaço e memória';
 
   @override
   String get ttsFellBackToSystem =>
       'A voz neural não pôde ser usada agora; lendo com a voz do sistema.';
+
+  @override
+  String get ttsVoiceQueued => 'Na fila…';
+
+  @override
+  String ttsVoiceCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count vozes',
+      one: '1 voz',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get unsavedTitle => 'Sair sem salvar?';
+
+  @override
+  String get unsavedBody => 'Você mudou algo aqui e ainda não salvou.';
+
+  @override
+  String get unsavedSaveAndLeave => 'Salvar e sair';
+
+  @override
+  String get unsavedDiscard => 'Sair sem salvar';
+
+  @override
+  String get interfaceScale => 'Tamanho da interface';
+
+  @override
+  String get interfaceScaleDescription =>
+      'Deixa tudo maior ou menor: textos, botões e espaçamentos.';
+
+  @override
+  String get interfaceScaleReset => 'Voltar ao padrão';
+
+  @override
+  String get updateSection => 'Atualizações';
+
+  @override
+  String get updateCheckAutomatically => 'Procurar atualizações ao abrir';
+
+  @override
+  String get updateCheckAutomaticallyDescription =>
+      'Consulta as releases no GitHub quando há internet. Nada é baixado sozinho.';
+
+  @override
+  String updateAvailable(String version) {
+    return 'Sépia $version disponível';
+  }
+
+  @override
+  String updateCurrent(String version) {
+    return 'Você está na versão $version, a mais recente.';
+  }
+
+  @override
+  String get updateCheckNow => 'Procurar agora';
+
+  @override
+  String get updateChecking => 'Procurando…';
+
+  @override
+  String updateFailed(String error) {
+    return 'Não deu para consultar as atualizações: $error';
+  }
+
+  @override
+  String get updateOpen => 'Ver a release';
+
+  @override
+  String get updateDownload => 'Baixar APK';
+
+  @override
+  String get updateLater => 'Agora não';
+
+  @override
+  String get updateWebHint =>
+      'Esta é a versão web: quem atualiza é o servidor que a hospeda.';
+
+  @override
+  String get updateNotes => 'Novidades';
+
+  @override
+  String voiceDownloadRunning(String name, int percent) {
+    return 'Baixando $name · $percent%';
+  }
+
+  @override
+  String voiceDownloadQueued(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'mais $count na fila',
+      one: 'mais 1 na fila',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get voiceDownloadBackgroundHint =>
+      'Pode fechar as configurações: o download continua enquanto o app estiver aberto.';
+
+  @override
+  String updateOpenFailed(String url) {
+    return 'Não foi possível abrir o link. Ele é: $url';
+  }
+
+  @override
+  String updateInstalled(String version) {
+    return 'Versão $version instalada.';
+  }
 }

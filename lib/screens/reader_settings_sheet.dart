@@ -1,9 +1,13 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../l10n/l10n.dart';
 import '../models/app_settings.dart';
 import '../state/app_controller.dart';
 import '../widgets/color_field.dart';
+import '../widgets/sheet_scaffold.dart';
 
 class ReaderSettingsSheet extends StatefulWidget {
   const ReaderSettingsSheet({super.key, required this.controller});
@@ -22,42 +26,74 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
     _draft = widget.controller.settings;
   }
 
+  /// Whether anything here differs from what is stored.
+  bool get _isDirty =>
+      jsonEncode(_draft.toJson()) !=
+      jsonEncode(widget.controller.settings.toJson());
+
+  Future<void> _apply() async {
+    await widget.controller.updateSettings(_draft);
+    if (mounted) Navigator.pop(context);
+  }
+
+  /// Closing with unsaved changes asks rather than silently discarding them.
+  Future<void> _requestClose() async {
+    if (!_isDirty) {
+      Navigator.pop(context);
+      return;
+    }
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(dialogContext.l10n.unsavedTitle),
+        content: Text(dialogContext.l10n.unsavedBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, 'cancel'),
+            child: Text(dialogContext.l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, 'discard'),
+            child: Text(dialogContext.l10n.unsavedDiscard),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, 'save'),
+            child: Text(dialogContext.l10n.unsavedSaveAndLeave),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || choice == null || choice == 'cancel') return;
+    if (choice == 'save') {
+      await _apply();
+      return;
+    }
+    if (mounted) Navigator.pop(context);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
-        child: Center(
-          // A fixed width, not a maximum: on any screen narrower than
-          // this the sheet overflowed and its right edge — switches,
-          // buttons, the close control — was simply cut off. Which is
-          // every phone, where this app is mostly used.
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        context.l10n.readerSettings,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close_rounded),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  context.l10n.readerSettingsDescription,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
+    return PopScope(
+      canPop: !_isDirty,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) unawaited(_requestClose());
+      },
+      child: SheetScaffold(
+        title: context.l10n.readerSettings,
+        description: context.l10n.readerSettingsDescription,
+        onClose: _requestClose,
+        footer: SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: _apply,
+            icon: const Icon(Icons.check_rounded),
+            label: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text(context.l10n.applyReading),
+            ),
+          ),
+        ),
+        children: [
                 const SizedBox(height: 10),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
@@ -196,25 +232,7 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: () async {
-                      await widget.controller.updateSettings(_draft);
-                      if (context.mounted) Navigator.pop(context);
-                    },
-                    icon: const Icon(Icons.check_rounded),
-                    label: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: Text(context.l10n.applyReading),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+        ],
       ),
     );
   }

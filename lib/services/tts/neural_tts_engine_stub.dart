@@ -6,8 +6,13 @@ import 'voice_store_stub.dart';
 /// engine where [VoiceStore.isSupported] — but it has to exist for the import
 /// to resolve.
 class NeuralTtsEngine extends TtsEngine {
-  NeuralTtsEngine({required this.voice, required this.store});
+  NeuralTtsEngine({
+    required this.pack,
+    required this.voice,
+    required this.store,
+  });
 
+  final VoicePack pack;
   final NeuralVoice voice;
   final VoiceStore store;
 

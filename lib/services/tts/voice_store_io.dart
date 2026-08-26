@@ -29,7 +29,7 @@ class RemoteFile {
 /// which for a ~400 MB model is not a slow path, it is an impossible one.
 /// Streaming per file costs neither, and it makes an interrupted install
 /// resumable for free: anything already on disk at the right size is skipped.
-class VoiceStore {
+class VoiceStore implements VoiceStorage {
   VoiceStore({http.Client? client}) : _client = client ?? http.Client();
 
   final http.Client _client;
@@ -40,6 +40,7 @@ class VoiceStore {
 
   /// Neural voices need a real filesystem and native inference, neither of
   /// which the web build has: there the platform voice is the only engine.
+  @override
   bool get isSupported => true;
 
   Future<Directory> _root() async {
@@ -56,29 +57,31 @@ class VoiceStore {
 
   /// Where a voice's files live. Voices that share a repository share this
   /// directory, so installing Kokoro once serves all of its speakers.
-  Future<Directory> voiceDirectory(NeuralVoice voice) async =>
-      Directory('${(await _root()).path}/${_slug(voice.repo)}');
+  Future<Directory> packDirectory(VoicePack pack) async =>
+      Directory('${(await _root()).path}/${_slug(pack.repo)}');
 
-  Future<bool> isInstalled(NeuralVoice voice) async {
-    final dir = await voiceDirectory(voice);
+  @override
+  Future<bool> isInstalled(VoicePack pack) async {
+    final dir = await packDirectory(pack);
     if (!File('${dir.path}/$_manifestName').existsSync()) return false;
     // The model file itself is what must really be there: a manifest left
     // behind by a half-deleted directory should not count as installed.
-    final model = File('${dir.path}/${voice.modelFile}');
+    final model = File('${dir.path}/${pack.modelFile}');
     return model.existsSync() && model.lengthSync() > 0;
   }
 
-  Future<List<NeuralVoice>> installedVoices() async {
-    final result = <NeuralVoice>[];
-    for (final voice in neuralVoices) {
-      if (await isInstalled(voice)) result.add(voice);
+  @override
+  Future<List<VoicePack>> installedPacks() async {
+    final result = <VoicePack>[];
+    for (final pack in voicePacks) {
+      if (await isInstalled(pack)) result.add(pack);
     }
     return result;
   }
 
   /// Bytes a voice occupies on disk.
-  Future<int> installedSize(NeuralVoice voice) async {
-    final dir = await voiceDirectory(voice);
+  Future<int> installedSize(VoicePack pack) async {
+    final dir = await packDirectory(pack);
     if (!dir.existsSync()) return 0;
     var total = 0;
     await for (final entity in dir.list(recursive: true)) {
@@ -87,8 +90,9 @@ class VoiceStore {
     return total;
   }
 
-  Future<void> remove(NeuralVoice voice) async {
-    final dir = await voiceDirectory(voice);
+  @override
+  Future<void> remove(VoicePack pack) async {
+    final dir = await packDirectory(pack);
     if (dir.existsSync()) dir.deleteSync(recursive: true);
   }
 
@@ -125,13 +129,14 @@ class VoiceStore {
   ///
   /// [shouldCancel] is polled between files, so somebody who changes their
   /// mind partway through a 400 MB download is not stuck waiting for it.
+  @override
   Future<void> install(
-    NeuralVoice voice, {
+    VoicePack pack, {
     void Function(VoiceInstallProgress)? onProgress,
     bool Function()? shouldCancel,
   }) async {
-    final remote = await listRepository(voice.repo);
-    final dir = await voiceDirectory(voice);
+    final remote = await listRepository(pack.repo);
+    final dir = await packDirectory(pack);
     if (!dir.existsSync()) dir.createSync(recursive: true);
 
     final bytesTotal = remote.fold<int>(0, (sum, file) => sum + file.size);
@@ -169,7 +174,7 @@ class VoiceStore {
         if (shouldCancel?.call() ?? false) throw const VoiceInstallCancelled();
         final file = queue.removeAt(0);
         report(file.path);
-        await _downloadFile(voice.repo, file, dir);
+        await _downloadFile(pack.repo, file, dir);
         bytesDone += file.size;
         filesDone++;
         report(file.path);
@@ -190,7 +195,7 @@ class VoiceStore {
     // installed rather than as a voice that mysteriously fails to load.
     File('${dir.path}/$_manifestName').writeAsStringSync(
       jsonEncode({
-        'repo': voice.repo,
+        'repo': pack.repo,
         'files': remote.length,
         'bytes': bytesTotal,
         'installedAt': DateTime.now().toIso8601String(),

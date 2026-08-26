@@ -8,10 +8,12 @@ import 'package:sepia_reader/app.dart';
 import 'package:sepia_reader/models/app_settings.dart';
 import 'package:sepia_reader/state/app_controller.dart';
 
+import 'support/offline_updates.dart';
+
 void main() {
   testWidgets('exibe a biblioteca e o documento inicial', (tester) async {
     _useLocale('pt_BR');
-    final controller = AppController();
+    final controller = AppController(updateChecker: offlineUpdateChecker());
     await controller.initialize();
 
     await tester.pumpWidget(SepiaApp(controller: controller));
@@ -28,7 +30,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     _useLocale('pt_BR');
-    final controller = AppController();
+    final controller = AppController(updateChecker: offlineUpdateChecker());
     await controller.initialize();
 
     await tester.pumpWidget(SepiaApp(controller: controller));
@@ -91,7 +93,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     _useLocale('pt_BR', autoHideReaderControls: true);
-    final controller = AppController();
+    final controller = AppController(updateChecker: offlineUpdateChecker());
     await controller.initialize();
 
     await tester.pumpWidget(SepiaApp(controller: controller));
@@ -121,7 +123,7 @@ void main() {
     tester,
   ) async {
     _useLocale('en');
-    final controller = AppController();
+    final controller = AppController(updateChecker: offlineUpdateChecker());
     await controller.initialize();
 
     await tester.pumpWidget(SepiaApp(controller: controller));
@@ -137,7 +139,7 @@ void main() {
     tester,
   ) async {
     _useLocale('pt_BR');
-    final controller = AppController();
+    final controller = AppController(updateChecker: offlineUpdateChecker());
     await controller.initialize();
 
     await tester.pumpWidget(SepiaApp(controller: controller));
@@ -180,7 +182,7 @@ void main() {
 
   testWidgets('cria e abre uma pasta na biblioteca', (tester) async {
     _useLocale('pt_BR');
-    final controller = AppController();
+    final controller = AppController(updateChecker: offlineUpdateChecker());
     await controller.initialize();
     await controller.createFolder(name: 'Ficções');
 
@@ -200,7 +202,7 @@ void main() {
 
   testWidgets('renomeia um arquivo pelo menu do cartão', (tester) async {
     _useLocale('pt_BR');
-    final controller = AppController();
+    final controller = AppController(updateChecker: offlineUpdateChecker());
     await controller.initialize();
 
     await tester.pumpWidget(SepiaApp(controller: controller));

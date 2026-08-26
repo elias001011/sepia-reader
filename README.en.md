@@ -24,7 +24,7 @@ A calm, local-first Markdown library, reader, and editor built with Flutter. Sé
   - **Piper** (~80 MB) — a neural voice that runs well on any device;
   - **Kokoro** (~400 MB) — more natural, for devices with space and memory to spare;
 - both neural tiers run offline on the device through sherpa-onnx: no text leaves the device, no API and no key;
-- voices are downloaded on demand, with progress, cancellation, resumable downloads, and removal;
+- voices are downloaded on demand, with progress, cancellation, resumable downloads, and removal; a download keeps going if you close settings, and stays visible in the library;
 - Markdown syntax is never read out loud — tables become prose, code and diagrams are skipped.
 
 ### Writing
@@ -47,6 +47,8 @@ A calm, local-first Markdown library, reader, and editor built with Flutter. Sé
 - Material 3 light, dark, AMOLED, or system theme, with custom light and dark backgrounds;
 - an option for reading to follow the app colours entirely or use its own palette;
 - interface localized in Brazilian Portuguese and English, with a follow-the-system option;
+- adjustable interface size, composing with the system's own font scaling;
+- a new-version notice on launch, linking straight to the APK for the device's architecture — nothing is downloaded or installed without being chosen;
 - web, Android, and iOS builds from the same Flutter codebase (neural voices are native-only).
 
 ## Web storage and self-hosting

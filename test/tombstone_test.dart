@@ -6,6 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sepia_reader/models/app_settings.dart';
 import 'package:sepia_reader/state/app_controller.dart';
 
+import 'support/offline_updates.dart';
+
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({
@@ -16,7 +18,7 @@ void main() {
   });
 
   test('documento apagado some da biblioteca e das buscas por id', () async {
-    final controller = AppController();
+    final controller = AppController(updateChecker: offlineUpdateChecker());
     await controller.initialize();
     final document = await controller.createDocument(title: 'Fic');
 
@@ -30,7 +32,7 @@ void main() {
   });
 
   test('apagar o documento também esconde seus marcadores', () async {
-    final controller = AppController();
+    final controller = AppController(updateChecker: offlineUpdateChecker());
     await controller.initialize();
     final document = await controller.createDocument(title: 'Fic');
     await controller.addBookmark(
@@ -46,7 +48,7 @@ void main() {
   });
 
   test('marcador removido não reaparece na lista', () async {
-    final controller = AppController();
+    final controller = AppController(updateChecker: offlineUpdateChecker());
     await controller.initialize();
     final document = await controller.createDocument(title: 'Fic');
     final bookmark = await controller.addBookmark(
@@ -61,7 +63,7 @@ void main() {
   });
 
   test('pasta cujos documentos foram apagados conta como vazia', () async {
-    final controller = AppController();
+    final controller = AppController(updateChecker: offlineUpdateChecker());
     await controller.initialize();
     final folder = await controller.createFolder(name: 'Fics');
     final document = await controller.createDocument(
@@ -80,7 +82,7 @@ void main() {
   });
 
   test('apagar pasta com conteúdo leva subpastas e documentos junto', () async {
-    final controller = AppController();
+    final controller = AppController(updateChecker: offlineUpdateChecker());
     await controller.initialize();
     final parent = await controller.createFolder(name: 'Fics');
     final child = await controller.createFolder(
@@ -115,7 +117,7 @@ void main() {
 
     // The deletions travel as tombstones, so another device learns about
     // them instead of pushing the records back.
-    final restored = AppController();
+    final restored = AppController(updateChecker: offlineUpdateChecker());
     await restored.initialize();
     expect(restored.folderById(parent.id), isNull);
     expect(restored.documentById(inChild.id), isNull);
@@ -123,7 +125,7 @@ void main() {
   });
 
   test('nome de pasta apagada volta a ficar livre', () async {
-    final controller = AppController();
+    final controller = AppController(updateChecker: offlineUpdateChecker());
     await controller.initialize();
     final first = await controller.createFolder(name: 'Fics');
     await controller.deleteFolder(first.id);
@@ -134,14 +136,14 @@ void main() {
   });
 
   test('biblioteca esvaziada recria o documento de boas-vindas', () async {
-    final controller = AppController();
+    final controller = AppController(updateChecker: offlineUpdateChecker());
     await controller.initialize();
     for (final document in controller.documents) {
       await controller.deleteDocument(document.id);
     }
     expect(controller.documents, isEmpty);
 
-    final reopened = AppController();
+    final reopened = AppController(updateChecker: offlineUpdateChecker());
     await reopened.initialize();
 
     expect(reopened.documents, hasLength(1));

@@ -9,6 +9,8 @@ import 'package:sepia_reader/models/app_settings.dart';
 import 'package:sepia_reader/services/document_sections.dart';
 import 'package:sepia_reader/state/app_controller.dart';
 
+import 'support/offline_updates.dart';
+
 String hugeWithChapters() {
   final buffer = StringBuffer();
   for (var chapter = 1; chapter <= 12; chapter++) {
@@ -86,7 +88,7 @@ void main() {
           const AppSettings(localeCode: 'pt_BR').toJson(),
         ),
       });
-      final controller = AppController();
+      final controller = AppController(updateChecker: offlineUpdateChecker());
       await controller.initialize();
       final content = hugeWithChapters();
       final document = await controller.createDocument(

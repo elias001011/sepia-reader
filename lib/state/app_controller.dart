@@ -11,16 +11,36 @@ import '../models/library_folder.dart';
 import '../models/syncable.dart';
 import '../services/document_kind.dart';
 import '../services/storage_service.dart';
+import '../services/tts/voice_download_manager.dart';
+import '../services/update_checker.dart';
 import '../services/sync_merge.dart';
+
+/// Identifier of the welcome document, deliberately fixed rather than a
+/// fresh UUID.
+///
+/// Every empty library seeds one, and a browser and a phone that both start
+/// empty each used to seed their own — with different random ids, so syncing
+/// merged them into two copies, then three. A constant id makes them the
+/// same record, and merging collapses them.
+const welcomeDocumentId = 'sepia.welcome.v1';
 
 /// Outcome of a user-triggered sync, so the library can say what actually
 /// happened instead of just spinning and stopping.
 enum SyncRunResult { done, failed, disabled }
 
 class AppController extends ChangeNotifier {
-  AppController({StorageService? storage})
-    : _storage = storage ?? StorageService();
+  AppController({StorageService? storage, UpdateChecker? updateChecker})
+    : _storage = storage ?? StorageService(),
+      updates = updateChecker ?? UpdateChecker();
   final StorageService _storage;
+
+  /// Shared so screens do not each open their own, and so a test can hand
+  /// in one that never touches the network.
+  final UpdateChecker updates;
+
+  /// Voice downloads live here, above any screen, so closing the sheet that
+  /// started one does not take a several-hundred-megabyte install with it.
+  final VoiceDownloadManager voiceDownloads = VoiceDownloadManager();
   final Uuid _uuid = const Uuid();
   final List<LibraryDocument> _documents = [];
   final List<LibraryFolder> _folders = [];
@@ -73,16 +93,25 @@ class AppController extends ChangeNotifier {
     if (live(_documents).isEmpty) {
       final now = DateTime.now();
       final isEnglish = _usesEnglish;
-      _documents.add(
-        LibraryDocument(
-          id: _uuid.v4(),
-          title: isEnglish ? 'Welcome to Sépia' : 'Bem-vindo ao Sépia',
-          extension: 'md',
-          createdAt: now,
-          updatedAt: now,
-          content: isEnglish ? _welcomeDocumentEn : _welcomeDocumentPt,
-        ),
+      final welcome = LibraryDocument(
+        id: welcomeDocumentId,
+        title: isEnglish ? 'Welcome to Sépia' : 'Bem-vindo ao Sépia',
+        extension: 'md',
+        createdAt: now,
+        updatedAt: now,
+        content: isEnglish ? _welcomeDocumentEn : _welcomeDocumentPt,
       );
+      // Replace rather than append: a tombstoned copy from an earlier
+      // emptying is still in the list, and two records with the same id
+      // would make the merge's behaviour depend on their order.
+      final existing = _documents.indexWhere(
+        (document) => document.id == welcomeDocumentId,
+      );
+      if (existing == -1) {
+        _documents.add(welcome);
+      } else {
+        _documents[existing] = welcome;
+      }
       await _persistDocuments();
     }
   }
@@ -474,6 +503,12 @@ class AppController extends ChangeNotifier {
     return result.reachedServer ? SyncRunResult.done : SyncRunResult.failed;
   }
 
+  @override
+  void dispose() {
+    voiceDownloads.dispose();
+    super.dispose();
+  }
+
   Future<void> _persistDocuments() => _storage.saveDocuments(_documents);
 
   Future<void> _persistFolders() => _storage.saveFolders(_folders);
@@ -577,7 +612,7 @@ No modo leitura, o botão de fone lê o documento em voz alta.
 
 - Se o texto tem títulos `#` ou `##`, dá para escolher **de qual capítulo começar** — ou continuar de onde você parou.
 - A voz padrão é a do próprio Android ou do navegador: não baixa nada e funciona sem internet.
-- Em **Configurações → Leitura em voz alta** dá para mudar a **velocidade**, trocar de voz, e baixar uma **voz neural** que roda no próprio aparelho, sem mandar seu texto para servidor nenhum.
+- Em **Configurações → Leitura em voz alta** dá para mudar a **velocidade**, trocar de voz, e baixar uma **voz neural** que roda no próprio aparelho, sem mandar seu texto para servidor nenhum. São 35 vozes em 14 idiomas, em dois níveis: Piper (~80 MB, leve) e Kokoro (~400 MB, mais natural).
 
 ## Marcadores
 
@@ -601,6 +636,7 @@ void main() {
 |---|---|
 | Puxar a biblioteca para baixo | Sincroniza com o servidor |
 | Tocar no título | Renomeia o documento |
+| Configurações → Tamanho da interface | Deixa tudo maior ou menor |
 
 Boa leitura. ☕
 ''';
@@ -625,7 +661,7 @@ In reading mode, the headphone button reads the document out loud.
 
 - If the text has `#` or `##` headings, you can pick **which chapter to start from** — or carry on from where you stopped.
 - The default voice is the one Android or your browser already has: nothing to download, and it works offline.
-- Under **Settings → Read aloud** you can change the **speed**, switch voices, and download a **neural voice** that runs on the device itself, without sending your text to any server.
+- Under **Settings → Read aloud** you can change the **speed**, switch voices, and download a **neural voice** that runs on the device itself, without sending your text to any server. Thirty-five voices across fourteen languages, in two tiers: Piper (~80 MB, light) and Kokoro (~400 MB, more natural).
 
 ## Bookmarks
 
@@ -649,6 +685,7 @@ void main() {
 |---|---|
 | Pull the library down | Syncs with the server |
 | Tap the title | Renames the document |
+| Settings → Interface size | Makes everything bigger or smaller |
 
 Enjoy your reading. ☕
 ''';
