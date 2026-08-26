@@ -122,6 +122,9 @@ final _footnoteRef = RegExp(r'\[\^([^\]]+)\]');
 final _footnoteDef = RegExp(r'^\s{0,3}\[\^[^\]]+\]:\s*');
 final _linkDef = RegExp(r'^\s{0,3}\[[^\]^][^\]]*\]:\s*\S+\s*$');
 final _mathFence = RegExp(r'^\s*\$\$\s*$');
+/// The `====` / `----` rule under a setext heading. It carries no words, and
+/// read aloud it is a stream of "equals equals equals".
+final _setextUnderline = RegExp(r'^\s{0,3}(=+|-{2,})\s*$');
 final _horizontalRule = RegExp(r'^\s*([-*_])(\s*\1){2,}\s*$');
 
 /// Turns markdown source into something worth reading out loud.
@@ -136,7 +139,11 @@ String speakableText(String markdown) {
   final output = <String>[];
   var inFence = false;
   var inMath = false;
-  for (final line in lines) {
+  for (final rawLine in lines) {
+    // The quote marker comes off first, and at every level: a fenced block
+    // inside a blockquote is still a fenced block, and checking the raw
+    // line missed it — so the code got read out, backticks and all.
+    final line = rawLine.replaceFirst(_quoteMarker, '');
     if (_fencedCode.hasMatch(line.trimLeft())) {
       inFence = !inFence;
       continue;
@@ -150,7 +157,7 @@ String speakableText(String markdown) {
     if (inMath) continue;
     // A link reference definition is machinery, not prose.
     if (_linkDef.hasMatch(line)) continue;
-    if (_horizontalRule.hasMatch(line)) {
+    if (_horizontalRule.hasMatch(line) || _setextUnderline.hasMatch(line)) {
       output.add('');
       continue;
     }
@@ -170,9 +177,7 @@ String speakableText(String markdown) {
       }
       continue;
     }
-    // Every level of a nested quote, not just the first: a `>>` line kept
-    // its second marker and the voice read it out.
-    var text = line.replaceFirst(_quoteMarker, '');
+    var text = line;
     // The footnote's marker goes; the note itself is content and stays.
     text = text.replaceFirst(_footnoteDef, '');
     text = text.replaceFirst(_leadingMarker, '');
@@ -187,8 +192,20 @@ String speakableText(String markdown) {
       .trim();
 }
 
+/// Placeholder for a backslash-escaped character while the markdown syntax
+/// around it is stripped, so `\*` survives as a literal asterisk instead of
+/// being read as emphasis — or worse, half-eaten into a stray backslash.
+const _escapeSentinel = '\u0000';
+
 String _stripInlineMarkdown(String input) {
-  var text = input;
+  final escaped = <String>[];
+  var text = input.replaceAllMapped(
+    RegExp(r'\\([\\`*_{}\[\]()#+\-.!~|<>])'),
+    (match) {
+      escaped.add(match.group(1)!);
+      return '$_escapeSentinel${escaped.length - 1}$_escapeSentinel';
+    },
+  );
   text = text.replaceAllMapped(_strikethrough, (m) => m.group(1) ?? '');
   text = text.replaceAll(_footnoteRef, '');
   text = text.replaceAllMapped(_imagePattern, (m) => m.group(1) ?? '');
@@ -202,6 +219,9 @@ String _stripInlineMarkdown(String input) {
     text = peeled;
   }
   text = text.replaceAll(_htmlTag, '');
+  for (var i = 0; i < escaped.length; i++) {
+    text = text.replaceAll('$_escapeSentinel$i$_escapeSentinel', escaped[i]);
+  }
   return text;
 }
 
