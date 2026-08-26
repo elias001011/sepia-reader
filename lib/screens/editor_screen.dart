@@ -21,6 +21,7 @@ import '../state/app_controller.dart';
 import '../widgets/markdown_view.dart';
 import '../widgets/sheet_scaffold.dart';
 import 'bookmarks_sheet.dart';
+import 'chapter_navigation_sheet.dart';
 import 'listen_sheet.dart';
 import 'reader_settings_sheet.dart';
 
@@ -70,6 +71,11 @@ class _EditorScreenState extends State<EditorScreen> {
   final ValueNotifier<bool> _readerControls = ValueNotifier(true);
   bool _showPreview = false;
   String? _activeBookmarkPopupId;
+
+  /// When true, forces sectioned editing regardless of document size.
+  /// Toggled from the editor menu; off by default so the auto heuristic
+  /// decides.
+  bool _chapterSeparatorEnabled = false;
 
   /// The document title is a plain label until it is tapped.
   ///
@@ -205,7 +211,9 @@ class _EditorScreenState extends State<EditorScreen> {
   /// Decides whether [content] is edited whole or in slices, and selects
   /// which slice. Does not touch the text field — callers set that up.
   void _configureSections(String content, {required int index}) {
-    if (content.length < sectionedEditingThreshold) {
+    final needsSectioning = _chapterSeparatorEnabled ||
+        content.length >= sectionedEditingThreshold;
+    if (!needsSectioning) {
       _sectioned = false;
       _editSections = const [];
       _editSectionIndex = 0;
@@ -516,6 +524,35 @@ class _EditorScreenState extends State<EditorScreen> {
     );
   }
 
+  Future<void> _openChapterNavigation() async {
+    final document = _readerDocument;
+    final sections = sectionsOf(document);
+    final here = _topVisibleChunk?.index ?? 0;
+    await showAppSheet<void>(
+      context: context,
+      builder: (sheetContext) => ChapterNavigationSheet(
+        sections: sections,
+        currentChunkIndex: here,
+        onPick: (section) {
+          Navigator.pop(sheetContext);
+          _scrollToChunk(section.startChunk);
+        },
+      ),
+    );
+  }
+
+  Future<void> _scrollToChunk(int index) async {
+    if (!_itemScrollController.isAttached) return;
+    final chunks = chunksForDocument(_readerDocument);
+    final target = index.clamp(0, chunks.length - 1).toInt();
+    await _itemScrollController.scrollTo(
+      index: target,
+      alignment: 0.0,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOut,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_stored == null) {
@@ -563,6 +600,7 @@ class _EditorScreenState extends State<EditorScreen> {
               onSelected: (value) {
                 if (value == 'reader-settings') _openReaderSettings();
                 if (value == 'export') _export();
+                if (value == 'chapter-separator') _toggleChapterSeparator();
               },
               itemBuilder: (context) => [
                 PopupMenuItem(
@@ -570,6 +608,18 @@ class _EditorScreenState extends State<EditorScreen> {
                   child: ListTile(
                     leading: const Icon(Icons.text_fields_rounded),
                     title: Text(context.l10n.readingSettings),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'chapter-separator',
+                  child: ListTile(
+                    leading: Icon(
+                      _chapterSeparatorEnabled
+                          ? Icons.toggle_on_rounded
+                          : Icons.toggle_off_rounded,
+                    ),
+                    title: Text(context.l10n.chapterSeparatorToggle),
                     contentPadding: EdgeInsets.zero,
                   ),
                 ),
@@ -588,6 +638,15 @@ class _EditorScreenState extends State<EditorScreen> {
               tooltip: context.l10n.readingSettings,
               onPressed: _openReaderSettings,
               icon: const Icon(Icons.text_fields_rounded),
+            ),
+            IconButton(
+              tooltip: context.l10n.chapterSeparatorToggle,
+              onPressed: _toggleChapterSeparator,
+              icon: Icon(
+                _chapterSeparatorEnabled
+                    ? Icons.toggle_on_rounded
+                    : Icons.toggle_off_rounded,
+              ),
             ),
             IconButton(
               tooltip: context.l10n.exportLabel,
@@ -1126,6 +1185,16 @@ class _EditorScreenState extends State<EditorScreen> {
                           ),
                           SizedBox(width: compact ? 5 : 8),
                         ],
+                        if (hasChapters(sectionsOf(_readerDocument))) ...[
+                          _readerButton(
+                            context,
+                            compact: compact,
+                            tooltip: context.l10n.chapterNavigation,
+                            icon: Icons.table_rows_rounded,
+                            onPressed: _openChapterNavigation,
+                          ),
+                          SizedBox(width: compact ? 5 : 8),
+                        ],
                         _readerButton(
                           context,
                           compact: compact,
@@ -1339,9 +1408,13 @@ class _EditorScreenState extends State<EditorScreen> {
             ),
           ),
           if (isOpen)
-            Container(
+            ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: 220,
+                maxHeight: 120,
+              ),
+              child: Container(
               margin: const EdgeInsets.only(top: 6),
-              constraints: const BoxConstraints(maxWidth: 220),
               padding: const EdgeInsets.fromLTRB(12, 6, 6, 6),
               decoration: BoxDecoration(
                 color: scheme.surfaceContainerHigh,
@@ -1375,6 +1448,7 @@ class _EditorScreenState extends State<EditorScreen> {
                   ),
                 ],
               ),
+            ),
             ),
         ],
       ),
@@ -1488,6 +1562,25 @@ class _EditorScreenState extends State<EditorScreen> {
           SnackBar(content: Text(context.l10n.exportFailed('$error'))),
         );
       }
+    }
+  }
+
+  void _toggleChapterSeparator() {
+    setState(() {
+      _chapterSeparatorEnabled = !_chapterSeparatorEnabled;
+    });
+    // Reconfigure sections with the new toggle state.
+    final content = _stored?.content ?? _fullContent;
+    if (_chapterSeparatorEnabled && !_sectioned) {
+      _configureSections(content, index: 0);
+      final text = _sectionText(content);
+      _contentController.value = TextEditingValue(
+        text: text,
+        selection: const TextSelection.collapsed(offset: 0),
+      );
+      _previewContent.value = text;
+    } else if (!_chapterSeparatorEnabled && _sectioned) {
+      _editWholeDocument();
     }
   }
 

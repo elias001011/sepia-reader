@@ -524,5 +524,8 @@
         "type": "String"
       }
     }
-  }
+  },
+  "chapterNavigation": "Chapters",
+  "chapterNavigationHere": "Continue reading here",
+  "chapterSeparatorToggle": "Chapter separator"
 }
