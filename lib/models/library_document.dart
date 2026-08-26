@@ -57,7 +57,15 @@ class LibraryDocument implements SyncableRecord {
   Map<String, dynamic> toJson() => {
     'id': id,
     'title': title,
-    'content': content,
+    // A tombstone never carries a body — not on disk and not on the wire.
+    //
+    // Deleting drops the content, but that only ever applied to deletions
+    // made after the rule existed: a record tombstoned by an older build
+    // kept its text on the server until the retention window expired, so a
+    // deleted 160 kB document was still sitting there. Emptying it here
+    // cleans those up the first time they are written again, and makes the
+    // guarantee hold wherever a tombstone comes from.
+    'content': isDeleted ? '' : content,
     'extension': extension,
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
