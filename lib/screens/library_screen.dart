@@ -746,7 +746,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         // scroll sideways, so a wider-than-the-phone body just loses its
         // right edge.
         content: SizedBox(
-          width: _dialogWidth(dialogContext, 440),
+          width: appDialogWidth(dialogContext, 440),
           height: 420,
           child: ListView(
             children: [
@@ -839,7 +839,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         builder: (context, setDialogState) => AlertDialog(
           title: Text(context.l10n.newDocument),
           content: SizedBox(
-            width: _dialogWidth(context, 420),
+            width: appDialogWidth(context, 420),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -1070,12 +1070,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
       ),
     );
     if (confirmed == true) await widget.controller.deleteDocument(document.id);
-  }
-
-  /// Preferred dialog body width, never wider than the screen allows.
-  static double _dialogWidth(BuildContext context, double preferred) {
-    final available = MediaQuery.sizeOf(context).width - 80;
-    return available < preferred ? available.clamp(200.0, preferred) : preferred;
   }
 
   void _openSettings() => showAppSheet<void>(

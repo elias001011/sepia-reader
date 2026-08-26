@@ -1558,24 +1558,35 @@ class _EditorScreenState extends State<EditorScreen> {
     }
   }
 
-  void _toggleChapterSeparator() {
-    final current = widget.controller.settings.sectionedEditing;
-    final newValue = !current;
-    widget.controller.updateSettings(
+  /// Saves first, like [_openSection] and [_editWholeDocument] do — the
+  /// content this reconfigures around comes from [_stored], and a toggle
+  /// that skipped the save would rebuild the field from whatever was on
+  /// disk before this keystroke, dropping it.
+  Future<void> _toggleChapterSeparator() async {
+    if (_dirty.value) await _save();
+    final newValue = !widget.controller.settings.sectionedEditing;
+    await widget.controller.updateSettings(
       widget.controller.settings.copyWith(sectionedEditing: newValue),
     );
-    // Reconfigure sections with the new global setting.
-    final content = _stored?.content ?? _fullContent;
+    if (!mounted) return;
     if (newValue && !_sectioned) {
-      _configureSections(content, index: 0);
-      final text = _sectionText(content);
-      _contentController.value = TextEditingValue(
-        text: text,
-        selection: const TextSelection.collapsed(offset: 0),
-      );
-      _previewContent.value = text;
+      final content = _stored?.content ?? _fullContent;
+      setState(() {
+        _configureSections(content, index: 0);
+        final text = _sectionText(content);
+        _contentController.value = TextEditingValue(
+          text: text,
+          selection: const TextSelection.collapsed(offset: 0),
+        );
+        _previewContent.value = text;
+      });
     } else if (!newValue && _sectioned) {
-      _editWholeDocument();
+      await _editWholeDocument();
+    } else {
+      // The setting flipped but the field was already in the shape it
+      // implies (e.g. the document is too short to section) — nothing to
+      // reconfigure, but the toggle icon still needs to repaint.
+      setState(() {});
     }
   }
 

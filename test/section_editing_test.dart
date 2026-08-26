@@ -135,4 +135,63 @@ void main() {
       expect(controller.documentById(document.id)!.content, contains('# Capítulo 12'));
     },
   );
+
+  testWidgets(
+    'ligar o separador de capítulos salva o que estava sendo digitado',
+    (tester) async {
+      // A toggle that reads from the stored document instead of saving
+      // first drops whatever is mid-keystroke — this reproduces that by
+      // toggling before the 700ms autosave debounce ever fires. Starting
+      // with sectioning off is what exercises the branch that used to skip
+      // the save: turning it back on is what re-slices from `_stored`.
+      tester.view.physicalSize = const Size(900, 1100);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      SharedPreferences.setMockInitialValues({
+        'sepia.settings.v1': jsonEncode(
+          const AppSettings(
+            localeCode: 'pt_BR',
+            sectionedEditing: false,
+          ).toJson(),
+        ),
+      });
+      final controller = AppController(updateChecker: offlineUpdateChecker());
+      await controller.initialize();
+      final content = hugeWithChapters();
+      final document = await controller.createDocument(
+        title: 'Fic gigante',
+        content: content,
+      );
+
+      await tester.pumpWidget(SepiaApp(controller: controller));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Fic gigante.md'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Fic gigante.md'));
+      await tester.pumpAndSettle();
+
+      final editor = find.byWidgetPredicate(
+        (widget) => widget is TextField && widget.expands,
+      );
+      // Sectioning is off, so the field holds the whole document.
+      final loaded = tester.widget<TextField>(editor).controller!.text;
+      expect(loaded, contains('# Capítulo 12'));
+      await tester.enterText(
+        editor,
+        loaded.replaceFirst(
+          '# Capítulo 1\n\n',
+          '# Capítulo 1\n\nTexto ainda não salvo.\n\n',
+        ),
+      );
+      // No wait for the debounced autosave: the toggle must save on its own.
+      await tester.tap(find.byTooltip('Editar por capítulo'));
+      await tester.pumpAndSettle();
+
+      expect(
+        controller.documentById(document.id)!.content,
+        contains('Texto ainda não salvo.'),
+      );
+    },
+  );
 }

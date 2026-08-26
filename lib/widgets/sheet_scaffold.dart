@@ -15,6 +15,15 @@ Future<T?> showAppSheet<T>({
 }) {
   final media = MediaQuery.of(context);
   final breathingRoom = media.padding.top + 28;
+  // On desktop/web, cap at 80 % of the viewport so sheets feel like a panel,
+  // not a full-screen takeover.
+  final upperBound = media.size.height * 0.8;
+  // The floor has to bend with the ceiling too: `clamp` throws outright when
+  // its lower limit exceeds its upper one, so a viewport shorter than 220
+  // logical pixels (a keyboard-squeezed phone, a tiny desktop window) would
+  // otherwise crash every sheet on open — 220 stopped being a safe floor the
+  // moment the ceiling could itself fall under 220.
+  final lowerBound = math.min(220.0, upperBound);
   return showModalBottomSheet<T>(
     context: context,
     isScrollControlled: true,
@@ -25,18 +34,25 @@ Future<T?> showAppSheet<T>({
     enableDrag: enableDrag,
     showDragHandle: enableDrag,
     constraints: BoxConstraints(
-      // The lower bound has to bend too: `clamp` throws outright when the
-      // lower limit exceeds the upper, so a browser window shorter than the
-      // minimum would have crashed every sheet on open.
       maxHeight: (media.size.height - breathingRoom).clamp(
-        math.min(220.0, media.size.height),
-        // On desktop/web, cap at 80 % of the viewport so sheets feel
-        // like a panel, not a full-screen takeover.
-        media.size.height * 0.8,
+        lowerBound,
+        upperBound,
       ),
     ),
     builder: builder,
   );
+}
+
+/// Preferred width for an [AlertDialog]'s `content`, never wider than the
+/// screen allows.
+///
+/// An [AlertDialog] does not scroll sideways, so a body fixed at its
+/// preferred width overflows the moment the phone is narrower than that —
+/// the dialog's own `insetPadding` (40 logical pixels on each side by
+/// default) already eats into what is available before this even runs.
+double appDialogWidth(BuildContext context, double preferred) {
+  final available = MediaQuery.sizeOf(context).width - 80;
+  return available < preferred ? available.clamp(200.0, preferred) : preferred;
 }
 
 /// Shared frame for the app's bottom sheets: a title, an optional line of

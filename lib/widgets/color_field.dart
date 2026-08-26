@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/l10n.dart';
+import 'sheet_scaffold.dart';
 
 class ColorField extends StatelessWidget {
   const ColorField({
@@ -74,7 +75,7 @@ class ColorField extends StatelessWidget {
         builder: (context, setDialogState) => AlertDialog(
           title: Text(label),
           content: SizedBox(
-            width: 360,
+            width: appDialogWidth(context, 360),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
