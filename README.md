@@ -31,6 +31,8 @@ Leitor, biblioteca e editor de Markdown feito em Flutter. O Sépia foi pensado p
 - editor responsivo com atalhos para títulos, negrito, itálico, citações, listas, links e código;
 - desfazer/refazer por sessão via interface, `Ctrl/Cmd+Z`, `Ctrl+Y` ou `Ctrl/Cmd+Shift+Z`;
 - documentos grandes editados por partes, seguindo os capítulos do próprio texto, para a digitação não travar — o arquivo salvo continua inteiro;
+- separador de capítulos com toggle global no menu de edição: ativa/desativa a edição por seção para todos os documentos grandes;
+- navegação por capítulos no modo leitura: botão ao lado do ouvir que abre um picker de capítulos para pular direto ao trecho desejado;
 - syntax highlighting para Dart, JavaScript, TypeScript, JSON, YAML, HTML, CSS, Python, Java, Kotlin, Swift, shell, SQL e XML.
 
 ### Guardar
@@ -114,7 +116,7 @@ git push origin v1.2.0
 
 **Baixe o `arm64-v8a`** — é a arquitetura de praticamente todo celular Android atual, e é o menor dos APKs. O `armeabi-v7a` serve aparelhos antigos, o `x86_64` serve emuladores, e o universal existe só como recurso de compatibilidade, sendo bem maior porque carrega as bibliotecas nativas de todas as arquiteturas ao mesmo tempo.
 
-Todos usam a assinatura de desenvolvimento atual e são indicados para instalação direta/testes. Antes de distribuir pela Play Store, configure uma chave de assinatura permanente e prefira um Android App Bundle — o próprio Play entrega só a ABI de cada aparelho.
+Todos usam a assinatura de desenvolvimento atual e são indicados para instalação direta/testes. Para builds de release permanentes, configure os secrets `KEYSTORE_BASE64`, `KEY_ALIAS`, `KEY_STORE_PASSWORD` e `KEY_PASSWORD` no repositório GitHub — o workflow restaura a keystore automaticamente. Antes de distribuir pela Play Store, prefira um Android App Bundle — o próprio Play entrega só a ABI de cada aparelho.
 
 ## Stack
 
