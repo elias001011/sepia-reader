@@ -97,127 +97,134 @@ class _LibraryScreenState extends State<LibraryScreen> {
             RefreshIndicator(
               onRefresh: _forceSync,
               child: CustomScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              slivers: [
-                SliverToBoxAdapter(child: _topBar(context)),
-                // No SliverPadding around this one: an idle banner must
-                // take up no space at all, and padding a shrunk child still
-                // pushes everything below it down.
-                SliverToBoxAdapter(
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 1180),
-                      child: VoiceDownloadBanner(
-                        downloads: widget.controller.voiceDownloads,
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(child: _topBar(context)),
+                  // No SliverPadding around this one: an idle banner must
+                  // take up no space at all, and padding a shrunk child still
+                  // pushes everything below it down.
+                  SliverToBoxAdapter(
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 1180),
+                        child: VoiceDownloadBanner(
+                          downloads: widget.controller.voiceDownloads,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                if (_update case final update?)
+                  if (_update case final update?)
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                      sliver: SliverToBoxAdapter(
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 1180),
+                            child: UpdateCard(
+                              update: update,
+                              onDismiss: () => setState(() => _update = null),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (_isImportingFolder || _isImportingFiles)
+                    const SliverToBoxAdapter(child: LinearProgressIndicator()),
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                    padding: const EdgeInsets.fromLTRB(20, 28, 20, 48),
                     sliver: SliverToBoxAdapter(
                       child: Center(
                         child: ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 1180),
-                          child: UpdateCard(
-                            update: update,
-                            onDismiss: () => setState(() => _update = null),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _hero(context),
+                              const SizedBox(height: 22),
+                              _breadcrumbs(context),
+                              const SizedBox(height: 22),
+                              _sectionHeader(
+                                context,
+                                documentCount: documents.length,
+                                folderCount: folders.length,
+                              ),
+                              const SizedBox(height: 16),
+                              if (documents.isEmpty && folders.isEmpty)
+                                _emptyState(context)
+                              else
+                                LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    final columns = constraints.maxWidth >= 980
+                                        ? 3
+                                        : constraints.maxWidth >= 620
+                                        ? 2
+                                        : 1;
+                                    return GridView.builder(
+                                      shrinkWrap: true,
+                                      physics:
+                                          const NeverScrollableScrollPhysics(),
+                                      gridDelegate:
+                                          SliverGridDelegateWithFixedCrossAxisCount(
+                                            crossAxisCount: columns,
+                                            mainAxisExtent: 238,
+                                            crossAxisSpacing: 16,
+                                            mainAxisSpacing: 16,
+                                          ),
+                                      itemCount:
+                                          folders.length + documents.length,
+                                      itemBuilder: (context, index) {
+                                        if (index < folders.length) {
+                                          final folder = folders[index];
+                                          return _FolderCard(
+                                            folder: folder,
+                                            documentCount: widget.controller
+                                                .folderDocumentCount(folder.id),
+                                            childFolderCount: widget.controller
+                                                .foldersIn(folder.id)
+                                                .length,
+                                            onOpen: () =>
+                                                _enterFolder(folder.id),
+                                            onRename: () =>
+                                                _renameFolder(folder),
+                                            onDelete: () =>
+                                                _deleteFolder(folder),
+                                          );
+                                        }
+                                        final document =
+                                            documents[index - folders.length];
+                                        return _DocumentCard(
+                                          document: document,
+                                          folderPath: searching
+                                              ? widget.controller
+                                                    .folderPath(
+                                                      document.folderId,
+                                                    )
+                                                    .map(
+                                                      (folder) => folder.name,
+                                                    )
+                                                    .join(' / ')
+                                              : null,
+                                          onOpen: () => _open(document),
+                                          onFavorite: () => widget.controller
+                                              .toggleFavorite(document.id),
+                                          onRename: () =>
+                                              _renameDocument(document),
+                                          onMove: () => _moveDocument(document),
+                                          onExport: () => _export(document),
+                                          onDelete: () =>
+                                              _confirmDelete(document),
+                                        );
+                                      },
+                                    );
+                                  },
+                                ),
+                            ],
                           ),
                         ),
                       ),
                     ),
                   ),
-                if (_isImportingFolder || _isImportingFiles)
-                  const SliverToBoxAdapter(child: LinearProgressIndicator()),
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 28, 20, 48),
-                  sliver: SliverToBoxAdapter(
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 1180),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _hero(context),
-                            const SizedBox(height: 22),
-                            _breadcrumbs(context),
-                            const SizedBox(height: 22),
-                            _sectionHeader(
-                              context,
-                              documentCount: documents.length,
-                              folderCount: folders.length,
-                            ),
-                            const SizedBox(height: 16),
-                            if (documents.isEmpty && folders.isEmpty)
-                              _emptyState(context)
-                            else
-                              LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final columns = constraints.maxWidth >= 980
-                                      ? 3
-                                      : constraints.maxWidth >= 620
-                                      ? 2
-                                      : 1;
-                                  return GridView.builder(
-                                    shrinkWrap: true,
-                                    physics:
-                                        const NeverScrollableScrollPhysics(),
-                                    gridDelegate:
-                                        SliverGridDelegateWithFixedCrossAxisCount(
-                                          crossAxisCount: columns,
-                                          mainAxisExtent: 238,
-                                          crossAxisSpacing: 16,
-                                          mainAxisSpacing: 16,
-                                        ),
-                                    itemCount:
-                                        folders.length + documents.length,
-                                    itemBuilder: (context, index) {
-                                      if (index < folders.length) {
-                                        final folder = folders[index];
-                                        return _FolderCard(
-                                          folder: folder,
-                                          documentCount: widget.controller
-                                              .folderDocumentCount(folder.id),
-                                          childFolderCount: widget.controller
-                                              .foldersIn(folder.id)
-                                              .length,
-                                          onOpen: () => _enterFolder(folder.id),
-                                          onRename: () => _renameFolder(folder),
-                                          onDelete: () => _deleteFolder(folder),
-                                        );
-                                      }
-                                      final document =
-                                          documents[index - folders.length];
-                                      return _DocumentCard(
-                                        document: document,
-                                        folderPath: searching
-                                            ? widget.controller
-                                                  .folderPath(document.folderId)
-                                                  .map((folder) => folder.name)
-                                                  .join(' / ')
-                                            : null,
-                                        onOpen: () => _open(document),
-                                        onFavorite: () => widget.controller
-                                            .toggleFavorite(document.id),
-                                        onRename: () =>
-                                            _renameDocument(document),
-                                        onMove: () => _moveDocument(document),
-                                        onExport: () => _export(document),
-                                        onDelete: () =>
-                                            _confirmDelete(document),
-                                      );
-                                    },
-                                  );
-                                },
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+                ],
               ),
             ),
             if (_isDraggingFiles) _dropOverlay(context),
@@ -523,42 +530,42 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Future<void> _showLibraryActions({bool importOnly = false}) async {
-    final action = await showModalBottomSheet<String>(
+    final action = await showAppSheet<String>(
       context: context,
-      showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (!importOnly) ...[
-                ListTile(
-                  leading: const Icon(Icons.note_add_outlined),
-                  title: Text(context.l10n.newDocument),
-                  onTap: () => Navigator.pop(sheetContext, 'document'),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.create_new_folder_outlined),
-                  title: Text(context.l10n.newFolder),
-                  onTap: () => Navigator.pop(sheetContext, 'folder'),
-                ),
-                const Divider(),
-              ],
-              ListTile(
-                leading: const Icon(Icons.description_outlined),
-                title: Text(context.l10n.importFiles),
-                onTap: () => Navigator.pop(sheetContext, 'importFiles'),
-              ),
-              ListTile(
-                leading: const Icon(Icons.drive_folder_upload_outlined),
-                title: Text(context.l10n.importFolder),
-                subtitle: Text(context.l10n.compatibleFilesOnly),
-                onTap: () => Navigator.pop(sheetContext, 'importFolder'),
-              ),
-            ],
+      builder: (sheetContext) => SheetScaffold(
+        title: importOnly
+            ? sheetContext.l10n.importLabel
+            : sheetContext.l10n.newLabel,
+        children: [
+          if (!importOnly) ...[
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.note_add_outlined),
+              title: Text(sheetContext.l10n.newDocument),
+              onTap: () => Navigator.pop(sheetContext, 'document'),
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.create_new_folder_outlined),
+              title: Text(sheetContext.l10n.newFolder),
+              onTap: () => Navigator.pop(sheetContext, 'folder'),
+            ),
+            const Divider(),
+          ],
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.description_outlined),
+            title: Text(sheetContext.l10n.importFiles),
+            onTap: () => Navigator.pop(sheetContext, 'importFiles'),
           ),
-        ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.drive_folder_upload_outlined),
+            title: Text(sheetContext.l10n.importFolder),
+            subtitle: Text(sheetContext.l10n.compatibleFilesOnly),
+            onTap: () => Navigator.pop(sheetContext, 'importFolder'),
+          ),
+        ],
       ),
     );
     if (!mounted) return;

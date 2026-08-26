@@ -12,6 +12,7 @@ Future<T?> showAppSheet<T>({
   required BuildContext context,
   required WidgetBuilder builder,
   bool enableDrag = true,
+  double maxWidth = 480,
 }) {
   final media = MediaQuery.of(context);
   final breathingRoom = media.padding.top + 28;
@@ -33,7 +34,12 @@ Future<T?> showAppSheet<T>({
     // handle goes with it, since it is what promises the gesture.
     enableDrag: enableDrag,
     showDragHandle: enableDrag,
+    // Capping width here, not just in the content inside, is what keeps a
+    // wide desktop window from turning the sheet into an edge-to-edge
+    // strip: Flutter centers a bottom sheet horizontally on its own once
+    // its constraints give it a maxWidth short of the screen.
     constraints: BoxConstraints(
+      maxWidth: maxWidth,
       maxHeight: (media.size.height - breathingRoom).clamp(
         lowerBound,
         upperBound,
@@ -113,7 +119,18 @@ class SheetScaffold extends StatelessWidget {
     final description = this.description;
     return SafeArea(
       top: false,
+      // `heightFactor: 1.0` matters: given a bounded height (the sheet's
+      // own maxHeight), plain `Center` sizes itself to fill all of it
+      // before centering its child — Flutter says so explicitly in its own
+      // docs — which is what left a slab of empty sheet below any content
+      // shorter than that cap. `heightFactor` pins Center's height to the
+      // child's instead. Width is left alone: expanding-then-capping via
+      // the `ConstrainedBox` below is exactly what centers it, and a
+      // `Row` here (tried first) does the capping wrong — a Row hands
+      // non-flex children an *unbounded* main axis, so the ConstrainedBox
+      // renders at its full maxWidth and overflows on anything narrower.
       child: Center(
+        heightFactor: 1.0,
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: maxWidth),
           child: Column(
@@ -133,7 +150,8 @@ class SheetScaffold extends StatelessWidget {
                       ),
                     ),
                     IconButton(
-                      tooltip: MaterialLocalizations.of(context).closeButtonLabel,
+                      tooltip: MaterialLocalizations.of(context)
+                          .closeButtonLabel,
                       onPressed: () {
                         final close = onClose;
                         if (close != null) {
