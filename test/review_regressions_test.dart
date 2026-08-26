@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sepia_reader/models/app_settings.dart';
+import 'package:sepia_reader/services/document_sections.dart';
 import 'package:sepia_reader/services/tts/voice_catalog.dart';
 import 'package:sepia_reader/theme/sepia_theme.dart';
 import 'package:sepia_reader/widgets/markdown_view.dart';
@@ -112,6 +113,56 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(find.byType(SheetScaffold), findsOneWidget);
+  });
+
+  group('cercas de código na fala (segunda rodada de review)', () {
+    test('uma cerca dentro de outra não fecha a de fora', () {
+      // A markdown tutorial quoting markdown: the inner "> ```dart" is
+      // content, not a fence. Treating it as one closed the outer block and
+      // let the code leak into what the voice reads.
+      final spoken = speakableText(
+        'Antes.\n\n'
+        '````markdown\n'
+        '> ```dart\n'
+        '> final x = 1;\n'
+        '> ```\n'
+        '````\n\n'
+        'Depois.',
+      );
+      expect(spoken, contains('Antes.'));
+      expect(spoken, contains('Depois.'));
+      expect(spoken, isNot(contains('final x = 1')));
+      expect(spoken, isNot(contains('```')));
+    });
+
+    test('uma cerca dentro de citação continua sendo pulada', () {
+      final spoken = speakableText(
+        'Antes.\n\n> ```js\n> const a = 1;\n> ```\n\nDepois.',
+      );
+      expect(spoken, contains('Antes.'));
+      expect(spoken, contains('Depois.'));
+      expect(spoken, isNot(contains('const a = 1')));
+    });
+
+    test('uma cerca de til não é fechada por crase', () {
+      final spoken = speakableText('Antes.\n\n~~~py\n```\nx = 1\n~~~\n\nDepois.');
+      expect(spoken, isNot(contains('x = 1')));
+      expect(spoken, contains('Depois.'));
+    });
+  });
+
+  test('cano escapado não parte a célula da tabela', () {
+    final spoken = speakableText('| a \\| b | c |\n|---|---|\n| d | e |');
+    expect(spoken, contains('a | b'));
+    expect(spoken, isNot(contains(r'\\')));
+  });
+
+  test('a escolha de APK casa a arquitetura inteira, não um pedaço', () {
+    // 'x86' is a substring of 'x86_64': a 32-bit device offered the 64-bit
+    // APK gets INSTALL_FAILED_NO_MATCHING_ABIS.
+    expect('sepia-2.0.0-android-x86_64.apk'.endsWith('-x86.apk'), isFalse);
+    expect('sepia-2.0.0-android-x86.apk'.endsWith('-x86.apk'), isTrue);
+    expect('sepia-2.0.0-android-arm64-v8a.apk'.endsWith('-arm64-v8a.apk'), isTrue);
   });
 
   test('o cache de blocos é de uma entrada só e pode ser limpo', () {

@@ -138,17 +138,36 @@ String speakableText(String markdown) {
   final lines = markdown.split('\n');
   final output = <String>[];
   var inFence = false;
+  String? fenceMarker;
+  var fenceWasQuoted = false;
   var inMath = false;
   for (final rawLine in lines) {
-    // The quote marker comes off first, and at every level: a fenced block
-    // inside a blockquote is still a fenced block, and checking the raw
-    // line missed it — so the code got read out, backticks and all.
-    final line = rawLine.replaceFirst(_quoteMarker, '');
-    if (_fencedCode.hasMatch(line.trimLeft())) {
-      inFence = !inFence;
+    if (inFence) {
+      // Only a fence written the way this block was opened can close it.
+      // Quote-stripping every line while inside an unquoted fence let a
+      // line like "> ```dart" — ordinary content in a markdown tutorial —
+      // close the block early and leak the rest of the code into the
+      // spoken text.
+      final candidate = fenceWasQuoted
+          ? rawLine.replaceFirst(_quoteMarker, '')
+          : rawLine;
+      if (candidate.trimLeft().startsWith(fenceMarker!)) {
+        inFence = false;
+        fenceMarker = null;
+      }
       continue;
     }
-    if (inFence) continue;
+    // Outside a fence the quote marker comes off at every level: a fenced
+    // block inside a blockquote is still a fenced block, and a `>>` line
+    // kept its second marker and was read aloud.
+    final line = rawLine.replaceFirst(_quoteMarker, '');
+    final opening = _fencedCode.firstMatch(line.trimLeft());
+    if (opening != null) {
+      inFence = true;
+      fenceMarker = opening.group(1);
+      fenceWasQuoted = line.length != rawLine.length;
+      continue;
+    }
     // A display equation read aloud is a stream of backslashes and braces.
     if (_mathFence.hasMatch(line)) {
       inMath = !inMath;
@@ -166,9 +185,12 @@ String speakableText(String markdown) {
     // it goes; the rest becomes the cells, separated by pauses.
     if (_tableDivider.hasMatch(line)) continue;
     if (_tableRow.hasMatch(line)) {
+      // Split on unescaped pipes only: `\|` is a literal pipe inside a
+      // cell, and splitting there cut the cell in half and left the
+      // backslash behind to be read out.
       final cells = line
           .trim()
-          .split('|')
+          .split(RegExp(r'(?<!\\)\|'))
           .map((cell) => _stripInlineMarkdown(cell).trim())
           .where((cell) => cell.isNotEmpty)
           .toList();

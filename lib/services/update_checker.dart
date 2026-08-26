@@ -148,15 +148,19 @@ class UpdateChecker {
     if (names.isEmpty) return null;
     for (final abi in await _abiPreference()) {
       for (final entry in names.entries) {
-        if (entry.key.contains(abi)) return entry.value;
+        // A delimited match, not a substring one: 'x86' is contained in
+        // 'x86_64', so a 32-bit device was being handed a 64-bit APK its
+        // installer rejects outright.
+        if (entry.key.endsWith('-$abi.apk')) return entry.value;
       }
     }
-    // Nothing matched what this device runs: the universal build is the one
-    // that always installs, and is better than an APK that cannot.
     for (final entry in names.entries) {
       if (entry.key.contains('universal')) return entry.value;
     }
-    return null;
+    // A release that published a single APK under some other name is still
+    // better offered than withheld: the installer will say no if it must,
+    // and a missing button says nothing at all.
+    return names.length == 1 ? names.values.first : null;
   }
 
   /// The device's own ABIs, best first, with the universal build last.

@@ -537,13 +537,25 @@ class _SettingsSheetState extends State<SettingsSheet> {
     }
   }
 
-  TtsEngine get _engine => _voiceEngine ??= SystemTtsEngine(
-    preferredLanguage: switch (_draft.localeCode) {
-      'pt_BR' => 'pt-BR',
-      'en' => 'en-US',
-      _ => null,
-    },
-  );
+  /// Language the cached engine was built for, so changing the interface
+  /// language and then tapping preview in the same sheet does not audition
+  /// the old one.
+  String? _engineLocale;
+
+  TtsEngine get _engine {
+    if (_voiceEngine != null && _engineLocale == _draft.localeCode) {
+      return _voiceEngine!;
+    }
+    unawaited(_voiceEngine?.release());
+    _engineLocale = _draft.localeCode;
+    return _voiceEngine = SystemTtsEngine(
+      preferredLanguage: switch (_draft.localeCode) {
+        'pt_BR' => 'pt-BR',
+        'en' => 'en-US',
+        _ => null,
+      },
+    );
+  }
 
   bool get _neuralSupported => widget.controller.voiceDownloads.isSupported;
 

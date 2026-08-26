@@ -62,8 +62,21 @@ class _VoiceDownloadsSheetState extends State<VoiceDownloadsSheet> {
 
   @override
   void dispose() {
-    unawaited(_previewEngine?.release());
+    unawaited(_stopPreview());
     super.dispose();
+  }
+
+  /// Ends whatever is being auditioned and hands the model back.
+  ///
+  /// Bumping the token is the whole point: releasing an engine completes an
+  /// awaited `speak()` with an error, and without invalidating the token
+  /// that error reaches the user as a failure notice for something they
+  /// never asked for.
+  Future<void> _stopPreview() async {
+    _previewToken++;
+    final engine = _previewEngine;
+    _previewEngine = null;
+    await engine?.release();
   }
 
   Future<void> _preview(VoicePack pack, NeuralVoice voice) async {
@@ -71,12 +84,10 @@ class _VoiceDownloadsSheetState extends State<VoiceDownloadsSheet> {
     final wasPlaying = _previewing == voice.id;
     // Whatever was playing stops, and its own invocation learns that it is
     // no longer current from the token rather than from an exception.
-    final token = ++_previewToken;
-    final previous = _previewEngine;
-    _previewEngine = null;
     if (mounted) setState(() => _previewing = null);
-    await previous?.release();
-    if (wasPlaying || token != _previewToken) return;
+    await _stopPreview();
+    final token = _previewToken;
+    if (wasPlaying) return;
 
     final engine = NeuralTtsEngine(pack: pack, voice: voice, store: _store);
     if (!mounted) return;
@@ -124,7 +135,9 @@ class _VoiceDownloadsSheetState extends State<VoiceDownloadsSheet> {
       ),
     );
     if (confirmed != true) return;
-    await _previewEngine?.release();
+    // The voice being auditioned may be the one whose files are about to go.
+    await _stopPreview();
+    if (mounted) setState(() => _previewing = null);
     await widget.downloads.remove(pack);
     if (!mounted) return;
     if (pack.voices.any((voice) => voice.id == _selected)) {

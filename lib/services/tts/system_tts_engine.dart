@@ -165,7 +165,10 @@ class SystemTtsEngine extends TtsEngine {
       // engine before giving up, or a callback that was merely slow lets
       // the next sentence start over the top of this one.
       debugPrint('sepia: no completion callback for an utterance');
-      await _tts?.stop();
+      // Through stop(), not the plugin directly: a timeout is exactly a stop
+      // followed immediately by a speak, which is the case the settle window
+      // exists for, and it is keyed off stop() recording when it happened.
+      await stop();
     }
   }
 
