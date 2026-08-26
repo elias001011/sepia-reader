@@ -31,6 +31,8 @@ A calm, local-first Markdown library, reader, and editor built with Flutter. Sé
 - responsive editor with shortcuts for headings, bold, italic, quotes, lists, links, and code;
 - per-session undo/redo through the interface, `Ctrl/Cmd+Z`, `Ctrl+Y`, or `Ctrl/Cmd+Shift+Z`;
 - large documents are edited in parts, following the text's own chapters, so typing stays responsive — the saved file remains whole;
+- chapter separator toggle in the editor menu: activates or deactivates sectioned editing globally for all large documents;
+- chapter navigation in reading mode: a button next to Listen that opens a chapter picker to jump to any section;
 - syntax highlighting for Dart, JavaScript, TypeScript, JSON, YAML, HTML, CSS, Python, Java, Kotlin, Swift, shell, SQL, and XML.
 
 ### Keeping
@@ -126,7 +128,7 @@ git push origin v1.2.0
 
 **Download `arm64-v8a`** — it is the architecture of virtually every current Android phone, and the smallest APK. `armeabi-v7a` serves older devices, `x86_64` serves emulators, and the universal build exists only as a compatibility fallback: it is considerably larger because it carries the native libraries for every architecture at once.
 
-All of them use the current development signing key and are meant for direct installation and testing. Before distributing through the Play Store, set up a permanent signing key and prefer an Android App Bundle — Play itself then delivers only each device's ABI.
+All of them use the current development signing key and are meant for direct installation and testing. For permanent release builds, configure the secrets `KEYSTORE_BASE64`, `KEY_ALIAS`, `KEY_STORE_PASSWORD`, and `KEY_PASSWORD` in the GitHub repository — the workflow restores the keystore automatically. Before distributing through the Play Store, prefer an Android App Bundle — Play itself then delivers only each device's ABI.
 
 ## Privacy and persistence
 

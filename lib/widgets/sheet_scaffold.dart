@@ -30,9 +30,9 @@ Future<T?> showAppSheet<T>({
       // minimum would have crashed every sheet on open.
       maxHeight: (media.size.height - breathingRoom).clamp(
         math.min(220.0, media.size.height),
-        // Cap at 700 px so sheets don't swallow the whole browser window
-        // on a tall desktop monitor.
-        math.min(media.size.height, 700.0),
+        // On desktop/web, cap at 80 % of the viewport so sheets feel
+        // like a panel, not a full-screen takeover.
+        media.size.height * 0.8,
       ),
     ),
     builder: builder,
@@ -50,7 +50,7 @@ class SheetScaffold extends StatelessWidget {
     this.description,
     this.footer,
     this.onClose,
-    this.maxWidth = 560,
+    this.maxWidth = 400,
   }) : itemCount = null,
        itemBuilder = null;
 
@@ -67,7 +67,7 @@ class SheetScaffold extends StatelessWidget {
     this.description,
     this.footer,
     this.onClose,
-    this.maxWidth = 560,
+    this.maxWidth = 400,
   }) : children = const [];
 
   final String title;
@@ -86,9 +86,9 @@ class SheetScaffold extends StatelessWidget {
   final double maxWidth;
 
   static EdgeInsets _bodyPadding(BuildContext context) => EdgeInsets.fromLTRB(
-    24,
+    20,
     4,
-    24,
+    20,
     16 + MediaQuery.viewInsetsOf(context).bottom,
   );
 
