@@ -33,7 +33,11 @@ android {
             create("release") {
                 keyAlias     = keyProps.getProperty("keyAlias")
                 keyPassword  = keyProps.getProperty("keyPassword")
-                storeFile    = rootProject.file(keyProps.getProperty("storeFile"))
+                // The workflow drops the keystore next to this file (in
+                // android/app/), not next to key.properties (in android/) —
+                // `file()` resolves storeFile against this module, matching
+                // where it's actually written.
+                storeFile    = file(keyProps.getProperty("storeFile"))
                 storePassword = keyProps.getProperty("storePassword")
             }
         }
