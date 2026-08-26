@@ -72,11 +72,6 @@ class _EditorScreenState extends State<EditorScreen> {
   bool _showPreview = false;
   String? _activeBookmarkPopupId;
 
-  /// When true, forces sectioned editing regardless of document size.
-  /// Toggled from the editor menu; off by default so the auto heuristic
-  /// decides.
-  bool _chapterSeparatorEnabled = false;
-
   /// The document title is a plain label until it is tapped.
   ///
   /// It used to be a live TextField sitting in the AppBar, which made it the
@@ -211,7 +206,7 @@ class _EditorScreenState extends State<EditorScreen> {
   /// Decides whether [content] is edited whole or in slices, and selects
   /// which slice. Does not touch the text field — callers set that up.
   void _configureSections(String content, {required int index}) {
-    final needsSectioning = _chapterSeparatorEnabled ||
+    final needsSectioning = widget.controller.settings.sectionedEditing &&
         content.length >= sectionedEditingThreshold;
     if (!needsSectioning) {
       _sectioned = false;
@@ -615,7 +610,7 @@ class _EditorScreenState extends State<EditorScreen> {
                   value: 'chapter-separator',
                   child: ListTile(
                     leading: Icon(
-                      _chapterSeparatorEnabled
+                      widget.controller.settings.sectionedEditing
                           ? Icons.toggle_on_rounded
                           : Icons.toggle_off_rounded,
                     ),
@@ -643,7 +638,7 @@ class _EditorScreenState extends State<EditorScreen> {
               tooltip: context.l10n.chapterSeparatorToggle,
               onPressed: _toggleChapterSeparator,
               icon: Icon(
-                _chapterSeparatorEnabled
+                widget.controller.settings.sectionedEditing
                     ? Icons.toggle_on_rounded
                     : Icons.toggle_off_rounded,
               ),
@@ -1185,16 +1180,14 @@ class _EditorScreenState extends State<EditorScreen> {
                           ),
                           SizedBox(width: compact ? 5 : 8),
                         ],
-                        if (hasChapters(sectionsOf(_readerDocument))) ...[
-                          _readerButton(
-                            context,
-                            compact: compact,
-                            tooltip: context.l10n.chapterNavigation,
-                            icon: Icons.table_rows_rounded,
-                            onPressed: _openChapterNavigation,
-                          ),
-                          SizedBox(width: compact ? 5 : 8),
-                        ],
+                        _readerButton(
+                          context,
+                          compact: compact,
+                          tooltip: context.l10n.chapterNavigation,
+                          icon: Icons.table_rows_rounded,
+                          onPressed: _openChapterNavigation,
+                        ),
+                        SizedBox(width: compact ? 5 : 8),
                         _readerButton(
                           context,
                           compact: compact,
@@ -1566,12 +1559,14 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 
   void _toggleChapterSeparator() {
-    setState(() {
-      _chapterSeparatorEnabled = !_chapterSeparatorEnabled;
-    });
-    // Reconfigure sections with the new toggle state.
+    final current = widget.controller.settings.sectionedEditing;
+    final newValue = !current;
+    widget.controller.updateSettings(
+      widget.controller.settings.copyWith(sectionedEditing: newValue),
+    );
+    // Reconfigure sections with the new global setting.
     final content = _stored?.content ?? _fullContent;
-    if (_chapterSeparatorEnabled && !_sectioned) {
+    if (newValue && !_sectioned) {
       _configureSections(content, index: 0);
       final text = _sectionText(content);
       _contentController.value = TextEditingValue(
@@ -1579,7 +1574,7 @@ class _EditorScreenState extends State<EditorScreen> {
         selection: const TextSelection.collapsed(offset: 0),
       );
       _previewContent.value = text;
-    } else if (!_chapterSeparatorEnabled && _sectioned) {
+    } else if (!newValue && _sectioned) {
       _editWholeDocument();
     }
   }
