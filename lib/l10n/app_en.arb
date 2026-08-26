@@ -488,5 +488,25 @@
   "updateDownload": "Download APK",
   "updateLater": "Not now",
   "updateWebHint": "This is the web build: the server hosting it is what updates.",
-  "updateNotes": "What's new"
+  "updateNotes": "What's new",
+  "voiceDownloadRunning": "Downloading {name} · {percent}%",
+  "@voiceDownloadRunning": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "voiceDownloadQueued": "{count, plural, =1{1 more queued} other{{count} more queued}}",
+  "@voiceDownloadQueued": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "voiceDownloadBackgroundHint": "You can close settings: the download keeps going while the app is open."
 }

@@ -488,5 +488,25 @@
   "updateDownload": "Baixar APK",
   "updateLater": "Agora não",
   "updateWebHint": "Esta é a versão web: quem atualiza é o servidor que a hospeda.",
-  "updateNotes": "Novidades"
+  "updateNotes": "Novidades",
+  "voiceDownloadRunning": "Baixando {name} · {percent}%",
+  "@voiceDownloadRunning": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "voiceDownloadQueued": "{count, plural, =1{mais 1 na fila} other{mais {count} na fila}}",
+  "@voiceDownloadQueued": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "voiceDownloadBackgroundHint": "Pode fechar as configurações: o download continua enquanto o app estiver aberto."
 }

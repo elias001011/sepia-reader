@@ -33,9 +33,12 @@ class VoiceDownloadJob {
 /// Downloads run one at a time, in the order they were asked for. The rest
 /// of the app watches this object rather than owning any of it.
 class VoiceDownloadManager extends ChangeNotifier {
-  VoiceDownloadManager({VoiceStore? store}) : store = store ?? VoiceStore();
+  VoiceDownloadManager({VoiceStorage? store}) : store = store ?? VoiceStore();
 
-  final VoiceStore store;
+  /// Typed to the narrow interface, not the concrete store: this class does
+  /// not need repository listings or filesystem paths, and not knowing about
+  /// them is what makes its queueing testable on its own.
+  final VoiceStorage store;
   final Map<String, VoiceDownloadJob> _jobs = {};
   final Queue<String> _queue = Queue();
   final Set<String> _installed = {};

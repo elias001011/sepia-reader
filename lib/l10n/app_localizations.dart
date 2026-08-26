@@ -1495,6 +1495,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'What\'s new'**
   String get updateNotes;
+
+  /// No description provided for @voiceDownloadRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading {name} · {percent}%'**
+  String voiceDownloadRunning(String name, int percent);
+
+  /// No description provided for @voiceDownloadQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 more queued} other{{count} more queued}}'**
+  String voiceDownloadQueued(int count);
+
+  /// No description provided for @voiceDownloadBackgroundHint.
+  ///
+  /// In en, this message translates to:
+  /// **'You can close settings: the download keeps going while the app is open.'**
+  String get voiceDownloadBackgroundHint;
 }
 
 class _AppLocalizationsDelegate

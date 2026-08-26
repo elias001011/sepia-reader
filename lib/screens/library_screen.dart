@@ -15,6 +15,7 @@ import '../services/folder_importer.dart';
 import '../services/update_checker.dart';
 import '../state/app_controller.dart';
 import '../widgets/sheet_scaffold.dart';
+import '../widgets/voice_download_banner.dart';
 import 'editor_screen.dart';
 import 'settings_sheet.dart';
 
@@ -99,6 +100,19 @@ class _LibraryScreenState extends State<LibraryScreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
                 SliverToBoxAdapter(child: _topBar(context)),
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                  sliver: SliverToBoxAdapter(
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 1180),
+                        child: VoiceDownloadBanner(
+                          downloads: widget.controller.voiceDownloads,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
                 if (_update case final update?)
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),

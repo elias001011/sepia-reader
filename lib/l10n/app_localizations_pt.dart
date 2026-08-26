@@ -876,4 +876,24 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get updateNotes => 'Novidades';
+
+  @override
+  String voiceDownloadRunning(String name, int percent) {
+    return 'Baixando $name · $percent%';
+  }
+
+  @override
+  String voiceDownloadQueued(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'mais $count na fila',
+      one: 'mais 1 na fila',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get voiceDownloadBackgroundHint =>
+      'Pode fechar as configurações: o download continua enquanto o app estiver aberto.';
 }

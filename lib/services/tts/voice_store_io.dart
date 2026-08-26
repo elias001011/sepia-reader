@@ -29,7 +29,7 @@ class RemoteFile {
 /// which for a ~400 MB model is not a slow path, it is an impossible one.
 /// Streaming per file costs neither, and it makes an interrupted install
 /// resumable for free: anything already on disk at the right size is skipped.
-class VoiceStore {
+class VoiceStore implements VoiceStorage {
   VoiceStore({http.Client? client}) : _client = client ?? http.Client();
 
   final http.Client _client;
@@ -40,6 +40,7 @@ class VoiceStore {
 
   /// Neural voices need a real filesystem and native inference, neither of
   /// which the web build has: there the platform voice is the only engine.
+  @override
   bool get isSupported => true;
 
   Future<Directory> _root() async {
@@ -59,6 +60,7 @@ class VoiceStore {
   Future<Directory> packDirectory(VoicePack pack) async =>
       Directory('${(await _root()).path}/${_slug(pack.repo)}');
 
+  @override
   Future<bool> isInstalled(VoicePack pack) async {
     final dir = await packDirectory(pack);
     if (!File('${dir.path}/$_manifestName').existsSync()) return false;
@@ -68,6 +70,7 @@ class VoiceStore {
     return model.existsSync() && model.lengthSync() > 0;
   }
 
+  @override
   Future<List<VoicePack>> installedPacks() async {
     final result = <VoicePack>[];
     for (final pack in voicePacks) {
@@ -87,6 +90,7 @@ class VoiceStore {
     return total;
   }
 
+  @override
   Future<void> remove(VoicePack pack) async {
     final dir = await packDirectory(pack);
     if (dir.existsSync()) dir.deleteSync(recursive: true);
@@ -125,6 +129,7 @@ class VoiceStore {
   ///
   /// [shouldCancel] is polled between files, so somebody who changes their
   /// mind partway through a 400 MB download is not stuck waiting for it.
+  @override
   Future<void> install(
     VoicePack pack, {
     void Function(VoiceInstallProgress)? onProgress,

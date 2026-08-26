@@ -7,6 +7,7 @@ import '../services/tts/neural_tts_engine.dart';
 import '../services/tts/tts_engine.dart';
 import '../services/tts/voice_catalog.dart';
 import '../services/tts/voice_download_manager.dart';
+import '../services/tts/voice_store.dart';
 import '../widgets/sheet_scaffold.dart';
 
 /// Manages the neural voices stored on the device.
@@ -37,6 +38,10 @@ class VoiceDownloadsSheet extends StatefulWidget {
 class _VoiceDownloadsSheetState extends State<VoiceDownloadsSheet> {
   late String _selected;
 
+  /// Its own store, only for auditioning: the download manager is typed to
+  /// the narrow storage interface, and playing a sample needs the real one.
+  final VoiceStore _store = VoiceStore();
+
   /// Voice currently being auditioned, and the engine doing it. A neural
   /// model takes a moment to load, so the button has to say so.
   String? _previewing;
@@ -66,7 +71,7 @@ class _VoiceDownloadsSheetState extends State<VoiceDownloadsSheet> {
     final engine = NeuralTtsEngine(
       pack: pack,
       voice: voice,
-      store: widget.downloads.store,
+      store: _store,
     );
     setState(() {
       _previewEngine = engine;
