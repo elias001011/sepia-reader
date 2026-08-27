@@ -136,6 +136,13 @@ def merge_records(existing, incoming):
     return [by_id[record_id] for record_id in order]
 
 
+class Server(ThreadingHTTPServer):
+    # Must be set before bind() runs in the constructor, or a restart races
+    # the previous socket's TIME_WAIT and dies with "address already in use".
+    allow_reuse_address = True
+    daemon_threads = True
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "SepiaServer/1.1"
 
@@ -281,8 +288,7 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(WEB_DIR, exist_ok=True)
-    server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
-    server.allow_reuse_address = True
+    server = Server(("0.0.0.0", PORT), Handler)
     print(f"Sepia server listening on :{PORT} (web={WEB_DIR}, data={DATA_DIR})")
     server.serve_forever()
 
