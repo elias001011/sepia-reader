@@ -41,6 +41,8 @@ class SyncConfig {
 typedef SyncTestResult = ({bool ok, int documentCount, String? error});
 
 class StorageService {
+  StorageService({http.Client? client}) : _client = client ?? http.Client();
+
   static const _documentsKey = 'sepia.documents.v1';
   static const _settingsKey = 'sepia.settings.v1';
   static const _foldersKey = 'sepia.folders.v1';
@@ -49,8 +51,15 @@ class StorageService {
   static const _lastSyncKey = 'sepia.lastsync.v1';
 
   static const _networkTimeout = Duration(seconds: 6);
+  static const _mergeHeaders = {
+    'Content-Type': 'application/json',
+    'X-Sepia-Write-Mode': 'merge',
+  };
+
+  final http.Client _client;
 
   SyncConfig? _cachedSyncConfig;
+  Future<void> _pendingPushes = Future.value();
 
   /// Counts GETs that actually came back from the server. [forcePull] resets
   /// it so a user-triggered sync can report whether the server was reached
@@ -71,6 +80,28 @@ class StorageService {
       } catch (_) {
         config = const SyncConfig();
       }
+    } else {
+      // `sepia.syncconfig.v1` was introduced after the sync preferences had
+      // already lived inside `sepia.settings.v1`. Defaulting the new key to
+      // off without migrating the old fields silently disabled every
+      // existing installation on upgrade. Settings created before the
+      // explicit switch do not carry the fields at all; those builds always
+      // synced to the current web origin, so preserve that behaviour too.
+      final legacyRaw = prefs.getString(_settingsKey);
+      if (legacyRaw != null) {
+        try {
+          final legacy = Map<String, dynamic>.from(
+            jsonDecode(legacyRaw) as Map,
+          );
+          config = SyncConfig(
+            enabled: legacy['syncEnabled'] as bool? ?? true,
+            serverUrl: legacy['syncServerUrl'] as String? ?? '',
+          );
+        } catch (_) {
+          config = const SyncConfig();
+        }
+      }
+      await prefs.setString(_syncConfigKey, jsonEncode(config.toJson()));
     }
     _cachedSyncConfig = config;
     return config;
@@ -125,7 +156,7 @@ class StorageService {
     final uri = _resolve(path, await loadSyncConfig());
     if (uri == null) return null;
     try {
-      final response = await http.get(uri).timeout(_networkTimeout);
+      final response = await _client.get(uri).timeout(_networkTimeout);
       if (response.statusCode != 200) return null;
       final decoded = jsonDecode(utf8.decode(response.bodyBytes));
       _serverResponses++;
@@ -137,17 +168,16 @@ class StorageService {
     }
   }
 
-  void _pushJson(String path, Object body) {
-    unawaited(() async {
-      final uri = _resolve(path, await loadSyncConfig());
-      if (uri == null) return;
+  Future<void> _pushJson(String path, Object body) {
+    // Keep outgoing snapshots in issue order. The server merges records too,
+    // but serialization here also protects settings (a single object) and
+    // prevents an older request from finishing after a newer one.
+    final queued = _pendingPushes.then((_) async {
       try {
-        final response = await http
-            .put(
-              uri,
-              headers: const {'Content-Type': 'application/json'},
-              body: jsonEncode(body),
-            )
+        final uri = _resolve(path, await loadSyncConfig());
+        if (uri == null) return;
+        final response = await _client
+            .put(uri, headers: _mergeHeaders, body: jsonEncode(body))
             .timeout(_networkTimeout);
         if (response.statusCode != 200) {
           debugPrint('sepia: PUT $path returned ${response.statusCode}');
@@ -155,10 +185,17 @@ class StorageService {
           await _markSynced();
         }
       } catch (error) {
+        // Never let one failed push poison the queue: the next call chains
+        // off this future and would otherwise never run.
         debugPrint('sepia: PUT $path failed: $error');
       }
-    }());
+    });
+    _pendingPushes = queued;
+    return queued;
   }
+
+  @visibleForTesting
+  Future<void> waitForPendingSync() => _pendingPushes;
 
   /// Explicitly probes a server address, regardless of whether syncing is
   /// currently enabled, so the settings screen can tell the user what is
@@ -178,7 +215,7 @@ class StorageService {
       );
     }
     try {
-      final response = await http.get(uri).timeout(_networkTimeout);
+      final response = await _client.get(uri).timeout(_networkTimeout);
       if (response.statusCode != 200) {
         return (
           ok: false,
@@ -230,7 +267,7 @@ class StorageService {
     // Only write back when the server's copy actually differs, so a start-up
     // that changed nothing does not cost a needless upload.
     if (remoteRaw is List && jsonEncode(remoteRaw) != jsonEncode(encoded)) {
-      _pushJson(path, encoded);
+      await _pushJson(path, encoded);
     }
     return merged;
   }
@@ -348,7 +385,7 @@ class StorageService {
       _bookmarksKey,
       jsonEncode(json),
     );
-    _pushJson('/api/bookmarks', json);
+    unawaited(_pushJson('/api/bookmarks', json));
   }
 
   Future<void> saveDocuments(List<LibraryDocument> documents) async {
@@ -357,7 +394,7 @@ class StorageService {
       _documentsKey,
       jsonEncode(json),
     );
-    _pushJson('/api/documents', json);
+    unawaited(_pushJson('/api/documents', json));
   }
 
   Future<void> saveSettings(AppSettings settings) async {
@@ -366,7 +403,13 @@ class StorageService {
       _settingsKey,
       jsonEncode(json),
     );
-    _pushJson('/api/settings', json);
+    // These two values configure this device, not the shared library. Keeping
+    // them out of the remote payload avoids leaking a device-only address and
+    // matches the local-authoritative contract enforced while loading.
+    final remoteJson = Map<String, dynamic>.from(json)
+      ..remove('syncEnabled')
+      ..remove('syncServerUrl');
+    unawaited(_pushJson('/api/settings', remoteJson));
   }
 
   Future<void> saveFolders(List<LibraryFolder> folders) async {
@@ -375,7 +418,7 @@ class StorageService {
       _foldersKey,
       jsonEncode(json),
     );
-    _pushJson('/api/folders', json);
+    unawaited(_pushJson('/api/folders', json));
   }
 
   /// Reconciles every collection with the server on demand, behind the
@@ -394,6 +437,10 @@ class StorageService {
     })
   >
   forcePull() async {
+    // A pull must not race a save that was already queued by this device.
+    // Otherwise the GET can observe the old server snapshot and report a
+    // successful sync before the local edit has even arrived.
+    await _pendingPushes;
     _serverResponses = 0;
     final documents = await loadDocuments();
     final folders = await loadFolders();
@@ -421,7 +468,7 @@ class StorageService {
       final uri = _resolve(path, config);
       if (uri == null) return false;
       try {
-        final response = await http
+        final response = await _client
             .put(
               uri,
               headers: const {'Content-Type': 'application/json'},

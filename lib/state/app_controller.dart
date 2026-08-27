@@ -73,13 +73,14 @@ class AppController extends ChangeNotifier {
       .toList(growable: false);
 
   List<ReadingBookmark> bookmarksForDocument(String documentId) {
-    final matches = _bookmarks
-        .where(
-          (bookmark) =>
-              bookmark.documentId == documentId && !bookmark.isDeleted,
-        )
-        .toList()
-      ..sort((a, b) => a.chunkIndex.compareTo(b.chunkIndex));
+    final matches =
+        _bookmarks
+            .where(
+              (bookmark) =>
+                  bookmark.documentId == documentId && !bookmark.isDeleted,
+            )
+            .toList()
+          ..sort((a, b) => a.chunkIndex.compareTo(b.chunkIndex));
     return List.unmodifiable(matches);
   }
 
@@ -202,6 +203,7 @@ class AppController extends ChangeNotifier {
     if (index == -1) return;
     _documents[index] = _documents[index].copyWith(
       isFavorite: !_documents[index].isFavorite,
+      updatedAt: DateTime.now(),
     );
     await _persistDocuments();
     notifyListeners();
@@ -373,8 +375,9 @@ class AppController extends ChangeNotifier {
 
   /// Index into the raw list, skipping tombstones so a stale screen cannot
   /// revive a document that was deleted elsewhere.
-  int _liveDocumentIndex(String id) =>
-      _documents.indexWhere((document) => document.id == id && !document.isDeleted);
+  int _liveDocumentIndex(String id) => _documents.indexWhere(
+    (document) => document.id == id && !document.isDeleted,
+  );
 
   int _liveFolderIndex(String id) =>
       _folders.indexWhere((folder) => folder.id == id && !folder.isDeleted);

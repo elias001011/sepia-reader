@@ -95,7 +95,10 @@ Na web, a biblioteca é salva no armazenamento local do navegador e fica vincula
 
 Por isso, self-hosting é o foco recomendado para uma instalação privada e com endereço estável. Ainda assim, o usuário deve exportar documentos importantes: limpar os dados do site, trocar de navegador ou mudar o domínio pode tornar a biblioteca local inacessível.
 
-O pacote web self-hostable é anexado a cada GitHub Release.
+O pacote web self-hostable e o servidor de sincronização `sepia-*-server.py`
+são anexados a cada GitHub Release. O servidor mantém `web/` e `data/` ao lado
+do script por padrão; os caminhos também podem ser definidos por
+`SEPIA_WEB_DIR` e `SEPIA_DATA_DIR`.
 
 ### Publicar no Netlify
 

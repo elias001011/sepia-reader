@@ -57,8 +57,8 @@ Future<T?> showAppSheet<T>({
 /// the dialog's own `insetPadding` (40 logical pixels on each side by
 /// default) already eats into what is available before this even runs.
 double appDialogWidth(BuildContext context, double preferred) {
-  final available = MediaQuery.sizeOf(context).width - 80;
-  return available < preferred ? available.clamp(200.0, preferred) : preferred;
+  final available = math.max(0.0, MediaQuery.sizeOf(context).width - 80);
+  return math.min(available, preferred);
 }
 
 /// Shared frame for the app's bottom sheets: a title, an optional line of

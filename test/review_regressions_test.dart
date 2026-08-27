@@ -20,9 +20,7 @@ void main() {
       final languages = kokoro.voices.map((v) => v.espeakLanguage).toSet();
       expect(languages.length, greaterThan(3));
       expect(
-        kokoro.voices
-            .firstWhere((v) => v.language == 'pt-BR')
-            .espeakLanguage,
+        kokoro.voices.firstWhere((v) => v.language == 'pt-BR').espeakLanguage,
         'pt-br',
       );
       expect(
@@ -53,7 +51,8 @@ void main() {
       expect(
         atDefault,
         base,
-        reason: 'no tamanho padrão a interface tem que ficar exatamente como '
+        reason:
+            'no tamanho padrão a interface tem que ficar exatamente como '
             'a plataforma define — em desktop isso é compact',
       );
 
@@ -116,6 +115,29 @@ void main() {
     expect(find.byType(SheetScaffold), findsOneWidget);
   });
 
+  testWidgets('diálogo nunca pede mais largura do que a tela oferece', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(240, 400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    late double width;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) {
+            width = appDialogWidth(context, 360);
+            return const SizedBox.shrink();
+          },
+        ),
+      ),
+    );
+
+    expect(width, 160);
+  });
+
   group('cercas de código na fala (segunda rodada de review)', () {
     test('uma cerca dentro de outra não fecha a de fora', () {
       // A markdown tutorial quoting markdown: the inner "> ```dart" is
@@ -158,7 +180,9 @@ void main() {
     });
 
     test('uma cerca de til não é fechada por crase', () {
-      final spoken = speakableText('Antes.\n\n~~~py\n```\nx = 1\n~~~\n\nDepois.');
+      final spoken = speakableText(
+        'Antes.\n\n~~~py\n```\nx = 1\n~~~\n\nDepois.',
+      );
       expect(spoken, isNot(contains('x = 1')));
       expect(spoken, contains('Depois.'));
     });

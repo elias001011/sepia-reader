@@ -59,7 +59,12 @@ On the web, the library is stored locally in the browser and belongs to the orig
 
 Self-hosting is therefore the recommended focus for a private installation with a stable address. It does not replace backups: clearing site data, switching browsers, or changing the domain can make that browser-local library unavailable. Export important documents regularly.
 
-Every GitHub Release includes a self-hostable web archive. Extract it into the root directory of any static web server. If Sépia will be hosted under a URL subpath, rebuild it with Flutter's matching `--base-href` option.
+Every GitHub Release includes a self-hostable web archive and the
+`sepia-*-server.py` sync server. By default, the server keeps `web/` and
+`data/` next to the script; `SEPIA_WEB_DIR` and `SEPIA_DATA_DIR` can override
+those paths. Extract the web archive into the root directory of any static web
+server. If Sépia will be hosted under a URL subpath, rebuild it with Flutter's
+matching `--base-href` option.
 
 The release archive bundles Flutter's rendering runtime, Inter, Merriweather, Lora, Roboto Mono, and Noto emoji and symbol fallbacks. The running app does not depend on Google Fonts or a public CDN.
 
