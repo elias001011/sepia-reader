@@ -247,6 +247,130 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Whether [parentId] is a legal new home for the folder [id]: not the
+  /// folder itself and not one of its own descendants, or the move would
+  /// splice the subtree out of the tree entirely.
+  bool canMoveFolderInto(String id, String? parentId) =>
+      parentId == null || !folderContents(id).folderIds.contains(parentId);
+
+  Future<void> moveFolder(String id, String? parentId) async {
+    final index = _liveFolderIndex(id);
+    if (index == -1 || !canMoveFolderInto(id, parentId)) return;
+    _folders[index] = _folders[index].copyWith(
+      parentId: parentId,
+      moveToRoot: parentId == null,
+      name: _uniqueFolderName(_folders[index].name, parentId, exceptId: id),
+      updatedAt: DateTime.now(),
+    );
+    await _persistFolders();
+    notifyListeners();
+  }
+
+  /// Moves a mixed selection of folders and documents into [destinationParentId]
+  /// in one pass. Folders that cannot legally land there (the destination is
+  /// inside their own subtree) are left where they are.
+  Future<void> moveEntries({
+    Set<String> folderIds = const {},
+    Set<String> documentIds = const {},
+    required String? destinationParentId,
+  }) async {
+    final now = DateTime.now();
+    var touchedFolders = false;
+    for (final folderId in folderIds) {
+      final index = _liveFolderIndex(folderId);
+      if (index == -1 || !canMoveFolderInto(folderId, destinationParentId)) {
+        continue;
+      }
+      _folders[index] = _folders[index].copyWith(
+        parentId: destinationParentId,
+        moveToRoot: destinationParentId == null,
+        name: _uniqueFolderName(
+          _folders[index].name,
+          destinationParentId,
+          exceptId: folderId,
+        ),
+        updatedAt: now,
+      );
+      touchedFolders = true;
+    }
+    var touchedDocuments = false;
+    for (final documentId in documentIds) {
+      final index = _liveDocumentIndex(documentId);
+      if (index == -1) continue;
+      _documents[index] = _documents[index].copyWith(
+        folderId: destinationParentId,
+        moveToRoot: destinationParentId == null,
+        updatedAt: now,
+      );
+      touchedDocuments = true;
+    }
+    if (touchedFolders) await _persistFolders();
+    if (touchedDocuments) await _persistDocuments();
+    if (touchedFolders || touchedDocuments) notifyListeners();
+  }
+
+  /// Tombstones a mixed selection: each folder along with everything it
+  /// holds (subfolders, documents, their bookmarks), plus the loose
+  /// documents picked directly. Same rules as [deleteFolder], one pass.
+  Future<void> deleteEntries({
+    Set<String> folderIds = const {},
+    Set<String> documentIds = const {},
+  }) async {
+    final now = DateTime.now();
+    final doomedFolders = <String>{};
+    final doomedDocuments = <String>{...documentIds};
+    for (final folderId in folderIds) {
+      if (_liveFolderIndex(folderId) == -1) continue;
+      final contents = folderContents(folderId);
+      doomedFolders.addAll(contents.folderIds);
+      doomedDocuments.addAll(contents.documents.map((d) => d.id));
+    }
+    if (doomedFolders.isEmpty && doomedDocuments.isEmpty) return;
+    for (var i = 0; i < _folders.length; i++) {
+      if (doomedFolders.contains(_folders[i].id) && !_folders[i].isDeleted) {
+        _folders[i] = _folders[i].copyWith(updatedAt: now, deletedAt: now);
+      }
+    }
+    for (var i = 0; i < _documents.length; i++) {
+      if (doomedDocuments.contains(_documents[i].id) &&
+          !_documents[i].isDeleted) {
+        _documents[i] = _documents[i].copyWith(
+          content: '',
+          updatedAt: now,
+          deletedAt: now,
+        );
+      }
+    }
+    for (var i = 0; i < _bookmarks.length; i++) {
+      if (doomedDocuments.contains(_bookmarks[i].documentId) &&
+          !_bookmarks[i].isDeleted) {
+        _bookmarks[i] = _bookmarks[i].copyWith(updatedAt: now, deletedAt: now);
+      }
+    }
+    await Future.wait([
+      _persistFolders(),
+      _persistDocuments(),
+      _persistBookmarks(),
+    ]);
+    notifyListeners();
+  }
+
+  /// Every live document held by any of [folderIds] or their descendants,
+  /// plus the loose [documentIds]. Used to expand a selection before an
+  /// export.
+  List<LibraryDocument> documentsForSelection({
+    Set<String> folderIds = const {},
+    Set<String> documentIds = const {},
+  }) {
+    final ids = <String>{...documentIds};
+    for (final folderId in folderIds) {
+      ids.addAll(folderContents(folderId).documents.map((d) => d.id));
+    }
+    return live(_documents)
+        .where((document) => ids.contains(document.id))
+        .toList(growable: false);
+  }
+
   /// Everything a folder holds, transitively: the ids of the folder itself
   /// and every descendant folder, plus every live document inside any of
   /// them. Used both to warn before a delete and to carry it out.
@@ -453,17 +577,21 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> updateSettings(AppSettings settings) async {
-    _settings = settings;
+    // Stamp the merge clock so this change outranks whatever the server still
+    // holds: without it, the next load let a stale server copy overwrite the
+    // edit, and appearance settings appeared to reset themselves on upgrade.
+    final stamped = settings.copyWith(settingsUpdatedAt: DateTime.now());
+    _settings = stamped;
     // Persist the sync preferences locally *before* saving, so that turning
     // sync off takes effect immediately (this very save must not be pushed)
     // and a new server address is used from here on.
     await _storage.saveSyncConfig(
       SyncConfig(
-        enabled: settings.syncEnabled,
-        serverUrl: settings.syncServerUrl,
+        enabled: stamped.syncEnabled,
+        serverUrl: stamped.syncServerUrl,
       ),
     );
-    await _storage.saveSettings(settings);
+    await _storage.saveSettings(stamped);
     notifyListeners();
   }
 

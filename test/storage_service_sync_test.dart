@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -154,6 +155,75 @@ void main() {
     final body = jsonDecode(pushed!.body) as Map<String, dynamic>;
     expect(body, isNot(contains('syncEnabled')));
     expect(body, isNot(contains('syncServerUrl')));
+  });
+
+  group('relógio de merge das configurações', () {
+    Future<AppSettings> loadWith({
+      required DateTime localAt,
+      required DateTime serverAt,
+      required Color localColor,
+      required Color serverColor,
+      void Function(http.Request)? onPut,
+    }) async {
+      SharedPreferences.setMockInitialValues({
+        'sepia.syncconfig.v1': jsonEncode({
+          'syncEnabled': true,
+          'syncServerUrl': 'http://sync.test',
+        }),
+        'sepia.settings.v1': jsonEncode(
+          AppSettings(seedColor: localColor)
+              .copyWith(settingsUpdatedAt: localAt)
+              .toJson(),
+        ),
+      });
+      final storage = StorageService(
+        client: MockClient((request) async {
+          if (request.method == 'PUT') {
+            onPut?.call(request);
+            return http.Response('{}', 200);
+          }
+          if (request.url.path == '/api/settings') {
+            return http.Response(
+              jsonEncode(
+                AppSettings(seedColor: serverColor)
+                    .copyWith(settingsUpdatedAt: serverAt)
+                    .toJson(),
+              ),
+              200,
+            );
+          }
+          return http.Response('[]', 200);
+        }),
+      );
+      final loaded = await storage.loadSettings();
+      await storage.waitForPendingSync();
+      return loaded;
+    }
+
+    test('uma cópia mais antiga do servidor não sobrescreve a local', () async {
+      http.Request? pushed;
+      final loaded = await loadWith(
+        localAt: DateTime.utc(2026, 8, 27, 10),
+        serverAt: DateTime.utc(2026, 8, 27, 9),
+        localColor: const Color(0xFF112233),
+        serverColor: const Color(0xFF999999),
+        onPut: (request) => pushed = request,
+      );
+
+      expect(loaded.seedColor, const Color(0xFF112233));
+      expect(pushed, isNotNull, reason: 'a local mais nova é reenviada');
+    });
+
+    test('uma cópia mais nova do servidor substitui a local', () async {
+      final loaded = await loadWith(
+        localAt: DateTime.utc(2026, 8, 27, 9),
+        serverAt: DateTime.utc(2026, 8, 27, 10),
+        localColor: const Color(0xFF112233),
+        serverColor: const Color(0xFF999999),
+      );
+
+      expect(loaded.seedColor, const Color(0xFF999999));
+    });
   });
 
   test('favoritar avança o relógio usado pelo merge', () async {

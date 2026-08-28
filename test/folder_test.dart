@@ -50,6 +50,92 @@ void main() {
     expect(restored.documentById(document.id)?.folderId, isNull);
   });
 
+  test('move uma pasta para dentro de outra e persiste', () async {
+    final controller = AppController(updateChecker: offlineUpdateChecker());
+    await controller.initialize();
+    final outer = await controller.createFolder(name: 'Fora');
+    final inner = await controller.createFolder(name: 'Dentro');
+    final doc = await controller.createDocument(
+      title: 'Capítulo',
+      folderId: inner.id,
+    );
+
+    await controller.moveFolder(inner.id, outer.id);
+
+    expect(controller.folderById(inner.id)?.parentId, outer.id);
+    expect(controller.foldersIn(outer.id).single.id, inner.id);
+    // O documento continua na subpasta, agora aninhada.
+    expect(controller.documentsIn(inner.id).single.id, doc.id);
+    expect(controller.folderDocumentCount(outer.id), 1);
+
+    final restored = AppController(updateChecker: offlineUpdateChecker());
+    await restored.initialize();
+    expect(restored.folderById(inner.id)?.parentId, outer.id);
+  });
+
+  test('não deixa mover uma pasta para dentro de si mesma ou de um filho', () async {
+    final controller = AppController(updateChecker: offlineUpdateChecker());
+    await controller.initialize();
+    final parent = await controller.createFolder(name: 'Pai');
+    final child = await controller.createFolder(
+      name: 'Filho',
+      parentId: parent.id,
+    );
+
+    expect(controller.canMoveFolderInto(parent.id, parent.id), isFalse);
+    expect(controller.canMoveFolderInto(parent.id, child.id), isFalse);
+
+    await controller.moveFolder(parent.id, child.id);
+    expect(controller.folderById(parent.id)?.parentId, isNull);
+  });
+
+  test('move uma seleção mista de pasta e documento de uma vez', () async {
+    final controller = AppController(updateChecker: offlineUpdateChecker());
+    await controller.initialize();
+    final destination = await controller.createFolder(name: 'Destino');
+    final loose = await controller.createFolder(name: 'Solta');
+    final doc = await controller.createDocument(title: 'Avulso');
+
+    await controller.moveEntries(
+      folderIds: {loose.id},
+      documentIds: {doc.id},
+      destinationParentId: destination.id,
+    );
+
+    expect(controller.folderById(loose.id)?.parentId, destination.id);
+    expect(controller.documentById(doc.id)?.folderId, destination.id);
+  });
+
+  test('exclui uma seleção mista, com tudo que as pastas contêm', () async {
+    final controller = AppController(updateChecker: offlineUpdateChecker());
+    await controller.initialize();
+    final folder = await controller.createFolder(name: 'Pasta');
+    final nested = await controller.createFolder(
+      name: 'Aninhada',
+      parentId: folder.id,
+    );
+    final insideNested = await controller.createDocument(
+      title: 'Dentro da aninhada',
+      folderId: nested.id,
+    );
+    final loneDoc = await controller.createDocument(title: 'Sozinho');
+
+    await controller.deleteEntries(
+      folderIds: {folder.id},
+      documentIds: {loneDoc.id},
+    );
+
+    expect(controller.folderById(folder.id), isNull);
+    expect(controller.folderById(nested.id), isNull);
+    expect(controller.documentById(insideNested.id), isNull);
+    expect(controller.documentById(loneDoc.id), isNull);
+
+    final restored = AppController(updateChecker: offlineUpdateChecker());
+    await restored.initialize();
+    expect(restored.folderById(folder.id), isNull);
+    expect(restored.documentById(insideNested.id), isNull);
+  });
+
   test('importa uma árvore de pastas preservando os caminhos', () async {
     final controller = AppController(updateChecker: offlineUpdateChecker());
     await controller.initialize();

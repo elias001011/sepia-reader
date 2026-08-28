@@ -381,7 +381,7 @@
   "editSectionPrevious": "Parte anterior",
   "editSectionNext": "Próxima parte",
   "editSectionChoose": "Escolher a parte",
-  "editWholeDocument": "Editar o documento inteiro (pode ficar lento)",
+  "editWholeDocument": "Desligar a edição por capítulo (vale para todos os documentos)",
   "editSectionPart": "Parte {number}",
   "@editSectionPart": {
     "placeholders": {
@@ -527,5 +527,34 @@
   },
   "chapterNavigation": "Capítulos",
   "chapterNavigationHere": "Continuar lendo daqui",
-  "chapterSeparatorToggle": "Editar por capítulo"
+  "chapterSeparatorToggle": "Editar por capítulo",
+  "clearSelection": "Limpar seleção",
+  "selectionCount": "{count, plural, =1{1 selecionado} other{{count} selecionados}}",
+  "@selectionCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deleteSelectionTitle": "Excluir os itens selecionados?",
+  "deleteSelectionBody": "Isto remove {documents, plural, =0{nenhum documento} =1{1 documento} other{{documents} documentos}} e {folders, plural, =0{nenhuma pasta} =1{1 pasta} other{{folders} pastas}}, junto com tudo que as pastas contêm. Não dá para desfazer.",
+  "@deleteSelectionBody": {
+    "placeholders": {
+      "documents": {
+        "type": "int"
+      },
+      "folders": {
+        "type": "int"
+      }
+    }
+  },
+  "exportedCount": "{count, plural, =0{Nada para exportar.} =1{1 arquivo exportado.} other{{count} arquivos exportados.}}",
+  "@exportedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

@@ -27,6 +27,7 @@ class AppSettings {
     this.uiScale = 1,
     this.checkForUpdates = true,
     this.sectionedEditing = true,
+    this.settingsUpdatedAt,
   });
   final String localeCode;
   final ThemeMode themeMode;
@@ -99,6 +100,13 @@ class AppSettings {
   /// which is slower but lets you search and edit across chapter boundaries.
   final bool sectionedEditing;
 
+  /// When the settings were last changed on this device, used as the merge
+  /// clock so a stale copy from the server can no longer overwrite a newer
+  /// local one (which is how appearance changes were reverting on upgrade).
+  /// Null means "never changed since this key existed" — it loses every
+  /// comparison against a real timestamp, and ties keep the local copy.
+  final DateTime? settingsUpdatedAt;
+
   AppSettings copyWith({
     String? localeCode,
     ThemeMode? themeMode,
@@ -125,6 +133,7 @@ class AppSettings {
     double? uiScale,
     bool? checkForUpdates,
     bool? sectionedEditing,
+    DateTime? settingsUpdatedAt,
   }) => AppSettings(
     localeCode: localeCode ?? this.localeCode,
     themeMode: themeMode ?? this.themeMode,
@@ -152,6 +161,7 @@ class AppSettings {
     uiScale: uiScale ?? this.uiScale,
     checkForUpdates: checkForUpdates ?? this.checkForUpdates,
     sectionedEditing: sectionedEditing ?? this.sectionedEditing,
+    settingsUpdatedAt: settingsUpdatedAt ?? this.settingsUpdatedAt,
   );
 
   Map<String, dynamic> toJson() => {
@@ -180,6 +190,8 @@ class AppSettings {
     'uiScale': uiScale,
     'checkForUpdates': checkForUpdates,
     'sectionedEditing': sectionedEditing,
+    if (settingsUpdatedAt != null)
+      'settingsUpdatedAt': settingsUpdatedAt!.toUtc().toIso8601String(),
   };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
@@ -213,6 +225,10 @@ class AppSettings {
       uiScale: (json['uiScale'] as num? ?? 1).toDouble().clamp(0.8, 1.6),
       checkForUpdates: json['checkForUpdates'] as bool? ?? true,
       sectionedEditing: json['sectionedEditing'] as bool? ?? true,
+      settingsUpdatedAt: switch (json['settingsUpdatedAt']) {
+        final String value => DateTime.tryParse(value),
+        _ => null,
+      },
     );
   }
 }

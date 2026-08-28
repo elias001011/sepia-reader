@@ -322,23 +322,53 @@ class StorageService {
 
   Future<AppSettings> loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    final localRaw = prefs.getString(_settingsKey);
-    final remote = await _fetchJson('/api/settings');
-    if (remote is Map && remote.isNotEmpty) {
-      final map = Map<String, dynamic>.from(remote);
-      await prefs.setString(_settingsKey, jsonEncode(map));
-      return _withLocalSyncConfig(AppSettings.fromJson(map));
+    final local = _decodeSettings(prefs.getString(_settingsKey));
+    final remoteRaw = await _fetchJson('/api/settings');
+    final remote = remoteRaw is Map && remoteRaw.isNotEmpty
+        ? AppSettings.fromJson(Map<String, dynamic>.from(remoteRaw))
+        : null;
+
+    // The server's copy only wins when it is genuinely newer. It used to win
+    // unconditionally, so a stale server copy (a push that had not landed yet
+    // when the app was killed or restarted for an upgrade) quietly reverted
+    // local appearance changes on the next launch.
+    if (remote != null && _isNewer(remote.settingsUpdatedAt, local?.settingsUpdatedAt)) {
+      await prefs.setString(_settingsKey, jsonEncode(remote.toJson()));
+      return _withLocalSyncConfig(remote);
     }
-    if (localRaw == null) return _withLocalSyncConfig(const AppSettings());
-    AppSettings parsed;
+
+    final resolved = local ?? const AppSettings();
+    // Local is at least as new as the server. If it is strictly newer and the
+    // server answered at all, push it up so the two converge.
+    if (remote != null &&
+        _isNewer(resolved.settingsUpdatedAt, remote.settingsUpdatedAt)) {
+      final remoteJson = Map<String, dynamic>.from(resolved.toJson())
+        ..remove('syncEnabled')
+        ..remove('syncServerUrl');
+      unawaited(_pushJson('/api/settings', remoteJson));
+    }
+    return _withLocalSyncConfig(resolved);
+  }
+
+  AppSettings? _decodeSettings(String? raw) {
+    if (raw == null) return null;
     try {
-      parsed = AppSettings.fromJson(
-        Map<String, dynamic>.from(jsonDecode(localRaw) as Map),
+      return AppSettings.fromJson(
+        Map<String, dynamic>.from(jsonDecode(raw) as Map),
       );
     } catch (_) {
-      parsed = const AppSettings();
+      return null;
     }
-    return _withLocalSyncConfig(parsed);
+  }
+
+  /// Whether [a] is strictly after [b], treating a null clock (settings that
+  /// predate the merge key) as older than any real timestamp and as equal to
+  /// another null — in which case neither side is "newer" and the local copy
+  /// is kept.
+  static bool _isNewer(DateTime? a, DateTime? b) {
+    if (a == null) return false;
+    if (b == null) return true;
+    return a.isAfter(b);
   }
 
   Future<List<LibraryFolder>> loadFolders() => _loadMerged(

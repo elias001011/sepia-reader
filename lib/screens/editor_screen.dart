@@ -98,6 +98,15 @@ class _EditorScreenState extends State<EditorScreen> {
   String _sectionPrefix = '';
   String _sectionSuffix = '';
 
+  /// Whether this document is long enough, and has enough structure, for
+  /// sectioned editing to actually do something. When it is not — a short
+  /// note like the welcome document, or anything under two slices — the
+  /// "edit by chapter" control is hidden entirely rather than shown as a
+  /// switch that changes nothing. Computed from the whole document, never
+  /// from the [AppSettings.sectionedEditing] preference, so the control
+  /// still reappears to let the setting be turned back on.
+  bool _sectionable = false;
+
   /// Built the first time the user asks to listen, and released on the way
   /// out of reading mode — a speech backend (and, for the neural engine
   /// coming later, its model) has no business staying resident while
@@ -123,6 +132,7 @@ class _EditorScreenState extends State<EditorScreen> {
     super.initState();
     final document = _stored!;
     _configureSections(document.content, index: 0);
+    _sectionable = _isSectionable(document.content);
     _contentController = TextEditingController(text: _sectionText(document.content))
       ..addListener(_onChanged);
     _titleController = TextEditingController(text: document.title)
@@ -203,6 +213,21 @@ class _EditorScreenState extends State<EditorScreen> {
     );
   }
 
+  /// Whether sectioned editing would produce more than one slice for
+  /// [content] — the test for showing the "edit by chapter" control at all.
+  static bool _isSectionable(String content) =>
+      content.length >= sectionedEditingThreshold &&
+      editableSectionsOf(content).length >= 2;
+
+  /// Recomputes [_sectionable] after an edit may have pushed the document
+  /// across the threshold, and repaints the app bar if it changed.
+  void _refreshSectionable() {
+    final next = _isSectionable(_fullContent);
+    if (next != _sectionable && mounted) {
+      setState(() => _sectionable = next);
+    }
+  }
+
   /// Decides whether [content] is edited whole or in slices, and selects
   /// which slice. Does not touch the text field — callers set that up.
   void _configureSections(String content, {required int index}) {
@@ -256,8 +281,10 @@ class _EditorScreenState extends State<EditorScreen> {
     });
   }
 
-  /// Escape hatch out of sliced editing, for when someone would rather have
-  /// the whole document in the field and accept the cost.
+  /// Rebuilds the field with the whole document in it. The persistent side of
+  /// this — turning [AppSettings.sectionedEditing] off so every document
+  /// opens whole from now on — is [_toggleChapterSeparator]'s job; this only
+  /// reshapes the field, and is always reached through it.
   Future<void> _editWholeDocument() async {
     if (_dirty.value) await _save();
     final content = _stored?.content ?? _fullContent;
@@ -279,6 +306,7 @@ class _EditorScreenState extends State<EditorScreen> {
     _saveTimer?.cancel();
     await widget.controller.updateDocument(_draft);
     _dirty.value = false;
+    _refreshSectionable();
   }
 
   /// The document as reading mode should show it: `.html` becomes markdown
@@ -606,18 +634,19 @@ class _EditorScreenState extends State<EditorScreen> {
                     contentPadding: EdgeInsets.zero,
                   ),
                 ),
-                PopupMenuItem(
-                  value: 'chapter-separator',
-                  child: ListTile(
-                    leading: Icon(
-                      widget.controller.settings.sectionedEditing
-                          ? Icons.toggle_on_rounded
-                          : Icons.toggle_off_rounded,
+                if (_sectionable)
+                  PopupMenuItem(
+                    value: 'chapter-separator',
+                    child: ListTile(
+                      leading: Icon(
+                        widget.controller.settings.sectionedEditing
+                            ? Icons.toggle_on_rounded
+                            : Icons.toggle_off_rounded,
+                      ),
+                      title: Text(context.l10n.chapterSeparatorToggle),
+                      contentPadding: EdgeInsets.zero,
                     ),
-                    title: Text(context.l10n.chapterSeparatorToggle),
-                    contentPadding: EdgeInsets.zero,
                   ),
-                ),
                 PopupMenuItem(
                   value: 'export',
                   child: ListTile(
@@ -634,15 +663,16 @@ class _EditorScreenState extends State<EditorScreen> {
               onPressed: _openReaderSettings,
               icon: const Icon(Icons.text_fields_rounded),
             ),
-            IconButton(
-              tooltip: context.l10n.chapterSeparatorToggle,
-              onPressed: _toggleChapterSeparator,
-              icon: Icon(
-                widget.controller.settings.sectionedEditing
-                    ? Icons.toggle_on_rounded
-                    : Icons.toggle_off_rounded,
+            if (_sectionable)
+              IconButton(
+                tooltip: context.l10n.chapterSeparatorToggle,
+                onPressed: _toggleChapterSeparator,
+                icon: Icon(
+                  widget.controller.settings.sectionedEditing
+                      ? Icons.toggle_on_rounded
+                      : Icons.toggle_off_rounded,
+                ),
               ),
-            ),
             IconButton(
               tooltip: context.l10n.exportLabel,
               onPressed: _export,
@@ -751,7 +781,7 @@ class _EditorScreenState extends State<EditorScreen> {
           PopupMenuButton<int>(
             tooltip: context.l10n.editSectionChoose,
             onSelected: (value) =>
-                value == -1 ? _editWholeDocument() : _openSection(value),
+                value == -1 ? _toggleChapterSeparator() : _openSection(value),
             itemBuilder: (context) => [
               for (var i = 0; i < _editSections.length; i++)
                 PopupMenuItem(

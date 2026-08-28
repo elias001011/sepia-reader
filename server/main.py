@@ -6,6 +6,7 @@ import mimetypes
 import os
 import posixpath
 import re
+import signal
 import threading
 import urllib.parse
 from datetime import datetime, timezone
@@ -95,8 +96,8 @@ def _write_json_atomic(filename, value):
             pass
 
 
-def _record_time(record):
-    raw = record.get("updatedAt")
+def _record_time(record, key="updatedAt"):
+    raw = record.get(key)
     if not isinstance(raw, str):
         return datetime.min.replace(tzinfo=timezone.utc)
     try:
@@ -136,11 +137,30 @@ def merge_records(existing, incoming):
     return [by_id[record_id] for record_id in order]
 
 
+def merge_settings(existing, incoming):
+    """Keep the newer of two settings blobs by ``settingsUpdatedAt``.
+
+    Settings are a single object, not a collection, so :func:`merge_records`
+    does not apply. Without this, an out-of-order or stale PUT from one device
+    silently overwrites a newer copy another device already pushed. When
+    neither side carries a comparable timestamp the incoming write wins, which
+    is the plain last-writer behaviour this had before.
+    """
+    if not isinstance(existing, dict) or not isinstance(incoming, dict):
+        return incoming
+    if "settingsUpdatedAt" not in existing or "settingsUpdatedAt" not in incoming:
+        return incoming
+    incoming_time = _record_time(incoming, "settingsUpdatedAt")
+    existing_time = _record_time(existing, "settingsUpdatedAt")
+    return incoming if incoming_time > existing_time else existing
+
+
 class Server(ThreadingHTTPServer):
-    # Must be set before bind() runs in the constructor, or a restart races
-    # the previous socket's TIME_WAIT and dies with "address already in use".
-    allow_reuse_address = True
-    daemon_threads = True
+    # ThreadingHTTPServer already inherits allow_reuse_address=True (SO_REUSEADDR,
+    # from HTTPServer) and sets daemon_threads=True itself. What it does not set
+    # is SO_REUSEPORT, and that is the one that lets a fresh process bind while
+    # the previous one is still winding down its listening socket on a restart.
+    allow_reuse_port = True
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -268,12 +288,11 @@ class Handler(BaseHTTPRequestHandler):
 
         try:
             with DATA_LOCK:
-                merge_requested = (
-                    self.headers.get(MERGE_HEADER, "").lower() == "merge"
-                    and isinstance(default, list)
-                )
-                if merge_requested:
+                merge_requested = self.headers.get(MERGE_HEADER, "").lower() == "merge"
+                if merge_requested and isinstance(default, list):
                     value = merge_records(_read_json(filename, default), value)
+                elif merge_requested and isinstance(default, dict):
+                    value = merge_settings(_read_json(filename, default), value)
                 _write_json_atomic(filename, value)
         except ValueError as error:
             self._send_json(400, {"error": str(error)})
@@ -290,7 +309,20 @@ def main():
     os.makedirs(WEB_DIR, exist_ok=True)
     server = Server(("0.0.0.0", PORT), Handler)
     print(f"Sepia server listening on :{PORT} (web={WEB_DIR}, data={DATA_DIR})")
-    server.serve_forever()
+
+    # Shut the listening socket down cleanly on the signal `pkill` sends, so a
+    # restart is not racing a process that is still holding the port.
+    def _stop(signum, _frame):
+        print(f"Sepia server stopping on signal {signum}")
+        threading.Thread(target=server.shutdown, daemon=True).start()
+
+    signal.signal(signal.SIGTERM, _stop)
+    signal.signal(signal.SIGINT, _stop)
+
+    try:
+        server.serve_forever()
+    finally:
+        server.server_close()
 
 
 if __name__ == "__main__":

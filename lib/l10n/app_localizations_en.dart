@@ -711,7 +711,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get editSectionChoose => 'Choose part';
 
   @override
-  String get editWholeDocument => 'Edit the whole document (may be slow)';
+  String get editWholeDocument =>
+      'Turn off editing by chapter (applies to every document)';
 
   @override
   String editSectionPart(String number) {
@@ -915,4 +916,52 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chapterSeparatorToggle => 'Edit by chapter';
+
+  @override
+  String get clearSelection => 'Clear selection';
+
+  @override
+  String selectionCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count selected',
+      one: '1 selected',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get deleteSelectionTitle => 'Delete the selected items?';
+
+  @override
+  String deleteSelectionBody(int documents, int folders) {
+    String _temp0 = intl.Intl.pluralLogic(
+      documents,
+      locale: localeName,
+      other: '$documents documents',
+      one: '1 document',
+      zero: 'no documents',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      folders,
+      locale: localeName,
+      other: '$folders folders',
+      one: '1 folder',
+      zero: 'no folders',
+    );
+    return 'This removes $_temp0 and $_temp1, along with everything the folders hold. It cannot be undone.';
+  }
+
+  @override
+  String exportedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count files exported.',
+      one: '1 file exported.',
+      zero: 'Nothing to export.',
+    );
+    return '$_temp0';
+  }
 }

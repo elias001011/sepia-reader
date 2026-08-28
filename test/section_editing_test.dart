@@ -137,6 +137,80 @@ void main() {
   );
 
   testWidgets(
+    'documento curto não mostra o controle de editar por capítulo',
+    (tester) async {
+      tester.view.physicalSize = const Size(900, 1100);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      SharedPreferences.setMockInitialValues({
+        'sepia.settings.v1': jsonEncode(
+          const AppSettings(localeCode: 'pt_BR').toJson(),
+        ),
+      });
+      final controller = AppController(updateChecker: offlineUpdateChecker());
+      await controller.initialize();
+      await controller.createDocument(
+        title: 'Recado',
+        content: 'Só uma linha, nada para fatiar.',
+      );
+
+      await tester.pumpWidget(SepiaApp(controller: controller));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Recado.md'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Recado.md'));
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Editar por capítulo'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'desligar a edição por capítulo pela barra de partes vale globalmente',
+    (tester) async {
+      tester.view.physicalSize = const Size(900, 1100);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      SharedPreferences.setMockInitialValues({
+        'sepia.settings.v1': jsonEncode(
+          const AppSettings(localeCode: 'pt_BR').toJson(),
+        ),
+      });
+      final controller = AppController(updateChecker: offlineUpdateChecker());
+      await controller.initialize();
+      await controller.createDocument(
+        title: 'Fic gigante',
+        content: hugeWithChapters(),
+      );
+
+      await tester.pumpWidget(SepiaApp(controller: controller));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Fic gigante.md'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Fic gigante.md'));
+      await tester.pumpAndSettle();
+
+      expect(controller.settings.sectionedEditing, isTrue);
+      await tester.tap(find.byTooltip('Escolher a parte'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.text(
+          'Desligar a edição por capítulo (vale para todos os documentos)',
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(controller.settings.sectionedEditing, isFalse);
+      // Persistiu: um controller novo, lendo o mesmo storage, já abre inteiro.
+      final restored = AppController(updateChecker: offlineUpdateChecker());
+      await restored.initialize();
+      expect(restored.settings.sectionedEditing, isFalse);
+    },
+  );
+
+  testWidgets(
     'ligar o separador de capítulos salva o que estava sendo digitado',
     (tester) async {
       // A toggle that reads from the stored document instead of saving

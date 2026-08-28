@@ -31,6 +31,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
   final _searchController = TextEditingController();
   String _query = '';
   String? _currentFolderId;
+
+  /// Ids picked in multi-select mode. Empty means the screen is in its
+  /// normal browsing state; non-empty swaps the top bar for the action bar
+  /// and turns a card tap into a select/deselect.
+  final Set<String> _selectedDocIds = {};
+  final Set<String> _selectedFolderIds = {};
+  bool get _selecting =>
+      _selectedDocIds.isNotEmpty || _selectedFolderIds.isNotEmpty;
+
   bool _isImportingFolder = false;
   bool _isImportingFiles = false;
   bool _isDraggingFiles = false;
@@ -99,7 +108,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
               child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [
-                  SliverToBoxAdapter(child: _topBar(context)),
+                  SliverToBoxAdapter(
+                    child: _selecting
+                        ? _selectionBar(context)
+                        : _topBar(context),
+                  ),
                   // No SliverPadding around this one: an idle banner must
                   // take up no space at all, and padding a shrunk child still
                   // pushes everything below it down.
@@ -182,10 +195,16 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                             childFolderCount: widget.controller
                                                 .foldersIn(folder.id)
                                                 .length,
+                                            selecting: _selecting,
+                                            selected: _selectedFolderIds
+                                                .contains(folder.id),
+                                            onToggleSelect: () =>
+                                                _toggleSelectFolder(folder.id),
                                             onOpen: () =>
                                                 _enterFolder(folder.id),
                                             onRename: () =>
                                                 _renameFolder(folder),
+                                            onMove: () => _moveFolder(folder),
                                             onDelete: () =>
                                                 _deleteFolder(folder),
                                           );
@@ -204,6 +223,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                                     )
                                                     .join(' / ')
                                               : null,
+                                          selecting: _selecting,
+                                          selected: _selectedDocIds
+                                              .contains(document.id),
+                                          onToggleSelect: () =>
+                                              _toggleSelectDoc(document.id),
                                           onOpen: () => _open(document),
                                           onFavorite: () => widget.controller
                                               .toggleFavorite(document.id),
@@ -231,7 +255,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
           ],
         ),
       ),
-      floatingActionButton: MediaQuery.sizeOf(context).width < 620
+      floatingActionButton:
+          MediaQuery.sizeOf(context).width < 620 && !_selecting
           ? FloatingActionButton.extended(
               onPressed: _showLibraryActions,
               icon: const Icon(Icons.add_rounded),
@@ -526,7 +551,226 @@ class _LibraryScreenState extends State<LibraryScreen> {
     setState(() {
       _currentFolderId = folderId;
       _query = '';
+      _selectedDocIds.clear();
+      _selectedFolderIds.clear();
     });
+  }
+
+  void _clearSelection() => setState(() {
+    _selectedDocIds.clear();
+    _selectedFolderIds.clear();
+  });
+
+  void _toggleSelectDoc(String id) => setState(() {
+    _selectedDocIds.contains(id)
+        ? _selectedDocIds.remove(id)
+        : _selectedDocIds.add(id);
+  });
+
+  void _toggleSelectFolder(String id) => setState(() {
+    _selectedFolderIds.contains(id)
+        ? _selectedFolderIds.remove(id)
+        : _selectedFolderIds.add(id);
+  });
+
+  /// Contextual bar shown in place of [_topBar] while items are selected:
+  /// count on the left, the actions that apply to a mixed selection on the
+  /// right.
+  Widget _selectionBar(BuildContext context) {
+    final count = _selectedDocIds.length + _selectedFolderIds.length;
+    final hasDocuments = widget.controller
+        .documentsForSelection(
+          folderIds: _selectedFolderIds,
+          documentIds: _selectedDocIds,
+        )
+        .isNotEmpty;
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHigh,
+        border: Border(
+          bottom: BorderSide(color: Theme.of(context).dividerColor),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1180),
+          child: Row(
+            children: [
+              IconButton(
+                tooltip: context.l10n.clearSelection,
+                onPressed: _clearSelection,
+                icon: const Icon(Icons.close_rounded),
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  context.l10n.selectionCount(count),
+                  style: Theme.of(context).textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ),
+              IconButton(
+                tooltip: context.l10n.moveTo,
+                onPressed: _moveSelection,
+                icon: const Icon(Icons.drive_file_move_outline),
+              ),
+              if (hasDocuments)
+                IconButton(
+                  tooltip: context.l10n.exportLabel,
+                  onPressed: _exportSelection,
+                  icon: const Icon(Icons.download_rounded),
+                ),
+              IconButton(
+                tooltip: context.l10n.delete,
+                onPressed: _deleteSelection,
+                icon: const Icon(Icons.delete_outline_rounded),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Asks for a destination folder. Returns a `(folderId: …)` record —
+  /// `folderId` null meaning the library root — or null if dismissed.
+  /// [blockedFolderIds] are hidden from the list: a folder cannot be moved
+  /// into itself or one of its own descendants.
+  Future<({String? folderId})?> _pickFolderDestination({
+    required Set<String> blockedFolderIds,
+  }) {
+    return showDialog<({String? folderId})>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(dialogContext.l10n.moveTo),
+        content: SizedBox(
+          width: appDialogWidth(dialogContext, 440),
+          height: 420,
+          child: ListView(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.home_rounded),
+                title: Text(dialogContext.l10n.root),
+                onTap: () =>
+                    Navigator.pop(dialogContext, (folderId: null)),
+              ),
+              for (final folder in widget.controller.folders)
+                if (!blockedFolderIds.contains(folder.id))
+                  ListTile(
+                    leading: const Icon(Icons.folder_rounded),
+                    title: Text(folder.name),
+                    subtitle: Text(
+                      widget.controller
+                          .folderPath(folder.parentId)
+                          .map((item) => item.name)
+                          .join(' / '),
+                    ),
+                    onTap: () =>
+                        Navigator.pop(dialogContext, (folderId: folder.id)),
+                  ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(dialogContext.l10n.cancel),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _moveSelection() async {
+    final blocked = {
+      for (final id in _selectedFolderIds)
+        ...widget.controller.folderContents(id).folderIds,
+    };
+    final target = await _pickFolderDestination(blockedFolderIds: blocked);
+    if (target == null || !mounted) return;
+    await widget.controller.moveEntries(
+      folderIds: _selectedFolderIds.toSet(),
+      documentIds: _selectedDocIds.toSet(),
+      destinationParentId: target.folderId,
+    );
+    _clearSelection();
+  }
+
+  Future<void> _moveFolder(LibraryFolder folder) async {
+    final blocked = widget.controller.folderContents(folder.id).folderIds;
+    final target = await _pickFolderDestination(blockedFolderIds: blocked);
+    if (target == null || !mounted) return;
+    await widget.controller.moveFolder(folder.id, target.folderId);
+  }
+
+  Future<void> _deleteSelection() async {
+    final documents = widget.controller
+        .documentsForSelection(
+          folderIds: _selectedFolderIds,
+          documentIds: _selectedDocIds,
+        )
+        .length;
+    final folders = _selectedFolderIds.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(dialogContext.l10n.deleteSelectionTitle),
+        content: Text(
+          dialogContext.l10n.deleteSelectionBody(documents, folders),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(dialogContext.l10n.cancel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(dialogContext).colorScheme.error,
+              foregroundColor: Theme.of(dialogContext).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(dialogContext.l10n.delete),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final removedFolders = {
+      for (final id in _selectedFolderIds)
+        ...widget.controller.folderContents(id).folderIds,
+    };
+    await widget.controller.deleteEntries(
+      folderIds: _selectedFolderIds.toSet(),
+      documentIds: _selectedDocIds.toSet(),
+    );
+    if (!mounted) return;
+    _clearSelection();
+    if (_currentFolderId != null &&
+        removedFolders.contains(_currentFolderId)) {
+      setState(() => _currentFolderId = null);
+    }
+  }
+
+  Future<void> _exportSelection() async {
+    final documents = widget.controller.documentsForSelection(
+      folderIds: _selectedFolderIds,
+      documentIds: _selectedDocIds,
+    );
+    var exported = 0;
+    for (final document in documents) {
+      try {
+        await exportDocument(document);
+        exported++;
+      } catch (error) {
+        debugPrint('sepia: export of ${document.title} failed: $error');
+      }
+    }
+    if (!mounted) return;
+    _clearSelection();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.l10n.exportedCount(exported))),
+    );
   }
 
   Future<void> _showLibraryActions({bool importOnly = false}) async {
@@ -744,54 +988,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Future<void> _moveDocument(LibraryDocument document) async {
-    const rootValue = '__root__';
-    final selected = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(context.l10n.moveDocument),
-        // Width capped to the screen, not fixed: an AlertDialog does not
-        // scroll sideways, so a wider-than-the-phone body just loses its
-        // right edge.
-        content: SizedBox(
-          width: appDialogWidth(dialogContext, 440),
-          height: 420,
-          child: ListView(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.home_rounded),
-                title: Text(context.l10n.root),
-                selected: document.folderId == null,
-                onTap: () => Navigator.pop(dialogContext, rootValue),
-              ),
-              for (final folder in widget.controller.folders)
-                ListTile(
-                  leading: const Icon(Icons.folder_rounded),
-                  title: Text(folder.name),
-                  subtitle: Text(
-                    widget.controller
-                        .folderPath(folder.parentId)
-                        .map((item) => item.name)
-                        .join(' / '),
-                  ),
-                  selected: document.folderId == folder.id,
-                  onTap: () => Navigator.pop(dialogContext, folder.id),
-                ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(context.l10n.cancel),
-          ),
-        ],
-      ),
-    );
-    if (selected == null) return;
-    await widget.controller.moveDocument(
-      document.id,
-      selected == rootValue ? null : selected,
-    );
+    final target = await _pickFolderDestination(blockedFolderIds: const {});
+    if (target == null) return;
+    await widget.controller.moveDocument(document.id, target.folderId);
   }
 
   Widget _emptyState(BuildContext context) => Container(
@@ -1091,23 +1290,41 @@ class _FolderCard extends StatelessWidget {
     required this.folder,
     required this.documentCount,
     required this.childFolderCount,
+    required this.selecting,
+    required this.selected,
+    required this.onToggleSelect,
     required this.onOpen,
     required this.onRename,
+    required this.onMove,
     required this.onDelete,
   });
 
   final LibraryFolder folder;
   final int documentCount;
   final int childFolderCount;
+  final bool selecting;
+  final bool selected;
+  final VoidCallback onToggleSelect;
   final VoidCallback onOpen;
   final VoidCallback onRename;
+  final VoidCallback onMove;
   final VoidCallback onDelete;
 
   @override
-  Widget build(BuildContext context) => Card(
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
     clipBehavior: Clip.antiAlias,
+    color: selected ? scheme.secondaryContainer : null,
+    shape: selected
+        ? RoundedRectangleBorder(
+            side: BorderSide(color: scheme.primary, width: 2),
+            borderRadius: BorderRadius.circular(12),
+          )
+        : null,
     child: InkWell(
-      onTap: onOpen,
+      onTap: selecting ? onToggleSelect : onOpen,
+      onLongPress: onToggleSelect,
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -1119,44 +1336,56 @@ class _FolderCard extends StatelessWidget {
                   width: 52,
                   height: 52,
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
+                    color: scheme.primaryContainer,
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Icon(
-                    Icons.folder_rounded,
+                    selected ? Icons.check_rounded : Icons.folder_rounded,
                     size: 30,
-                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    color: scheme.onPrimaryContainer,
                   ),
                 ),
                 const Spacer(),
-                PopupMenuButton<String>(
-                  onSelected: (value) {
-                    if (value == 'rename') onRename();
-                    if (value == 'delete') onDelete();
-                  },
-                  itemBuilder: (_) => [
-                    PopupMenuItem(
-                      value: 'rename',
-                      child: Row(
-                        children: [
-                          const Icon(Icons.edit_outlined),
-                          const SizedBox(width: 12),
-                          Text(context.l10n.rename),
-                        ],
+                if (!selecting)
+                  PopupMenuButton<String>(
+                    onSelected: (value) {
+                      if (value == 'rename') onRename();
+                      if (value == 'move') onMove();
+                      if (value == 'delete') onDelete();
+                    },
+                    itemBuilder: (_) => [
+                      PopupMenuItem(
+                        value: 'rename',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.edit_outlined),
+                            const SizedBox(width: 12),
+                            Text(context.l10n.rename),
+                          ],
+                        ),
                       ),
-                    ),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          const Icon(Icons.delete_outline_rounded),
-                          const SizedBox(width: 12),
-                          Text(context.l10n.delete),
-                        ],
+                      PopupMenuItem(
+                        value: 'move',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.drive_file_move_outline),
+                            const SizedBox(width: 12),
+                            Text(context.l10n.moveTo),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.delete_outline_rounded),
+                            const SizedBox(width: 12),
+                            Text(context.l10n.delete),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
               ],
             ),
             const SizedBox(height: 20),
@@ -1194,13 +1423,17 @@ class _FolderCard extends StatelessWidget {
         ),
       ),
     ),
-  );
+    );
+  }
 }
 
 class _DocumentCard extends StatelessWidget {
   const _DocumentCard({
     required this.document,
     required this.folderPath,
+    required this.selecting,
+    required this.selected,
+    required this.onToggleSelect,
     required this.onOpen,
     required this.onFavorite,
     required this.onRename,
@@ -1210,6 +1443,9 @@ class _DocumentCard extends StatelessWidget {
   });
   final LibraryDocument document;
   final String? folderPath;
+  final bool selecting;
+  final bool selected;
+  final VoidCallback onToggleSelect;
   final VoidCallback onOpen;
   final VoidCallback onFavorite;
   final VoidCallback onRename;
@@ -1219,14 +1455,23 @@ class _DocumentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final preview = document.content
         .replaceAll(RegExp(r'[#*_>`\[\]()]'), '')
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
     return Card(
       clipBehavior: Clip.antiAlias,
+      color: selected ? scheme.secondaryContainer : null,
+      shape: selected
+          ? RoundedRectangleBorder(
+              side: BorderSide(color: scheme.primary, width: 2),
+              borderRadius: BorderRadius.circular(12),
+            )
+          : null,
       child: InkWell(
-        onTap: onOpen,
+        onTap: selecting ? onToggleSelect : onOpen,
+        onLongPress: onToggleSelect,
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -1250,6 +1495,14 @@ class _DocumentCard extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
+                  if (selecting)
+                    Icon(
+                      selected
+                          ? Icons.check_circle_rounded
+                          : Icons.circle_outlined,
+                      color: selected ? scheme.primary : scheme.outline,
+                    )
+                  else ...[
                   IconButton(
                     tooltip: document.isFavorite
                         ? context.l10n.unfavorite
@@ -1312,6 +1565,7 @@ class _DocumentCard extends StatelessWidget {
                       ),
                     ],
                   ),
+                  ],
                 ],
               ),
               if (folderPath != null && folderPath!.isNotEmpty) ...[

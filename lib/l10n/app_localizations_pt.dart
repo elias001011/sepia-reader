@@ -711,7 +711,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get editWholeDocument =>
-      'Editar o documento inteiro (pode ficar lento)';
+      'Desligar a edição por capítulo (vale para todos os documentos)';
 
   @override
   String editSectionPart(String number) {
@@ -915,4 +915,52 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get chapterSeparatorToggle => 'Editar por capítulo';
+
+  @override
+  String get clearSelection => 'Limpar seleção';
+
+  @override
+  String selectionCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count selecionados',
+      one: '1 selecionado',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get deleteSelectionTitle => 'Excluir os itens selecionados?';
+
+  @override
+  String deleteSelectionBody(int documents, int folders) {
+    String _temp0 = intl.Intl.pluralLogic(
+      documents,
+      locale: localeName,
+      other: '$documents documentos',
+      one: '1 documento',
+      zero: 'nenhum documento',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      folders,
+      locale: localeName,
+      other: '$folders pastas',
+      one: '1 pasta',
+      zero: 'nenhuma pasta',
+    );
+    return 'Isto remove $_temp0 e $_temp1, junto com tudo que as pastas contêm. Não dá para desfazer.';
+  }
+
+  @override
+  String exportedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count arquivos exportados.',
+      one: '1 arquivo exportado.',
+      zero: 'Nada para exportar.',
+    );
+    return '$_temp0';
+  }
 }

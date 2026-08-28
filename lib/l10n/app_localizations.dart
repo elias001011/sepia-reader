@@ -1229,7 +1229,7 @@ abstract class AppLocalizations {
   /// No description provided for @editWholeDocument.
   ///
   /// In en, this message translates to:
-  /// **'Edit the whole document (may be slow)'**
+  /// **'Turn off editing by chapter (applies to every document)'**
   String get editWholeDocument;
 
   /// No description provided for @editSectionPart.
@@ -1543,6 +1543,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Edit by chapter'**
   String get chapterSeparatorToggle;
+
+  /// No description provided for @clearSelection.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear selection'**
+  String get clearSelection;
+
+  /// No description provided for @selectionCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 selected} other{{count} selected}}'**
+  String selectionCount(int count);
+
+  /// No description provided for @deleteSelectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete the selected items?'**
+  String get deleteSelectionTitle;
+
+  /// No description provided for @deleteSelectionBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This removes {documents, plural, =0{no documents} =1{1 document} other{{documents} documents}} and {folders, plural, =0{no folders} =1{1 folder} other{{folders} folders}}, along with everything the folders hold. It cannot be undone.'**
+  String deleteSelectionBody(int documents, int folders);
+
+  /// No description provided for @exportedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{Nothing to export.} =1{1 file exported.} other{{count} files exported.}}'**
+  String exportedCount(int count);
 }
 
 class _AppLocalizationsDelegate

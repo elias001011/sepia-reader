@@ -55,6 +55,21 @@ void main() {
     expect(restored.syncServerUrl, isEmpty);
   });
 
+  test('preserva o relógio de merge das configurações', () {
+    final at = DateTime.utc(2026, 8, 27, 12, 30);
+    final settings = const AppSettings().copyWith(settingsUpdatedAt: at);
+
+    final restored = AppSettings.fromJson(settings.toJson());
+
+    expect(restored.settingsUpdatedAt, at);
+  });
+
+  test('configuração antiga não carrega relógio de merge', () {
+    final restored = AppSettings.fromJson(const {});
+
+    expect(restored.settingsUpdatedAt, isNull);
+  });
+
   test('preferência de sincronização já salva é preservada', () {
     // Mudar o padrão não pode desligar o sync de quem já o havia ligado: a
     // chave está presente no payload salvo desses aparelhos.

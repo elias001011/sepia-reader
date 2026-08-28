@@ -1,6 +1,6 @@
 import unittest
 
-from main import merge_records
+from main import Server, merge_records, merge_settings
 
 
 class MergeRecordsTest(unittest.TestCase):
@@ -39,6 +39,36 @@ class MergeRecordsTest(unittest.TestCase):
     def test_rejects_records_without_an_id(self):
         with self.assertRaisesRegex(ValueError, "string id"):
             merge_records([], [{"updatedAt": "2026-08-27T03:00:00"}])
+
+
+class MergeSettingsTest(unittest.TestCase):
+    def test_newer_settings_win_regardless_of_arrival_order(self):
+        newer = {"seedColor": 1, "settingsUpdatedAt": "2026-08-27T03:00:00"}
+        older = {"seedColor": 2, "settingsUpdatedAt": "2026-08-27T02:00:00"}
+
+        self.assertEqual(merge_settings(older, newer), newer)
+        self.assertEqual(merge_settings(newer, older), newer)
+
+    def test_missing_timestamp_falls_back_to_last_writer(self):
+        stored = {"seedColor": 1, "settingsUpdatedAt": "2026-08-27T03:00:00"}
+        incoming = {"seedColor": 2}
+
+        self.assertEqual(merge_settings(stored, incoming), incoming)
+
+    def test_equal_timestamp_keeps_the_stored_copy(self):
+        stored = {"seedColor": 1, "settingsUpdatedAt": "2026-08-27T03:00:00"}
+        incoming = {"seedColor": 2, "settingsUpdatedAt": "2026-08-27T03:00:00"}
+
+        self.assertEqual(merge_settings(stored, incoming), stored)
+
+
+class ServerSocketOptionsTest(unittest.TestCase):
+    def test_restart_friendly_socket_options(self):
+        # allow_reuse_address is inherited; allow_reuse_port is what this
+        # subclass adds so a restart can bind before the old socket is gone.
+        self.assertTrue(Server.allow_reuse_address)
+        self.assertTrue(Server.allow_reuse_port)
+        self.assertTrue(Server.daemon_threads)
 
 
 if __name__ == "__main__":
