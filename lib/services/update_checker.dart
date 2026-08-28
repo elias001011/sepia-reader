@@ -6,6 +6,8 @@ import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../flavor.dart';
+
 /// A release newer than the one running.
 class AppUpdate {
   const AppUpdate({
@@ -145,7 +147,7 @@ class UpdateChecker {
         names[name] = url;
       }
     }
-    return pickApkFor(names, await _abiPreference());
+    return pickApkFor(names, await _abiPreference(), lite: appIsLite);
   }
 
   /// The device's own ABIs, best first, with the universal build last.
@@ -176,13 +178,26 @@ class UpdateChecker {
 /// matches, the universal build is offered — and if there is not one, nothing
 /// is, because a release page link is more use than an APK that cannot
 /// install.
-String? pickApkFor(Map<String, String> assets, List<String> abis) {
+///
+/// [lite] keeps a build in its own lane: a release carries both
+/// `sepia-<ver>-android-*.apk` and `sepia-lite-<ver>-android-*.apk`, and the
+/// full app must never hand its user the Lite APK, nor the reverse.
+String? pickApkFor(
+  Map<String, String> assets,
+  List<String> abis, {
+  bool lite = false,
+}) {
+  bool matchesFlavor(String name) => name.contains('-lite-') == lite;
+  final flavoured = {
+    for (final entry in assets.entries)
+      if (matchesFlavor(entry.key)) entry.key: entry.value,
+  };
   for (final abi in abis) {
-    for (final entry in assets.entries) {
+    for (final entry in flavoured.entries) {
       if (entry.key.endsWith('-$abi.apk')) return entry.value;
     }
   }
-  for (final entry in assets.entries) {
+  for (final entry in flavoured.entries) {
     if (entry.key.contains('universal')) return entry.value;
   }
   return null;

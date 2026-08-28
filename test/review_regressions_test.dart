@@ -227,6 +227,26 @@ void main() {
       );
       expect(pickApkFor(partial, ['arm64-v8a']), 'u/arm64');
     });
+
+    test('cada sabor recebe só o seu APK', () {
+      const both = {
+        'sepia-2.2.0-android-arm64-v8a.apk': 'full/arm64',
+        'sepia-2.2.0-android-universal.apk': 'full/universal',
+        'sepia-lite-2.2.0-android-arm64-v8a.apk': 'lite/arm64',
+        'sepia-lite-2.2.0-android-universal.apk': 'lite/universal',
+      };
+      expect(pickApkFor(both, ['arm64-v8a', 'universal']), 'full/arm64');
+      expect(
+        pickApkFor(both, ['arm64-v8a', 'universal'], lite: true),
+        'lite/arm64',
+      );
+      // A Lite build on a device the Lite APK does not cover still must not
+      // fall through to the full universal one.
+      expect(
+        pickApkFor(both, ['riscv64', 'universal'], lite: true),
+        'lite/universal',
+      );
+    });
   });
 
   test('o cache de blocos é de uma entrada só e pode ser limpo', () {
