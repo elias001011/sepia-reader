@@ -23,10 +23,20 @@
   "followAppTheme": "Seguir tema do app",
   "followAppThemeDescription": "Usa as superfícies e cores de texto atuais do app durante a leitura.",
   "presets": "Presets",
+  "presetsLight": "Claros",
+  "presetsDark": "Escuros",
   "sepiaPreset": "Sépia",
   "artifactPreset": "Artifact",
   "paperPreset": "Papel",
   "nightPreset": "Noite",
+  "parchmentPreset": "Pergaminho",
+  "creamPreset": "Creme",
+  "greyPreset": "Cinza",
+  "mintPreset": "Menta",
+  "skyPreset": "Céu",
+  "inkPreset": "Tinta",
+  "solarizedPreset": "Solarizado",
+  "nordPreset": "Nord",
   "font": "Fonte",
   "systemFont": "Sistema",
   "size": "Tamanho",
@@ -139,6 +149,7 @@
     }
   },
   "exported": "Arquivo exportado.",
+  "exportSelectionFailed": "Não foi possível exportar os arquivos selecionados.",
   "exportFailed": "Não foi possível exportar: {error}",
   "@exportFailed": {
     "placeholders": {

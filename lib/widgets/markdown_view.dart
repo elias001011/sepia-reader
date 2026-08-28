@@ -512,14 +512,29 @@ class DocumentView extends StatelessWidget {
   }
 }
 
+/// The reading font names offered in the reader settings. The stored value is
+/// the font family exactly as declared in `pubspec.yaml`, so a new face only
+/// needs adding here and there — [readerTextStyle] passes it straight through.
+/// `'Sistema'` (and any unknown value) falls back to the platform font.
+const readerFontChoices = <String>[
+  'Merriweather',
+  'Merriweather Sans',
+  'Literata',
+  'Lora',
+  'Bitter',
+  'Source Serif 4',
+  'EB Garamond',
+  'Atkinson Hyperlegible',
+  'Inter',
+  'Roboto Mono',
+  'JetBrains Mono',
+  'Sistema',
+];
+
 TextStyle readerTextStyle(AppSettings settings) => TextStyle(
-  fontFamily: switch (settings.readerFont) {
-    'Merriweather' => 'Merriweather',
-    'Lora' => 'Lora',
-    'Inter' => 'Inter',
-    'Roboto Mono' => 'Roboto Mono',
-    _ => null,
-  },
+  fontFamily: settings.readerFont == 'Sistema' || settings.readerFont.isEmpty
+      ? null
+      : settings.readerFont,
 );
 
 bool isCodeExtension(String extension) => const {

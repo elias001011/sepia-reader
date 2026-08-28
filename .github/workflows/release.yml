@@ -13,6 +13,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Full history so the Lite branch can be checked out into a worktree
+          # and built from the same tag.
+          fetch-depth: 0
 
       - uses: subosito/flutter-action@v2
         with:
@@ -71,6 +75,33 @@ jobs:
           flutter build apk --release
           cp build/app/outputs/flutter-apk/app-release.apk build/release-apks/universal.apk
           ls -lh build/release-apks
+
+      # The Lite branch is the same app with the on-device neural-TTS stack
+      # and the bundled reading fonts stripped out — a far smaller APK. It
+      # ships from this same tag, built from its own branch in a worktree so
+      # the two never share a build directory.
+      - name: Build Sépia Lite APKs
+        shell: bash
+        run: |
+          git fetch --no-tags origin "+refs/heads/Lite:refs/remotes/origin/Lite"
+          git worktree add ../sepia-lite origin/Lite
+          # Carry the signing material over so Lite is signed like the main app.
+          [ -f android/app/release-keystore.jks ] && cp android/app/release-keystore.jks ../sepia-lite/android/app/ || true
+          [ -f android/key.properties ] && cp android/key.properties ../sepia-lite/android/ || true
+          cd ../sepia-lite
+          flutter pub get
+          flutter analyze
+          flutter test
+          mkdir -p build/lite-apks
+          flutter build apk --release --split-per-abi
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            src="build/app/outputs/flutter-apk/app-${abi}-release.apk"
+            [[ -f "$src" ]] && cp "$src" "build/lite-apks/${abi}.apk" || echo "::warning::no Lite APK for $abi"
+          done
+          flutter build apk --release
+          cp build/app/outputs/flutter-apk/app-release.apk build/lite-apks/universal.apk
+          ls -lh build/lite-apks
+
       - run: bash tool/build_web.sh
 
       - name: Package release files
@@ -81,6 +112,8 @@ jobs:
           for abi in arm64-v8a armeabi-v7a x86_64 universal; do
             src="build/release-apks/${abi}.apk"
             [[ -f "$src" ]] && cp "$src" "dist/sepia-${VERSION}-android-${abi}.apk"
+            lite="../sepia-lite/build/lite-apks/${abi}.apk"
+            [[ -f "$lite" ]] && cp "$lite" "dist/sepia-lite-${VERSION}-android-${abi}.apk"
           done
           tar -C build/web -czf "dist/sepia-${VERSION}-web.tar.gz" .
           cp server/main.py "dist/sepia-${VERSION}-server.py"

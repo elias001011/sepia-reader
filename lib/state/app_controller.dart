@@ -415,8 +415,15 @@ class AppController extends ChangeNotifier {
     }
     final documentIds = contents.documents.map((d) => d.id).toSet();
     for (var i = 0; i < _documents.length; i++) {
-      if (documentIds.contains(_documents[i].id)) {
-        _documents[i] = _documents[i].copyWith(updatedAt: now, deletedAt: now);
+      if (documentIds.contains(_documents[i].id) && !_documents[i].isDeleted) {
+        // Drop the body along with the tombstone, like [deleteDocument] and
+        // [deleteEntries] do — a folder full of long documents should not
+        // keep sitting in the synced payload for the whole retention window.
+        _documents[i] = _documents[i].copyWith(
+          content: '',
+          updatedAt: now,
+          deletedAt: now,
+        );
       }
     }
     for (var i = 0; i < _bookmarks.length; i++) {

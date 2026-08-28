@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/l10n.dart';
@@ -820,9 +821,17 @@ class UpdateCard extends StatelessWidget {
               ConstrainedBox(
                 constraints: const BoxConstraints(maxHeight: 160),
                 child: SingleChildScrollView(
-                  child: Text(
-                    update.notes,
-                    style: Theme.of(context).textTheme.bodySmall,
+                  // The notes are GitHub's generated markdown — headings, a
+                  // bullet list of commits, a "Full Changelog" link. Rendered
+                  // as plain Text they came out as literal `##` and `**`.
+                  child: MarkdownBody(
+                    data: update.notes,
+                    selectable: false,
+                    softLineBreak: true,
+                    onTapLink: (text, href, title) {
+                      if (href != null) _open(context, href);
+                    },
+                    styleSheet: _notesStyle(context),
                   ),
                 ),
               ),
@@ -847,6 +856,31 @@ class UpdateCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// A deliberately small markdown style for the release notes: GitHub's
+  /// generated body leads with an `## What's Changed` heading that would
+  /// otherwise tower over a card this size.
+  MarkdownStyleSheet _notesStyle(BuildContext context) {
+    final theme = Theme.of(context);
+    final small = theme.textTheme.bodySmall;
+    final scheme = theme.colorScheme;
+    return MarkdownStyleSheet.fromTheme(theme).copyWith(
+      p: small,
+      listBullet: small,
+      a: small?.copyWith(
+        color: scheme.primary,
+        decoration: TextDecoration.underline,
+      ),
+      h1: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+      h2: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+      h3: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+      blockSpacing: 6,
+      code: small?.copyWith(
+        fontFamily: 'Roboto Mono',
+        backgroundColor: scheme.surfaceContainerHighest,
       ),
     );
   }

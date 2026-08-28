@@ -236,6 +236,18 @@ abstract class AppLocalizations {
   /// **'Presets'**
   String get presets;
 
+  /// No description provided for @presetsLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get presetsLight;
+
+  /// No description provided for @presetsDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get presetsDark;
+
   /// No description provided for @sepiaPreset.
   ///
   /// In en, this message translates to:
@@ -259,6 +271,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Night'**
   String get nightPreset;
+
+  /// No description provided for @parchmentPreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Parchment'**
+  String get parchmentPreset;
+
+  /// No description provided for @creamPreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Cream'**
+  String get creamPreset;
+
+  /// No description provided for @greyPreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Grey'**
+  String get greyPreset;
+
+  /// No description provided for @mintPreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Mint'**
+  String get mintPreset;
+
+  /// No description provided for @skyPreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Sky'**
+  String get skyPreset;
+
+  /// No description provided for @inkPreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Ink'**
+  String get inkPreset;
+
+  /// No description provided for @solarizedPreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Solarized'**
+  String get solarizedPreset;
+
+  /// No description provided for @nordPreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Nord'**
+  String get nordPreset;
 
   /// No description provided for @font.
   ///
@@ -583,6 +643,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'File exported.'**
   String get exported;
+
+  /// No description provided for @exportSelectionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not export the selected files.'**
+  String get exportSelectionFailed;
 
   /// No description provided for @exportFailed.
   ///

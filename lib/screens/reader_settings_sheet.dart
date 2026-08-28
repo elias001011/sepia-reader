@@ -7,7 +7,10 @@ import '../l10n/l10n.dart';
 import '../models/app_settings.dart';
 import '../state/app_controller.dart';
 import '../widgets/color_field.dart';
+import '../widgets/markdown_view.dart' show readerFontChoices;
 import '../widgets/sheet_scaffold.dart';
+
+typedef _ReaderPreset = ({String label, Color bg, Color text});
 
 class ReaderSettingsSheet extends StatefulWidget {
   const ReaderSettingsSheet({super.key, required this.controller});
@@ -110,66 +113,54 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
                   style: Theme.of(context).textTheme.labelLarge,
                 ),
                 const SizedBox(height: 10),
+                Text(
+                  context.l10n.presetsLight,
+                  style: Theme.of(context).textTheme.labelSmall,
+                ),
+                const SizedBox(height: 8),
                 Wrap(
                   spacing: 10,
                   runSpacing: 10,
                   children: [
-                    _preset(
-                      context,
-                      context.l10n.sepiaPreset,
-                      const Color(0xFF6B4933),
-                      const Color(0xFFFFF8ED),
-                    ),
-                    _preset(
-                      context,
-                      context.l10n.artifactPreset,
-                      const Color(0xFF2B211D),
-                      const Color(0xFFE7DDD2),
-                    ),
-                    _preset(
-                      context,
-                      context.l10n.paperPreset,
-                      const Color(0xFFFFFBF2),
-                      const Color(0xFF322720),
-                    ),
-                    _preset(
-                      context,
-                      context.l10n.nightPreset,
-                      const Color(0xFF111318),
-                      const Color(0xFFE8E2DA),
-                    ),
-                    _preset(
-                      context,
-                      context.l10n.amoled,
-                      Colors.black,
-                      const Color(0xFFF5F5F5),
-                    ),
+                    for (final preset in _lightPresets(context))
+                      _preset(context, preset.label, preset.bg, preset.text),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  context.l10n.presetsDark,
+                  style: Theme.of(context).textTheme.labelSmall,
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    for (final preset in _darkPresets(context))
+                      _preset(context, preset.label, preset.bg, preset.text),
                   ],
                 ),
                 const SizedBox(height: 22),
                 DropdownButtonFormField<String>(
                   isExpanded: true,
-                  initialValue: _draft.readerFont,
+                  initialValue: readerFontChoices.contains(_draft.readerFont)
+                      ? _draft.readerFont
+                      : 'Sistema',
                   decoration: InputDecoration(labelText: context.l10n.font),
-                  items:
-                      const [
-                            'Merriweather',
-                            'Lora',
-                            'Inter',
-                            'Roboto Mono',
-                            'Sistema',
-                          ]
-                          .map(
-                            (font) => DropdownMenuItem(
-                              value: font,
-                              child: Text(
-                                font == 'Sistema'
-                                    ? context.l10n.systemFont
-                                    : font,
-                              ),
-                            ),
-                          )
-                          .toList(),
+                  items: [
+                    for (final font in readerFontChoices)
+                      DropdownMenuItem(
+                        value: font,
+                        child: Text(
+                          font == 'Sistema' ? context.l10n.systemFont : font,
+                          // Render each name in its own face so the list is a
+                          // set of specimens, not just labels.
+                          style: font == 'Sistema'
+                              ? null
+                              : TextStyle(fontFamily: font),
+                        ),
+                      ),
+                  ],
                   onChanged: (font) => setState(
                     () => _draft = _draft.copyWith(readerFont: font),
                   ),
@@ -236,6 +227,77 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
       ),
     );
   }
+
+  List<_ReaderPreset> _lightPresets(BuildContext context) => [
+    (
+      label: context.l10n.paperPreset,
+      bg: const Color(0xFFFFFBF2),
+      text: const Color(0xFF322720),
+    ),
+    (
+      label: context.l10n.parchmentPreset,
+      bg: const Color(0xFFF1E7D0),
+      text: const Color(0xFF473A25),
+    ),
+    (
+      label: context.l10n.creamPreset,
+      bg: const Color(0xFFFBF3E4),
+      text: const Color(0xFF33291D),
+    ),
+    (
+      label: context.l10n.greyPreset,
+      bg: const Color(0xFFEAEAEC),
+      text: const Color(0xFF23262B),
+    ),
+    (
+      label: context.l10n.mintPreset,
+      bg: const Color(0xFFE6F0E8),
+      text: const Color(0xFF1F2E24),
+    ),
+    (
+      label: context.l10n.skyPreset,
+      bg: const Color(0xFFE9EEF5),
+      text: const Color(0xFF1E2A38),
+    ),
+  ];
+
+  List<_ReaderPreset> _darkPresets(BuildContext context) => [
+    (
+      label: context.l10n.sepiaPreset,
+      bg: const Color(0xFF6B4933),
+      text: const Color(0xFFFFF8ED),
+    ),
+    (
+      label: context.l10n.artifactPreset,
+      bg: const Color(0xFF2B211D),
+      text: const Color(0xFFE7DDD2),
+    ),
+    (
+      label: context.l10n.nightPreset,
+      bg: const Color(0xFF111318),
+      text: const Color(0xFFE8E2DA),
+    ),
+    (
+      label: context.l10n.inkPreset,
+      bg: const Color(0xFF1B1B1F),
+      text: const Color(0xFFD7D4CE),
+    ),
+    (
+      label: context.l10n.solarizedPreset,
+      bg: const Color(0xFF002B36),
+      text: const Color(0xFF93A1A1),
+    ),
+    (
+      label: context.l10n.nordPreset,
+      bg: const Color(0xFF2E3440),
+      text: const Color(0xFFD8DEE9),
+    ),
+    (
+      label: context.l10n.amoled,
+      bg: Colors.black,
+      text: const Color(0xFFF5F5F5),
+    ),
+  ];
 
   Widget _preset(
     BuildContext context,

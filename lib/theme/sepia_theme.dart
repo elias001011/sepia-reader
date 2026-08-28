@@ -95,6 +95,10 @@ ThemeData buildSepiaTheme(AppSettings settings, Brightness brightness) {
     ),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
+      // A floating bar that still clears the gesture navigation area, so a
+      // notification reads as something laid over the app rather than stuck
+      // to the very bottom of the screen.
+      insetPadding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
     ),
     dividerTheme: DividerThemeData(

@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 2.1.0+16
+version: 2.2.0+17
 
 environment:
   sdk: ^3.13.0
@@ -37,7 +37,6 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   file_picker: ^12.0.0
-  file_saver: ^0.4.0
   flutter_markdown_plus: ^1.0.12
   highlight: ^0.7.0
   http: ^1.2.0
@@ -84,6 +83,8 @@ flutter:
     - assets/sepia_icon.png
     - assets/fonts/licenses/
 
+  # Reading faces are bundled (Sépia works fully offline). Each is a Latin
+  # subset of the official Google Fonts source, instanced to static weights.
   fonts:
     - family: Inter
       fonts:
@@ -99,18 +100,85 @@ flutter:
           weight: 400
         - asset: assets/fonts/Merriweather-700.ttf
           weight: 700
-        - asset: assets/fonts/Merriweather-800.ttf
-          weight: 800
+        - asset: assets/fonts/Merriweather-900.ttf
+          weight: 900
+    - family: Merriweather Sans
+      fonts:
+        - asset: assets/fonts/MerriweatherSans-400.ttf
+          weight: 400
+        - asset: assets/fonts/MerriweatherSans-400-Italic.ttf
+          style: italic
+          weight: 400
+        - asset: assets/fonts/MerriweatherSans-700.ttf
+          weight: 700
     - family: Lora
       fonts:
-        - asset: assets/fonts/Lora.ttf
-        - asset: assets/fonts/Lora-Italic.ttf
+        - asset: assets/fonts/Lora-400.ttf
+          weight: 400
+        - asset: assets/fonts/Lora-400-Italic.ttf
           style: italic
+          weight: 400
+        - asset: assets/fonts/Lora-700.ttf
+          weight: 700
+    - family: Bitter
+      fonts:
+        - asset: assets/fonts/Bitter-400.ttf
+          weight: 400
+        - asset: assets/fonts/Bitter-400-Italic.ttf
+          style: italic
+          weight: 400
+        - asset: assets/fonts/Bitter-700.ttf
+          weight: 700
+    - family: Literata
+      fonts:
+        - asset: assets/fonts/Literata-400.ttf
+          weight: 400
+        - asset: assets/fonts/Literata-400-Italic.ttf
+          style: italic
+          weight: 400
+        - asset: assets/fonts/Literata-700.ttf
+          weight: 700
+    - family: Source Serif 4
+      fonts:
+        - asset: assets/fonts/SourceSerif4-400.ttf
+          weight: 400
+        - asset: assets/fonts/SourceSerif4-400-Italic.ttf
+          style: italic
+          weight: 400
+        - asset: assets/fonts/SourceSerif4-700.ttf
+          weight: 700
+    - family: EB Garamond
+      fonts:
+        - asset: assets/fonts/EBGaramond-400.ttf
+          weight: 400
+        - asset: assets/fonts/EBGaramond-400-Italic.ttf
+          style: italic
+          weight: 400
+        - asset: assets/fonts/EBGaramond-700.ttf
+          weight: 700
+    - family: Atkinson Hyperlegible
+      fonts:
+        - asset: assets/fonts/AtkinsonHyperlegible-400.ttf
+          weight: 400
+        - asset: assets/fonts/AtkinsonHyperlegible-400-Italic.ttf
+          style: italic
+          weight: 400
+        - asset: assets/fonts/AtkinsonHyperlegible-700.ttf
+          weight: 700
     - family: Roboto Mono
       fonts:
         - asset: assets/fonts/RobotoMono.ttf
         - asset: assets/fonts/RobotoMono-Italic.ttf
           style: italic
+    - family: JetBrains Mono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-400.ttf
+          weight: 400
+        - asset: assets/fonts/JetBrainsMono-400-Italic.ttf
+          style: italic
+          weight: 400
+        - asset: assets/fonts/JetBrainsMono-700.ttf
+          weight: 700
 
 flutter_launcher_icons:
   android: true

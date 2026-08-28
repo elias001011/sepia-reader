@@ -132,7 +132,9 @@ class _EditorScreenState extends State<EditorScreen> {
     super.initState();
     final document = _stored!;
     _configureSections(document.content, index: 0);
-    _sectionable = _isSectionable(document.content);
+    // When sectioning is on and produced slices, the document is sectionable
+    // by definition — no need for _isSectionable to scan it a second time.
+    _sectionable = _sectioned || _isSectionable(document.content);
     _contentController = TextEditingController(text: _sectionText(document.content))
       ..addListener(_onChanged);
     _titleController = TextEditingController(text: document.title)
@@ -1574,8 +1576,8 @@ class _EditorScreenState extends State<EditorScreen> {
   Future<void> _export() async {
     if (_dirty.value) await _save();
     try {
-      await exportDocument(_draft);
-      if (mounted) {
+      final outcome = await exportDocument(_draft);
+      if (mounted && outcome == ExportOutcome.saved) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(context.l10n.exported)));
       }

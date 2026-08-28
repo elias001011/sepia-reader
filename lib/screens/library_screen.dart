@@ -142,7 +142,20 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       ),
                     ),
                   if (_isImportingFolder || _isImportingFiles)
-                    const SliverToBoxAdapter(child: LinearProgressIndicator()),
+                    SliverToBoxAdapter(
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 1180),
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: const LinearProgressIndicator(),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 28, 20, 48),
                     sliver: SliverToBoxAdapter(
@@ -329,17 +342,25 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Widget _topBar(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Theme.of(context).dividerColor),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+    final scheme = Theme.of(context).colorScheme;
+    // A card that floats clear of the screen edges and the status bar, not a
+    // full-bleed strip fused to the system bar above it. The library content
+    // below is what stays edge to edge.
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 2),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1180),
-          child: Row(
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(14, 8, 10, 8),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: scheme.outlineVariant.withValues(alpha: .55),
+              ),
+            ),
+            child: Row(
             children: [
               SizedBox(
                 width: 42,
@@ -412,6 +433,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 ),
               ],
             ],
+          ),
           ),
         ),
       ),
@@ -578,24 +600,30 @@ class _LibraryScreenState extends State<LibraryScreen> {
   /// right.
   Widget _selectionBar(BuildContext context) {
     final count = _selectedDocIds.length + _selectedFolderIds.length;
-    final hasDocuments = widget.controller
-        .documentsForSelection(
-          folderIds: _selectedFolderIds,
-          documentIds: _selectedDocIds,
-        )
-        .isNotEmpty;
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHigh,
-        border: Border(
-          bottom: BorderSide(color: Theme.of(context).dividerColor),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    // Only needs to know whether *anything* would be exported. A picked
+    // document answers it outright; otherwise ask each picked folder in turn
+    // and stop at the first that holds something — cheaper than expanding the
+    // whole selection into a document list on every selection toggle.
+    final hasDocuments = _selectedDocIds.isNotEmpty ||
+        _selectedFolderIds.any(
+          (id) => widget.controller.folderDocumentCount(id) > 0,
+        );
+    final scheme = Theme.of(context).colorScheme;
+    // Same floating treatment as [_topBar]: an action bar laid over the
+    // library, not welded to the status bar.
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 2),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1180),
-          child: Row(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: scheme.primary.withValues(alpha: .45)),
+            ),
+            child: Row(
             children: [
               IconButton(
                 tooltip: context.l10n.clearSelection,
@@ -628,6 +656,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
               ),
             ],
           ),
+          ),
         ),
       ),
     );
@@ -636,14 +665,18 @@ class _LibraryScreenState extends State<LibraryScreen> {
   /// Asks for a destination folder. Returns a `(folderId: …)` record —
   /// `folderId` null meaning the library root — or null if dismissed.
   /// [blockedFolderIds] are hidden from the list: a folder cannot be moved
-  /// into itself or one of its own descendants.
+  /// into itself or one of its own descendants. [currentFolderId] (with the
+  /// sentinel `('root')` for the library root) is marked as where the item
+  /// lives now, so moving a single document still shows its current home.
   Future<({String? folderId})?> _pickFolderDestination({
     required Set<String> blockedFolderIds,
+    String? title,
+    ({String? id})? currentFolderId,
   }) {
     return showDialog<({String? folderId})>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(dialogContext.l10n.moveTo),
+        title: Text(title ?? dialogContext.l10n.moveTo),
         content: SizedBox(
           width: appDialogWidth(dialogContext, 440),
           height: 420,
@@ -652,6 +685,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
               ListTile(
                 leading: const Icon(Icons.home_rounded),
                 title: Text(dialogContext.l10n.root),
+                trailing: currentFolderId != null && currentFolderId.id == null
+                    ? const Icon(Icons.check_rounded)
+                    : null,
                 onTap: () =>
                     Navigator.pop(dialogContext, (folderId: null)),
               ),
@@ -666,6 +702,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
                           .map((item) => item.name)
                           .join(' / '),
                     ),
+                    trailing: currentFolderId?.id == folder.id
+                        ? const Icon(Icons.check_rounded)
+                        : null,
                     onTap: () =>
                         Navigator.pop(dialogContext, (folderId: folder.id)),
                   ),
@@ -711,7 +750,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
           documentIds: _selectedDocIds,
         )
         .length;
-    final folders = _selectedFolderIds.length;
+    // Count every folder that will actually be tombstoned — the picked ones
+    // and all their descendants — so the confirmation does not say "1 folder"
+    // for a delete that takes a whole subtree, the way the single-folder
+    // delete already does.
+    final removedFolders = {
+      for (final id in _selectedFolderIds)
+        ...widget.controller.folderContents(id).folderIds,
+    };
+    final folders = removedFolders.length;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -736,19 +783,21 @@ class _LibraryScreenState extends State<LibraryScreen> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    final removedFolders = {
-      for (final id in _selectedFolderIds)
-        ...widget.controller.folderContents(id).folderIds,
-    };
+    // If the folder currently open is one of the doomed ones, step up to its
+    // parent — the same place the single-folder delete lands — rather than
+    // all the way back to the root.
+    final fallbackFolderId =
+        _currentFolderId != null && removedFolders.contains(_currentFolderId)
+        ? widget.controller.folderById(_currentFolderId!)?.parentId
+        : _currentFolderId;
     await widget.controller.deleteEntries(
       folderIds: _selectedFolderIds.toSet(),
       documentIds: _selectedDocIds.toSet(),
     );
     if (!mounted) return;
     _clearSelection();
-    if (_currentFolderId != null &&
-        removedFolders.contains(_currentFolderId)) {
-      setState(() => _currentFolderId = null);
+    if (fallbackFolderId != _currentFolderId) {
+      setState(() => _currentFolderId = fallbackFolderId);
     }
   }
 
@@ -758,18 +807,25 @@ class _LibraryScreenState extends State<LibraryScreen> {
       documentIds: _selectedDocIds,
     );
     var exported = 0;
+    var failed = 0;
     for (final document in documents) {
       try {
-        await exportDocument(document);
-        exported++;
+        if (await exportDocument(document) == ExportOutcome.saved) exported++;
       } catch (error) {
+        failed++;
         debugPrint('sepia: export of ${document.title} failed: $error');
       }
     }
     if (!mounted) return;
     _clearSelection();
+    // "Nothing to export" is the wrong thing to say when there was plenty to
+    // export and every write threw — the export button is only shown when the
+    // selection holds documents.
+    final message = exported == 0 && failed > 0
+        ? context.l10n.exportSelectionFailed
+        : context.l10n.exportedCount(exported);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(context.l10n.exportedCount(exported))),
+      SnackBar(content: Text(message)),
     );
   }
 
@@ -988,7 +1044,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Future<void> _moveDocument(LibraryDocument document) async {
-    final target = await _pickFolderDestination(blockedFolderIds: const {});
+    final target = await _pickFolderDestination(
+      blockedFolderIds: const {},
+      title: context.l10n.moveDocument,
+      currentFolderId: (id: document.folderId),
+    );
     if (target == null) return;
     await widget.controller.moveDocument(document.id, target.folderId);
   }
@@ -1239,8 +1299,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   Future<void> _export(LibraryDocument document) async {
     try {
-      await exportDocument(document);
-      if (mounted) {
+      final outcome = await exportDocument(document);
+      if (mounted && outcome == ExportOutcome.saved) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(context.l10n.exported)));
       }

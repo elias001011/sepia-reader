@@ -84,6 +84,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get presets => 'Presets';
 
   @override
+  String get presetsLight => 'Light';
+
+  @override
+  String get presetsDark => 'Dark';
+
+  @override
   String get sepiaPreset => 'Sépia';
 
   @override
@@ -94,6 +100,30 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get nightPreset => 'Night';
+
+  @override
+  String get parchmentPreset => 'Parchment';
+
+  @override
+  String get creamPreset => 'Cream';
+
+  @override
+  String get greyPreset => 'Grey';
+
+  @override
+  String get mintPreset => 'Mint';
+
+  @override
+  String get skyPreset => 'Sky';
+
+  @override
+  String get inkPreset => 'Ink';
+
+  @override
+  String get solarizedPreset => 'Solarized';
+
+  @override
+  String get nordPreset => 'Nord';
 
   @override
   String get font => 'Font';
@@ -294,6 +324,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get exported => 'File exported.';
+
+  @override
+  String get exportSelectionFailed => 'Could not export the selected files.';
 
   @override
   String exportFailed(String error) {

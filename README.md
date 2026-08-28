@@ -8,7 +8,9 @@ Leitor, biblioteca e editor de Markdown feito em Flutter. O Sépia foi pensado p
 
 ### Ler
 - modo leitura que bloqueia edição, usa controles compactos e permite ocultá-los automaticamente;
-- fonte Merriweather e tema Sépia como padrão, com presets Artifact, Papel e Noite;
+- fonte Merriweather e tema Sépia como padrão;
+- **onze famílias de leitura empacotadas** — Merriweather (com peso Black), Merriweather Sans, Literata, Lora, Bitter, Source Serif 4, EB Garamond, Atkinson Hyperlegible, Inter, Roboto Mono e JetBrains Mono — cada uma pré-visualizada na própria letra no seletor;
+- **treze paletas de leitura** divididas em claras (Papel, Pergaminho, Creme, Cinza, Menta, Céu) e escuras (Sépia, Artifact, Noite, Tinta, Solarizado, Nord, AMOLED);
 - fonte, tamanho, entrelinha, largura, fundo e texto configuráveis;
 - marcadores ancorados ao trecho do texto, não à posição de rolagem — não escorregam quando o documento muda de tamanho;
 - Markdown completo: títulos, ênfase, riscado, listas, listas de tarefas, citações aninhadas, tabelas com alinhamento, links (inclusive por referência), imagens, notas de rodapé e blocos de código;
@@ -43,7 +45,7 @@ Leitor, biblioteca e editor de Markdown feito em Flutter. O Sépia foi pensado p
 - arquivos que não são texto (`.docx`, `.pdf`, imagens) são recusados mesmo se renomeados — a checagem é nos bytes, não na extensão;
 - exclusão de pastas com confirmação, levando junto subpastas e documentos;
 - sincronização opcional com um servidor próprio, com puxar-para-atualizar na biblioteca;
-- persistência local e exportação do arquivo original.
+- persistência local e exportação do arquivo original pela caixa de diálogo "salvar" do sistema, direto para a pasta Downloads, sem pedir permissão de armazenamento.
 
 ### Em qualquer lugar
 - tema Material 3 claro, escuro, AMOLED ou do sistema, com fundos claro e escuro personalizados;
@@ -53,9 +55,32 @@ Leitor, biblioteca e editor de Markdown feito em Flutter. O Sépia foi pensado p
 - aviso de nova versão ao abrir, com link direto para o APK da arquitetura do aparelho — nada é baixado nem instalado sem você escolher;
 - versões web, Android e iOS a partir da mesma base Flutter (as vozes neurais são exclusivas das versões nativas).
 
+## Sépia e Sépia Lite
+
+Cada Release traz **duas** builds Android do mesmo app:
+
+| | **Sépia** (`sepia-<versão>-android-*.apk`) | **Sépia Lite** (`sepia-lite-<versão>-android-*.apk`) |
+|---|---|---|
+| Foco | completo, 100% offline | APK mínimo para leitura |
+| Tamanho do APK `arm64` (por ABI) | ~45–50 MB | ~12–16 MB |
+| Fontes de leitura | 11 famílias **empacotadas** (funciona sem internet) | as mesmas famílias **baixadas sob demanda** via `google_fonts` e cacheadas no aparelho (precisa de internet só na primeira vez que cada fonte é usada) |
+| Voz neural (Piper / Kokoro, on-device) | sim, via `sherpa_onnx` | **não** — é o que mais pesa no APK |
+| Voz do sistema (Android/navegador) | sim | sim |
+| Editor, marcadores, navegação por capítulos, temas, paletas | sim | sim |
+| Sincronização com servidor próprio | sim | sim |
+| Aviso de nova versão | aponta para os APKs `sepia-*` | aponta para os APKs `sepia-lite-*` |
+| `applicationId` | `dev.elias.sepia_reader` | `dev.elias.sepia_reader.lite` (as duas convivem no mesmo aparelho) |
+| Minificação R8 / *shrink* de recursos | não | sim |
+
+Em resumo: o Lite é o Sépia inteiro, só que sem as fontes embutidas e sem a
+pilha de voz neural on-device. Se você quer o menor APK possível e não se
+incomoda de baixar as fontes uma vez, use o Lite. Se quer tudo funcionando
+sem nenhuma conexão, use o Sépia normal.
+
 ## Branches
 
-- `main`: base multiplataforma e documentação do projeto;
+- `main`: base multiplataforma, app completo e documentação do projeto;
+- `Lite`: a variante enxuta descrita acima, ramificada de `main` a cada release;
 - `app`: entrega mobile (Android/iOS);
 - `web`: entrega web/PWA.
 
@@ -83,9 +108,12 @@ flutter build apk --release --split-per-abi   # um APK por arquitetura
 flutter build apk --release                   # universal, todas juntas
 ```
 
-O script web inclui o runtime Flutter, as fontes Inter, Merriweather, Lora e Roboto Mono, além dos fallbacks Noto para emojis e símbolos, no próprio `build/web`; a aplicação não depende de Google Fonts nem de um CDN em execução.
+Para a variante enxuta, faça o mesmo a partir da branch `Lite`
+(`git switch Lite`). O CI de release já compila as duas a cada tag.
 
-As vozes neurais rodam via `sherpa_onnx`, que traz bibliotecas nativas para cada arquitetura Android. Por isso o `--split-per-abi`: um APK `arm64-v8a` carrega só a biblioteca do próprio aparelho, enquanto o universal carrega as de todas. Os modelos de voz **não** vão no APK — são baixados sob demanda pelo app, de dentro das configurações.
+O script web inclui o runtime Flutter, as onze famílias de leitura, os fallbacks Noto para emojis e símbolos, e roda tudo a partir do próprio `build/web`; a aplicação não depende de Google Fonts nem de um CDN em execução. Na branch `Lite` as fontes saem do bundle e passam a ser buscadas por `google_fonts` na primeira vez que cada uma é usada.
+
+As vozes neurais rodam via `sherpa_onnx`, que traz bibliotecas nativas para cada arquitetura Android. Por isso o `--split-per-abi`: um APK `arm64-v8a` carrega só a biblioteca do próprio aparelho, enquanto o universal carrega as de todas. Os modelos de voz **não** vão no APK — são baixados sob demanda pelo app, de dentro das configurações. A branch `Lite` não inclui `sherpa_onnx`.
 
 Os arquivos ficam armazenados localmente no dispositivo/navegador com `shared_preferences`. O Sépia não envia conteúdo para servidores.
 
@@ -96,9 +124,54 @@ Na web, a biblioteca é salva no armazenamento local do navegador e fica vincula
 Por isso, self-hosting é o foco recomendado para uma instalação privada e com endereço estável. Ainda assim, o usuário deve exportar documentos importantes: limpar os dados do site, trocar de navegador ou mudar o domínio pode tornar a biblioteca local inacessível.
 
 O pacote web self-hostable e o servidor de sincronização `sepia-*-server.py`
-são anexados a cada GitHub Release. O servidor mantém `web/` e `data/` ao lado
-do script por padrão; os caminhos também podem ser definidos por
-`SEPIA_WEB_DIR` e `SEPIA_DATA_DIR`.
+são anexados a cada GitHub Release.
+
+### Servidor de sincronização
+
+`sepia-<versão>-server.py` é um único arquivo Python (só a biblioteca padrão,
+3.9+). Ele faz duas coisas: serve o app web estático e expõe uma API JSON
+pequena e atômica em `/api/documents`, `/api/folders`, `/api/settings` e
+`/api/bookmarks`. É isso que os apps Android (Sépia **e** Sépia Lite) e a web
+usam para manter a biblioteca igual em vários aparelhos. Nenhum conteúdo passa
+por terceiros — os dados ficam em arquivos JSON ao lado do script.
+
+1. **Coloque os arquivos juntos** num diretório no servidor (um mini-PC, um
+   VPS, um celular velho com Termux):
+
+   ```
+   sepia-server/
+   ├── main.py            # renomeado de sepia-<versão>-server.py
+   ├── web/               # conteúdo de sepia-<versão>-web.tar.gz (opcional, só se for servir a web)
+   └── data/              # criado sozinho; guarda os .json da biblioteca
+   ```
+
+2. **Suba o servidor.** Por padrão ele escuta em `0.0.0.0:8888`:
+
+   ```bash
+   python3 main.py
+   # ou personalizando:
+   SEPIA_PORT=9000 SEPIA_DATA_DIR=/var/lib/sepia python3 main.py
+   ```
+
+   Variáveis: `SEPIA_PORT` (padrão `8888`), `SEPIA_WEB_DIR` (padrão `./web`),
+   `SEPIA_DATA_DIR` (padrão `./data`). Para deixar rodando, use `systemd`,
+   `pm2`, um `tmux`, ou o `restart-sepia.sh` incluído (feito para Termux, mas
+   adaptável — ele derruba a instância antiga, espera a porta liberar e
+   confirma com `curl .../version.json`).
+
+3. **Exponha o endereço.** Numa LAN, `http://IP-DO-SERVIDOR:8888` já basta.
+   Para acesso externo, ponha atrás de um proxy reverso com HTTPS
+   (Caddy, nginx, Cloudflare Tunnel) — o servidor não termina TLS sozinho.
+
+4. **Ligue a sincronização no app.** Em **Configurações → Sincronização**,
+   ative *Sincronizar com servidor* e informe o endereço base
+   (`https://sepia.seudominio.com` ou `http://192.168.0.10:8888`). Deixe o
+   campo vazio **apenas** na web servida pelo próprio servidor — aí ele usa a
+   própria origem. Use *Testar conexão* para confirmar, e puxe a biblioteca
+   para baixo para forçar uma sincronização.
+
+Desligar a sincronização pergunta se você quer apagar também a cópia que está
+no servidor; a biblioteca local nunca é afetada por essa escolha.
 
 ### Publicar no Netlify
 
@@ -110,12 +183,15 @@ Os arquivos `_headers` e `_redirects` já são incluídos na build para compatib
 
 ## Releases
 
-Tags semânticas publicam automaticamente um GitHub Release com um APK por arquitetura, um APK universal, o pacote web estático e checksums SHA-256:
+Tags semânticas publicam automaticamente um GitHub Release com, para **Sépia** e **Sépia Lite**, um APK por arquitetura e um universal, além do pacote web estático, o `main.py` do servidor e checksums SHA-256:
 
 ```bash
 git tag v1.2.0
 git push origin v1.2.0
 ```
+
+O workflow constrói a branch `Lite` a partir do mesmo commit da tag (num
+_worktree_ separado), então mantenha `Lite` atualizada antes de taguear.
 
 **Baixe o `arm64-v8a`** — é a arquitetura de praticamente todo celular Android atual, e é o menor dos APKs. O `armeabi-v7a` serve aparelhos antigos, o `x86_64` serve emuladores, e o universal existe só como recurso de compatibilidade, sendo bem maior porque carrega as bibliotecas nativas de todas as arquiteturas ao mesmo tempo.
 
@@ -123,7 +199,7 @@ Todos usam a assinatura de desenvolvimento atual e são indicados para instalaç
 
 ## Stack
 
-Flutter + Material 3, `flutter_markdown_plus`, `highlight`, `file_picker`, `file_saver`, `shared_preferences` e fontes OFL empacotadas localmente.
+Flutter + Material 3, `flutter_markdown_plus`, `highlight`, `file_picker` (importar e exportar), `shared_preferences`, `sherpa_onnx` (voz neural on-device) e fontes OFL empacotadas localmente — na branch `Lite`, `sherpa_onnx` sai e `google_fonts` entra no lugar do bundle de fontes.
 
 ## Licença
 
