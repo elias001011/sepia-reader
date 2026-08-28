@@ -328,11 +328,17 @@ class StorageService {
         ? AppSettings.fromJson(Map<String, dynamic>.from(remoteRaw))
         : null;
 
-    // The server's copy only wins when it is genuinely newer. It used to win
-    // unconditionally, so a stale server copy (a push that had not landed yet
-    // when the app was killed or restarted for an upgrade) quietly reverted
-    // local appearance changes on the next launch.
-    if (remote != null && _isNewer(remote.settingsUpdatedAt, local?.settingsUpdatedAt)) {
+    // With nothing stored locally there is nothing to protect: adopt the
+    // server's copy wholesale, the way a fresh install pointed at an existing
+    // library always has.
+    //
+    // Otherwise the server's copy only wins when it is genuinely newer. It
+    // used to win unconditionally, so a stale server copy (a push that had
+    // not landed yet when the app was killed or restarted for an upgrade)
+    // quietly reverted local appearance changes on the next launch.
+    if (remote != null &&
+        (local == null ||
+            _isNewer(remote.settingsUpdatedAt, local.settingsUpdatedAt))) {
       await prefs.setString(_settingsKey, jsonEncode(remote.toJson()));
       return _withLocalSyncConfig(remote);
     }

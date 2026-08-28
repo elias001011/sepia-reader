@@ -224,6 +224,34 @@ void main() {
 
       expect(loaded.seedColor, const Color(0xFF999999));
     });
+
+    test('instalação nova adota a configuração do servidor sem relógio', () async {
+      SharedPreferences.setMockInitialValues({
+        'sepia.syncconfig.v1': jsonEncode({
+          'syncEnabled': true,
+          'syncServerUrl': 'http://sync.test',
+        }),
+      });
+      final storage = StorageService(
+        client: MockClient((request) async {
+          if (request.url.path == '/api/settings') {
+            return http.Response(
+              jsonEncode(const {
+                'seedColor': 0xFF445566,
+                'themeMode': 'dark',
+              }),
+              200,
+            );
+          }
+          return http.Response('[]', 200);
+        }),
+      );
+
+      final loaded = await storage.loadSettings();
+
+      expect(loaded.seedColor, const Color(0xFF445566));
+      expect(loaded.themeMode, ThemeMode.dark);
+    });
   });
 
   test('favoritar avança o relógio usado pelo merge', () async {
