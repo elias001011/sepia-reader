@@ -60,7 +60,11 @@ void clearMarkdownCaches() {
 /// are needed on every reader rebuild.
 ({String content, String definitions})? _definitionCache;
 
-final _fence = RegExp(r'^(```|~~~)');
+// Captures the whole run of markers, not just three. A four-backtick fence
+// read as a three-backtick one is closed by an inner ``` — the ordinary way
+// to show a code block inside a code block — which corrupts the split. The
+// speech path already learned this in document_sections.dart.
+final _fence = RegExp(r'^(`{3,}|~{3,})');
 final _listItem = RegExp(r'^\s*([-*+]|\d+[.)])\s+');
 final _quoteLine = RegExp(r'^\s*>');
 final _indented = RegExp(r'^(\s{2,}|\t)');

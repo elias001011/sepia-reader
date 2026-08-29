@@ -87,6 +87,22 @@ void main() {
     expect(blocks.any((b) => b.trim() == 'Fim.'), isTrue);
   });
 
+  test('cerca de quatro crases não é fechada por uma de três', () {
+    clearMarkdownCaches();
+    final blocks = splitMarkdownBlocks(
+      'Antes.\n\n````markdown\n```dart\nfinal x = 1;\n```\n````\n\nDepois.',
+    );
+    final code = blocks.firstWhere((b) => b.contains('final x = 1'));
+    expect(
+      code,
+      contains('```dart'),
+      reason: 'a cerca interna faz parte do bloco, não o encerra',
+    );
+    expect(code, contains('````'));
+    expect(blocks.any((b) => b.trim() == 'Antes.'), isTrue);
+    expect(blocks.any((b) => b.trim() == 'Depois.'), isTrue);
+  });
+
   testWidgets('a folha abre numa janela mais baixa que o mínimo', (
     tester,
   ) async {

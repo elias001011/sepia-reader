@@ -170,6 +170,38 @@ void main() {
     expect(controller.folderDocumentCount(root.id), 2);
   });
 
+  test('importação sem nenhum arquivo aproveitável não cria pasta', () async {
+    final controller = AppController(updateChecker: offlineUpdateChecker());
+    await controller.initialize();
+    final foldersBefore = controller.foldersIn(null).length;
+
+    final result = await controller.importFolder(
+      FolderImportSelection(
+        folderName: 'Só binários',
+        skippedFiles: 0,
+        files: [
+          // ".md" by name, ZIP (PK\x03\x04) by content — rejected as binary.
+          FolderImportFile(
+            relativePath: 'nested/a.md',
+            bytes: Uint8List.fromList([0x50, 0x4B, 0x03, 0x04, 1, 2, 3, 4]),
+          ),
+          FolderImportFile(
+            relativePath: 'b.md',
+            bytes: Uint8List.fromList([0x89, 0x50, 0x4E, 0x47, 13, 10]),
+          ),
+        ],
+      ),
+    );
+
+    expect(result.imported, 0);
+    expect(result.rejected, 2);
+    expect(controller.foldersIn(null).length, foldersBefore);
+
+    final restored = AppController(updateChecker: offlineUpdateChecker());
+    await restored.initialize();
+    expect(restored.foldersIn(null).length, foldersBefore);
+  });
+
   test('filtra somente extensões compatíveis', () {
     expect(isSupportedDocumentPath('livro/capitulo.md'), isTrue);
     expect(isSupportedDocumentPath('codigo/EXEMPLO.DART'), isTrue);

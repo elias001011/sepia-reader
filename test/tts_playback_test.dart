@@ -292,6 +292,32 @@ void main() {
     expect(engine.spoken, isNotEmpty);
   });
 
+  test('uma falha no meio da fala não trava o player em "tocando"', () async {
+    final controller = TtsPlaybackController(engine: MidSentenceFailEngine());
+    final sections = sectionsOf(fic());
+    await controller.start(
+      document: fic(),
+      section: sections.first,
+      voiceId: null,
+      rate: 1,
+      pitch: 1,
+    );
+
+    // The speak() call fails from inside the fire-and-forget loop, after
+    // start() has already returned. Let that loop run.
+    for (var i = 0; i < 10 && controller.isPlaying; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    expect(controller.error, isNotNull);
+    expect(
+      controller.isPlaying,
+      isFalse,
+      reason: 'sem isto o player fica "tocando" sem áudio nem mensagem',
+    );
+    expect(controller.isActive, isFalse);
+  });
+
   test('parar libera o motor e zera o estado', () async {
     final engine = FakeEngine();
     final controller = TtsPlaybackController(engine: engine);
@@ -309,6 +335,34 @@ void main() {
     expect(engine.releaseCalls, 1);
     expect(engine.isSpeaking, isFalse);
   });
+}
+
+/// An engine that starts fine but throws once asked to speak — a neural
+/// backend that loses its audio route, or a platform voice that dies
+/// partway through a chapter.
+class MidSentenceFailEngine extends TtsEngine {
+  @override
+  String get label => 'mid-fail';
+  @override
+  Future<bool> isAvailable() async => true;
+  @override
+  Future<void> prepare() async {}
+  @override
+  Future<List<TtsVoice>> availableVoices() async => const [];
+  @override
+  Future<void> configure({
+    String? voiceId,
+    required double rate,
+    required double pitch,
+  }) async {}
+  @override
+  Future<void> prime(String text) async {}
+  @override
+  Future<void> speak(String text) async => throw StateError('audio route lost');
+  @override
+  Future<void> stop() async {}
+  @override
+  Future<void> release() async {}
 }
 
 /// An engine that cannot start — the shape of a neural voice whose model is

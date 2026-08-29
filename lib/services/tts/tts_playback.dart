@@ -138,8 +138,13 @@ class TtsPlaybackController extends ChangeNotifier {
         await _engine.speak(piece.text);
       } catch (error) {
         debugPrint('sepia: speaking failed: $error');
+        // Leave a state the interface can act on: without this the player
+        // stayed "playing" with no audio and no message, showing a pause
+        // button that did nothing.
         _error = '$error';
-        break;
+        _state = TtsPlaybackState.idle;
+        notifyListeners();
+        return;
       }
       // A stop or pause landed while this utterance was in flight: leave the
       // index where it is so resume replays exactly this sentence.

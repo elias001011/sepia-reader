@@ -391,9 +391,11 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     final local = _decodeSettings(prefs.getString(_settingsKey));
     final remoteRaw = await _fetchJson('/api/settings');
-    final remote = remoteRaw is Map && remoteRaw.isNotEmpty
-        ? AppSettings.fromJson(Map<String, dynamic>.from(remoteRaw))
-        : null;
+    // Guard the remote decode the same way the local one is. The server
+    // accepts any JSON object at /api/settings, so a malformed payload
+    // (e.g. `{"themeMode": 123}`) would otherwise throw here and abort the
+    // whole four-endpoint Future.wait, failing pull-to-refresh outright.
+    final remote = _decodeRemoteSettings(remoteRaw);
 
     // With nothing stored locally there is nothing to protect: adopt the
     // server's copy wholesale, the way a fresh install pointed at an existing
@@ -430,6 +432,19 @@ class StorageService {
         Map<String, dynamic>.from(jsonDecode(raw) as Map),
       );
     } catch (_) {
+      return null;
+    }
+  }
+
+  /// Decodes the settings object the server returned, treating anything that
+  /// is not a well-formed [AppSettings] as "no remote settings" rather than
+  /// letting it throw out of the sync.
+  AppSettings? _decodeRemoteSettings(Object? raw) {
+    if (raw is! Map || raw.isEmpty) return null;
+    try {
+      return AppSettings.fromJson(Map<String, dynamic>.from(raw));
+    } catch (error) {
+      debugPrint('sepia: could not decode remote settings: $error');
       return null;
     }
   }

@@ -375,6 +375,32 @@ void main() {
         expect(loaded.themeMode, ThemeMode.dark);
       },
     );
+
+    test('configuração remota malformada não derruba o sync', () async {
+      SharedPreferences.setMockInitialValues({
+        'sepia.syncconfig.v1': jsonEncode({
+          'syncEnabled': true,
+          'syncServerUrl': 'http://sync.test',
+        }),
+        'sepia.settings.v1': jsonEncode(
+          const AppSettings(seedColor: Color(0xFF112233)).toJson(),
+        ),
+      });
+      final storage = StorageService(
+        client: MockClient((request) async {
+          if (request.url.path == '/api/settings') {
+            // Valid JSON object, wrong type where fromJson expects a String.
+            return http.Response(jsonEncode(const {'themeMode': 123}), 200);
+          }
+          return http.Response('[]', 200);
+        }),
+      );
+
+      final result = await storage.forcePull();
+
+      expect(result.reachedServer, isTrue);
+      expect(result.settings.seedColor, const Color(0xFF112233));
+    });
   });
 
   test('favoritar avança o relógio usado pelo merge', () async {

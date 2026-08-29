@@ -469,6 +469,10 @@ class AppController extends ChangeNotifier {
       parentId: parentId,
     );
     final folderIds = <String, String>{'': root.id};
+    // Every folder this import creates, so a run that imports nothing (all
+    // files turned out to be binary) can be rolled back instead of leaving
+    // an empty folder tree behind and syncing it up.
+    final createdFolderIds = <String>{root.id};
     var imported = 0;
     var rejected = 0;
 
@@ -488,13 +492,14 @@ class AppController extends ChangeNotifier {
       var currentFolderId = root.id;
       for (final segment in parts) {
         currentPath = currentPath.isEmpty ? segment : '$currentPath/$segment';
-        currentFolderId = folderIds.putIfAbsent(
-          currentPath,
-          () => _createFolderInMemory(
+        currentFolderId = folderIds.putIfAbsent(currentPath, () {
+          final created = _createFolderInMemory(
             name: segment,
             parentId: currentFolderId,
-          ).id,
-        );
+          );
+          createdFolderIds.add(created.id);
+          return created.id;
+        });
       }
       final nameParts = filename.split('.');
       final extension = nameParts.length > 1
@@ -508,6 +513,13 @@ class AppController extends ChangeNotifier {
         folderId: currentFolderId,
       );
       imported++;
+    }
+
+    if (imported == 0) {
+      // Nothing landed: undo the folders we speculatively created so the
+      // library (and the server) are left exactly as before.
+      _folders.removeWhere((folder) => createdFolderIds.contains(folder.id));
+      return (imported: 0, rejected: rejected);
     }
 
     await _persistLibrary();
