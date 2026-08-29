@@ -231,6 +231,10 @@ git push origin v1.2.0
 The workflow builds the `Lite` branch from the tag's own commit (in a separate
 worktree), so keep `Lite` up to date before tagging.
 
+Release notes are generated from the commits; [`CHANGELOG.md`](CHANGELOG.md)
+summarises the changes per version and keeps an **Unreleased** section for what
+is already on `main` without a tag.
+
 **Download `arm64-v8a`** — it is the architecture of virtually every current Android phone, and the smallest APK. `armeabi-v7a` serves older devices, `x86_64` serves emulators, and the universal build exists only as a compatibility fallback: it is considerably larger because it carries the native libraries for every architecture at once.
 
 All of them use the current development signing key and are meant for direct installation and testing. For permanent release builds, configure the secrets `KEYSTORE_BASE64`, `KEY_ALIAS`, `KEY_STORE_PASSWORD`, and `KEY_PASSWORD` in the GitHub repository — the workflow restores the keystore automatically. Before distributing through the Play Store, prefer an Android App Bundle — Play itself then delivers only each device's ABI.

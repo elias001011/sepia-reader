@@ -118,6 +118,12 @@ class _EditorScreenState extends State<EditorScreen> {
   /// change swaps it instead of silently reading in the old voice.
   String? _engineKey;
 
+  /// The last speech error already shown to the user, so a failure that
+  /// arrives through the controller listener (one that lands after playback
+  /// has started) is not also announced by [_startListening], and is not
+  /// repeated on every subsequent notification.
+  String? _surfacedTtsError;
+
   /// `.html` is shown as a rendered preview by default, with the source one
   /// tap away. The conversion is memoised because it walks the whole file.
   var _showMarkupSource = false;
@@ -306,8 +312,19 @@ class _EditorScreenState extends State<EditorScreen> {
 
   Future<void> _save() async {
     _saveTimer?.cancel();
+    // Snapshot exactly what is being persisted, before the await.
+    final savedContent = _contentController.text;
+    final savedTitle = _titleController.text;
     await widget.controller.updateDocument(_draft);
-    _dirty.value = false;
+    // Only mark the editor clean if nothing was typed during the await.
+    // Clearing it unconditionally dropped a keystroke that landed mid-save:
+    // the flag then said "saved", so _close() skipped its flush and dispose()
+    // cancelled the pending timer. A still-dirty flag just means the queued
+    // timer (or _close) will persist the newer text.
+    if (_contentController.text == savedContent &&
+        _titleController.text == savedTitle) {
+      _dirty.value = false;
+    }
     _refreshSectionable();
   }
 
@@ -386,10 +403,15 @@ class _EditorScreenState extends State<EditorScreen> {
   /// that is not the one on screen, scroll to it.
   void _onSpeechChanged() {
     if (!mounted) return;
+    final controller = _tts;
+    if (controller == null) return;
+    // A failure that lands after playback has already begun (the engine loses
+    // its audio route mid-chapter) surfaces here — the checks in
+    // [_startListening] all ran before the first utterance was spoken.
+    _surfaceTtsError();
     // No setState: the player bar listens to the controller itself. Calling
     // it here would rebuild the whole document once per sentence.
-    final controller = _tts;
-    if (controller == null || !controller.isPlaying) return;
+    if (!controller.isPlaying) return;
     final target = controller.currentChunkIndex;
     if (target == null || !_itemScrollController.isAttached) return;
     final visible = _itemPositionsListener.itemPositions.value;
@@ -405,6 +427,25 @@ class _EditorScreenState extends State<EditorScreen> {
       alignment: 0.18,
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeOut,
+    );
+  }
+
+  /// Shows the "voice failed" message once per distinct error. Called both
+  /// from [_startListening] (a backend that will not start) and from the
+  /// controller listener (a backend that dies mid-chapter); [_surfacedTtsError]
+  /// keeps the two from doubling up, and resets when the error clears so the
+  /// next listen can report its own.
+  void _surfaceTtsError() {
+    final error = _tts?.error;
+    if (error == null) {
+      _surfacedTtsError = null;
+      return;
+    }
+    if (error == _surfacedTtsError) return;
+    _surfacedTtsError = error;
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.l10n.ttsFailed(error))),
     );
   }
 
@@ -466,9 +507,7 @@ class _EditorScreenState extends State<EditorScreen> {
     }
 
     if (controller.error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.ttsFailed(controller.error!))),
-      );
+      _surfaceTtsError();
     } else if (controller.pieceCount == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(context.l10n.ttsNothingToRead)),

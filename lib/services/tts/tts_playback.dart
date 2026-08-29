@@ -137,12 +137,17 @@ class TtsPlaybackController extends ChangeNotifier {
       try {
         await _engine.speak(piece.text);
       } catch (error) {
+        // An interruption — pause, skip, stop, a new chapter — can make the
+        // engine reject the utterance in flight. That is not a failure, and a
+        // newer generation is already in charge; bail out like every other
+        // transition in this loop.
+        if (generation != _generation) return;
         debugPrint('sepia: speaking failed: $error');
-        // Leave a state the interface can act on: without this the player
-        // stayed "playing" with no audio and no message, showing a pause
-        // button that did nothing.
+        // A real mid-chapter failure: tear the session down the same way
+        // stop() does (engine stopped, queue cleared) and then surface the
+        // error, so the player bar cannot linger showing a dead pause button.
+        await stop();
         _error = '$error';
-        _state = TtsPlaybackState.idle;
         notifyListeners();
         return;
       }

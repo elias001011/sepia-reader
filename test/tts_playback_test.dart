@@ -316,6 +316,40 @@ void main() {
       reason: 'sem isto o player fica "tocando" sem áudio nem mensagem',
     );
     expect(controller.isActive, isFalse);
+    expect(
+      controller.pieceCount,
+      0,
+      reason: 'a fila foi esvaziada como no stop()',
+    );
+    expect(controller.sectionTitle, isNull);
+  });
+
+  test('pausar não vira erro quando o motor rejeita a fala em curso', () async {
+    final engine = RejectOnStopEngine();
+    final controller = TtsPlaybackController(engine: engine);
+    final sections = sectionsOf(fic());
+    await controller.start(
+      document: fic(),
+      section: sections.first,
+      voiceId: null,
+      rate: 1,
+      pitch: 1,
+    );
+    for (var i = 0; i < 10 && !engine.isSpeaking; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(controller.isPlaying, isTrue);
+
+    // pause() bumps the generation and calls engine.stop(), which here
+    // rejects the speak() future still in flight. That rejection must be
+    // read as "interrupted", not as a playback failure.
+    await controller.pause();
+    for (var i = 0; i < 5; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    expect(controller.error, isNull, reason: 'pausar não é falha');
+    expect(controller.state, TtsPlaybackState.paused);
   });
 
   test('parar libera o motor e zera o estado', () async {
@@ -335,6 +369,49 @@ void main() {
     expect(engine.releaseCalls, 1);
     expect(engine.isSpeaking, isFalse);
   });
+}
+
+/// An engine whose in-flight utterance is completed *with an error* by
+/// stop() — the shape of a backend that reports the interruption as a
+/// failure rather than a clean cancel.
+class RejectOnStopEngine extends TtsEngine {
+  Completer<void>? _pending;
+  bool get isSpeaking => _pending != null;
+
+  @override
+  String get label => 'reject-on-stop';
+  @override
+  Future<bool> isAvailable() async => true;
+  @override
+  Future<void> prepare() async {}
+  @override
+  Future<List<TtsVoice>> availableVoices() async => const [];
+  @override
+  Future<void> configure({
+    String? voiceId,
+    required double rate,
+    required double pitch,
+  }) async {}
+  @override
+  Future<void> prime(String text) async {}
+  @override
+  Future<void> speak(String text) async {
+    final completer = Completer<void>();
+    _pending = completer;
+    await completer.future;
+  }
+
+  @override
+  Future<void> stop() async {
+    final pending = _pending;
+    _pending = null;
+    if (pending != null && !pending.isCompleted) {
+      pending.completeError(StateError('interrupted'));
+    }
+  }
+
+  @override
+  Future<void> release() async => stop();
 }
 
 /// An engine that starts fine but throws once asked to speak — a neural
