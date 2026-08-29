@@ -62,7 +62,7 @@ Cada Release traz **duas** builds Android do mesmo app:
 | | **Sépia** (`sepia-<versão>-android-*.apk`) | **Sépia Lite** (`sepia-lite-<versão>-android-*.apk`) |
 |---|---|---|
 | Foco | completo, 100% offline | APK mínimo para leitura |
-| Tamanho do APK `arm64` (por ABI) | ~45–50 MB | ~12–16 MB |
+| Tamanho do APK `arm64` (por ABI) | ~48 MB | ~31 MB |
 | Fontes de leitura | 11 famílias **empacotadas** (funciona sem internet) | as mesmas famílias **baixadas sob demanda** via `google_fonts` e cacheadas no aparelho (precisa de internet só na primeira vez que cada fonte é usada) |
 | Voz neural (Piper / Kokoro, on-device) | sim, via `sherpa_onnx` | **não** — é o que mais pesa no APK |
 | Voz do sistema (Android/navegador) | sim | sim |
@@ -129,11 +129,22 @@ são anexados a cada GitHub Release.
 ### Servidor de sincronização
 
 `sepia-<versão>-server.py` é um único arquivo Python (só a biblioteca padrão,
-3.9+). Ele faz duas coisas: serve o app web estático e expõe uma API JSON
-pequena e atômica em `/api/documents`, `/api/folders`, `/api/settings` e
-`/api/bookmarks`. É isso que os apps Android (Sépia **e** Sépia Lite) e a web
-usam para manter a biblioteca igual em vários aparelhos. Nenhum conteúdo passa
-por terceiros — os dados ficam em arquivos JSON ao lado do script.
+3.9+). Ele expõe uma API JSON pequena e atômica em `/api/documents`,
+`/api/folders`, `/api/settings` e `/api/bookmarks` — é isso que os apps Android
+(Sépia **e** Sépia Lite) e a web usam para manter a biblioteca igual em vários
+aparelhos. Nenhum conteúdo passa por terceiros: os dados ficam em arquivos JSON
+ao lado do script. Ele **não** é o app Flutter — pra hospedar o sync você nunca
+precisa "baixar o app inteiro".
+
+Dá pra rodar de dois jeitos:
+
+- **Só sync (headless).** É o modo recomendado para uma instância que só é
+  acessada pelos apps nativos. Não precisa da pasta `web/` — qualquer rota que
+  não seja `/api/...` ou `/healthz` responde 404, e é só isso.
+- **Sync + interface web.** Extraia `sepia-<versão>-web.tar.gz` numa pasta
+  `web/` ao lado do script; aí o servidor também entrega o app web na raiz.
+
+**Passo a passo:**
 
 1. **Coloque os arquivos juntos** num diretório no servidor (um mini-PC, um
    VPS, um celular velho com Termux):
@@ -141,7 +152,8 @@ por terceiros — os dados ficam em arquivos JSON ao lado do script.
    ```
    sepia-server/
    ├── main.py            # renomeado de sepia-<versão>-server.py
-   ├── web/               # conteúdo de sepia-<versão>-web.tar.gz (opcional, só se for servir a web)
+   ├── restart-sepia.sh   # opcional, reinício "à prova de porta ocupada"
+   ├── web/               # SÓ no modo com interface: conteúdo de sepia-<versão>-web.tar.gz
    └── data/              # criado sozinho; guarda os .json da biblioteca
    ```
 
@@ -157,7 +169,26 @@ por terceiros — os dados ficam em arquivos JSON ao lado do script.
    `SEPIA_DATA_DIR` (padrão `./data`). Para deixar rodando, use `systemd`,
    `pm2`, um `tmux`, ou o `restart-sepia.sh` incluído (feito para Termux, mas
    adaptável — ele derruba a instância antiga, espera a porta liberar e
-   confirma com `curl .../version.json`).
+   confirma com `curl .../healthz`). O `/healthz` funciona nos dois modos e
+   devolve `{"ok": true, ...}` — bom para _healthcheck_ de systemd/Docker.
+
+   Exemplo de unidade systemd (modo só-sync):
+
+   ```ini
+   [Unit]
+   Description=Sepia sync
+   After=network.target
+
+   [Service]
+   Environment=SEPIA_PORT=8888
+   Environment=SEPIA_DATA_DIR=/var/lib/sepia
+   Environment=SEPIA_WEB_DIR=/var/lib/sepia/web-none
+   ExecStart=/usr/bin/python3 /opt/sepia/main.py
+   Restart=on-failure
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
 
 3. **Exponha o endereço.** Numa LAN, `http://IP-DO-SERVIDOR:8888` já basta.
    Para acesso externo, ponha atrás de um proxy reverso com HTTPS

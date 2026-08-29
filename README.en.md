@@ -67,11 +67,22 @@ Every GitHub Release includes a self-hostable web archive and the
 ### Sync server
 
 `sepia-<version>-server.py` is a single Python file (standard library only,
-3.9+). It does two things: serves the static web app, and exposes a small,
-atomic JSON API at `/api/documents`, `/api/folders`, `/api/settings`, and
-`/api/bookmarks`. That API is what the Android apps (Sépia **and** Sépia Lite)
-and the web build use to keep one library in step across devices. Nothing
-passes through a third party — the data lives in JSON files next to the script.
+3.9+). It exposes a small, atomic JSON API at `/api/documents`, `/api/folders`,
+`/api/settings`, and `/api/bookmarks` — that API is what the Android apps
+(Sépia **and** Sépia Lite) and the web build use to keep one library in step
+across devices. Nothing passes through a third party: the data lives in JSON
+files next to the script. It is **not** the Flutter app — hosting sync never
+means "downloading the whole app".
+
+Two ways to run it:
+
+- **Sync only (headless).** The recommended mode for an instance only ever
+  reached by the native apps. No `web/` directory needed — anything that isn't
+  `/api/...` or `/healthz` just returns 404.
+- **Sync + web UI.** Extract `sepia-<version>-web.tar.gz` into a `web/` folder
+  next to the script and the server also serves the web app at the root.
+
+**Steps:**
 
 1. **Put the files together** in a directory on the server (a mini-PC, a VPS,
    an old phone running Termux):
@@ -79,7 +90,8 @@ passes through a third party — the data lives in JSON files next to the script
    ```
    sepia-server/
    ├── main.py            # renamed from sepia-<version>-server.py
-   ├── web/               # contents of sepia-<version>-web.tar.gz (optional; only to serve the web app)
+   ├── restart-sepia.sh   # optional, "port-still-busy"-proof restart
+   ├── web/               # WEB-UI MODE ONLY: contents of sepia-<version>-web.tar.gz
    └── data/              # created on first run; holds the library .json files
    ```
 
@@ -95,7 +107,26 @@ passes through a third party — the data lives in JSON files next to the script
    `SEPIA_DATA_DIR` (default `./data`). To keep it running, use `systemd`,
    `pm2`, a `tmux` session, or the bundled `restart-sepia.sh` (written for
    Termux but adaptable — it kills the old instance, waits for the port to
-   free, and confirms with `curl .../version.json`).
+   free, and confirms with `curl .../healthz`). `/healthz` works in both modes
+   and returns `{"ok": true, ...}` — handy for a systemd/Docker healthcheck.
+
+   Example systemd unit (headless mode):
+
+   ```ini
+   [Unit]
+   Description=Sepia sync
+   After=network.target
+
+   [Service]
+   Environment=SEPIA_PORT=8888
+   Environment=SEPIA_DATA_DIR=/var/lib/sepia
+   Environment=SEPIA_WEB_DIR=/var/lib/sepia/web-none
+   ExecStart=/usr/bin/python3 /opt/sepia/main.py
+   Restart=on-failure
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
 
 3. **Expose the address.** On a LAN, `http://SERVER-IP:8888` is enough. For
    access from outside, put it behind a reverse proxy that terminates HTTPS
@@ -130,7 +161,7 @@ Every Release ships **two** Android builds of the same app:
 | | **Sépia** (`sepia-<version>-android-*.apk`) | **Sépia Lite** (`sepia-lite-<version>-android-*.apk`) |
 |---|---|---|
 | Focus | full-featured, 100% offline | smallest possible reading APK |
-| `arm64` APK size (per-ABI) | ~45–50 MB | ~12–16 MB |
+| `arm64` APK size (per-ABI) | ~48 MB | ~31 MB |
 | Reading fonts | 11 families **bundled** (works with no internet) | the same families **fetched on demand** via `google_fonts` and cached on device (internet needed only the first time each font is used) |
 | On-device neural voice (Piper / Kokoro) | yes, via `sherpa_onnx` | **no** — it is the largest part of the APK |
 | System voice (Android/browser) | yes | yes |

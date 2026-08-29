@@ -29,15 +29,17 @@ fi
 setsid nohup python3 -u "$SERVER_DIR/main.py" \
   >> "$SERVER_DIR/server.log" 2>&1 < /dev/null &
 
-# Give it a moment to bind, then confirm it is actually serving.
+# Give it a moment to bind, then confirm it is actually serving. /healthz is
+# built into the server and needs no web/ bundle, so this works headless too.
 for _ in $(seq 1 25); do
-  curl -fs "http://localhost:$PORT/version.json" >/dev/null 2>&1 && break
+  curl -fs "http://localhost:$PORT/healthz" >/dev/null 2>&1 && break
   sleep 0.2
 done
 
-if curl -fs "http://localhost:$PORT/version.json" >/dev/null 2>&1; then
+if curl -fs "http://localhost:$PORT/healthz" >/dev/null 2>&1; then
   echo "sepia: RUNNING pid=$(pgrep -f "$PATTERN" | tr '\n' ' ')"
-  curl -s "http://localhost:$PORT/version.json" | grep -o '"version":"[^"]*"' || true
+  curl -s "http://localhost:$PORT/healthz" || true
+  echo
 else
   echo "sepia: NOT SERVING on :$PORT"
   tail -12 "$SERVER_DIR/server.log"

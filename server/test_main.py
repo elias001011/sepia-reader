@@ -1,6 +1,14 @@
+import json
+import os
+import shutil
+import tempfile
+import threading
 import unittest
+import urllib.error
+import urllib.request
 
-from main import Server, merge_records, merge_settings
+import main
+from main import Server, health_payload, merge_records, merge_settings
 
 
 class MergeRecordsTest(unittest.TestCase):
@@ -69,6 +77,64 @@ class ServerSocketOptionsTest(unittest.TestCase):
         self.assertTrue(Server.allow_reuse_address)
         self.assertTrue(Server.allow_reuse_port)
         self.assertTrue(Server.daemon_threads)
+
+
+class HeadlessServerTest(unittest.TestCase):
+    """The sync API and /healthz must work with no web/ bundle at all."""
+
+    def setUp(self):
+        self._tmp = tempfile.mkdtemp()
+        self._web = main.WEB_DIR
+        self._data = main.DATA_DIR
+        # Point WEB_DIR at a directory that has no index.html — the headless
+        # case — and DATA_DIR at a throwaway.
+        main.WEB_DIR = os.path.join(self._tmp, "web-empty")
+        main.DATA_DIR = os.path.join(self._tmp, "data")
+        os.makedirs(main.WEB_DIR, exist_ok=True)
+        self._server = Server(("127.0.0.1", 0), main.Handler)
+        self._port = self._server.server_address[1]
+        self._thread = threading.Thread(
+            target=self._server.serve_forever, daemon=True
+        )
+        self._thread.start()
+
+    def tearDown(self):
+        self._server.shutdown()
+        self._server.server_close()
+        self._thread.join(timeout=5)
+        main.WEB_DIR = self._web
+        main.DATA_DIR = self._data
+        shutil.rmtree(self._tmp, ignore_errors=True)
+
+    def _get(self, path):
+        with urllib.request.urlopen(
+            f"http://127.0.0.1:{self._port}{path}", timeout=5
+        ) as response:
+            return response.status, response.read()
+
+    def test_healthz_reports_liveness_without_a_web_bundle(self):
+        status, body = self._get("/healthz")
+        self.assertEqual(status, 200)
+        payload = json.loads(body)
+        self.assertTrue(payload["ok"])
+        self.assertFalse(payload["serves_web"])
+        self.assertIn("/api/documents", payload["api"])
+
+    def test_sync_api_still_answers_headless(self):
+        status, body = self._get("/api/documents")
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body), [])
+
+    def test_missing_web_file_is_a_plain_404(self):
+        with self.assertRaises(urllib.error.HTTPError) as caught:
+            self._get("/index.html")
+        self.assertEqual(caught.exception.code, 404)
+        caught.exception.close()
+
+    def test_health_payload_shape(self):
+        payload = health_payload()
+        self.assertEqual(payload["service"], "sepia-sync")
+        self.assertEqual(payload["api"], sorted(main.API_FILES))
 
 
 if __name__ == "__main__":

@@ -50,6 +50,22 @@ API_FILES = {
 DATA_LOCK = threading.Lock()
 
 
+def health_payload():
+    """A tiny liveness response that does not depend on ``web/``.
+
+    The server can run headless — sync API only, no web bundle — for a
+    self-hosted instance that is only ever reached by the native apps. In that
+    mode there is no ``web/version.json`` to probe, so ``/healthz`` is what a
+    supervisor (and ``restart-sepia.sh``) checks instead.
+    """
+    return {
+        "ok": True,
+        "service": "sepia-sync",
+        "api": sorted(API_FILES),
+        "serves_web": os.path.isfile(os.path.join(WEB_DIR, "index.html")),
+    }
+
+
 def _not_modified(if_modified_since, mtime):
     if not if_modified_since:
         return False
@@ -244,6 +260,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         route = urllib.parse.urlsplit(self.path).path
+        if route == "/healthz":
+            self._send_json(200, health_payload())
+            return
         if route in API_FILES:
             filename, default = API_FILES[route]
             with DATA_LOCK:
@@ -254,7 +273,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_HEAD(self):
         route = urllib.parse.urlsplit(self.path).path
-        if route in API_FILES:
+        if route == "/healthz" or route in API_FILES:
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Cache-Control", "no-store")
