@@ -335,11 +335,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
       type: MaterialType.transparency,
       child: Stack(
         children: [
+          // Solid behind the status bar and the bar row so the library does
+          // not smear across the clock as it scrolls up; then a short fade,
+          // and below that the notices float over the content for real.
           Positioned(
             top: 0,
             left: 0,
             right: 0,
-            height: topInset + 18,
+            height: topInset + 76,
             child: DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -347,8 +350,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   end: Alignment.bottomCenter,
                   colors: [
                     scheme.surface,
+                    scheme.surface,
                     scheme.surface.withValues(alpha: 0),
                   ],
+                  stops: const [0, 0.82, 1],
                 ),
               ),
             ),
