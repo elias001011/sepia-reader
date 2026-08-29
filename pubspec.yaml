@@ -109,6 +109,27 @@ flutter:
           weight: 700
         - asset: assets/fonts/Merriweather-900.ttf
           weight: 900
+    # The 2023 "Version 2.100" redesign of Merriweather — modernised metrics,
+    # the cut Google Fonts serves today. Offered alongside the classic so you
+    # can pick either. Latin subset, instanced at the text optical size.
+    - family: Merriweather 4
+      fonts:
+        - asset: assets/fonts/Merriweather4-400.ttf
+          weight: 400
+        - asset: assets/fonts/Merriweather4-400-Italic.ttf
+          style: italic
+          weight: 400
+        - asset: assets/fonts/Merriweather4-700.ttf
+          weight: 700
+    - family: Newsreader
+      fonts:
+        - asset: assets/fonts/Newsreader-400.ttf
+          weight: 400
+        - asset: assets/fonts/Newsreader-400-Italic.ttf
+          style: italic
+          weight: 400
+        - asset: assets/fonts/Newsreader-700.ttf
+          weight: 700
     - family: Merriweather Sans
       fonts:
         - asset: assets/fonts/MerriweatherSans-400.ttf

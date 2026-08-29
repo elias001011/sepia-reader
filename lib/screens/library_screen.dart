@@ -325,18 +325,40 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   /// Everything pinned at the top: the bar (browsing or multi-select), and
-  /// any notices under it. Painted on the scaffold background so the library
-  /// slides cleanly out of sight beneath it.
+  /// any notices under it. Genuinely transparent — only a short fade sits
+  /// behind the status bar to keep the clock legible; everywhere else the
+  /// library is visible sliding under the floating bars.
   Widget _floatingHeader(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final topInset = MediaQuery.paddingOf(context).top;
     return Material(
-      color: scheme.surface,
-      child: SafeArea(
-        bottom: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _selecting ? _selectionBar(context) : _topBar(context),
+      type: MaterialType.transparency,
+      child: Stack(
+        children: [
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: topInset + 18,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    scheme.surface,
+                    scheme.surface.withValues(alpha: 0),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          SafeArea(
+            bottom: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _selecting ? _selectionBar(context) : _topBar(context),
             Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 1180),
@@ -374,6 +396,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
             const SizedBox(height: 8),
           ],
         ),
+      ),
+        ],
       ),
     );
   }
