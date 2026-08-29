@@ -85,10 +85,22 @@ jobs:
         run: |
           git fetch --no-tags origin "+refs/heads/Lite:refs/remotes/origin/Lite"
           git worktree add ../sepia-lite origin/Lite
-          # Carry the signing material over so Lite is signed like the main app.
-          [ -f android/app/release-keystore.jks ] && cp android/app/release-keystore.jks ../sepia-lite/android/app/ || true
-          [ -f android/key.properties ] && cp android/key.properties ../sepia-lite/android/ || true
+          # Carry the signing material over so Lite is signed exactly like the
+          # main app — an unnoticed fallback to the debug key would make the
+          # Lite APK uninstallable as an upgrade. If main had a keystore, Lite
+          # must get it too; failure here fails the release.
+          if [ -f android/key.properties ]; then
+            cp android/app/release-keystore.jks ../sepia-lite/android/app/
+            cp android/key.properties ../sepia-lite/android/
+          fi
           cd ../sepia-lite
+          # The Lite branch is built from its own tip, not from this tag, so
+          # its version can silently drift. Refuse to ship a mismatch.
+          LITE_VERSION="$(sed -n 's/^version: \([^+]*\).*/\1/p' pubspec.yaml)"
+          if [[ "$LITE_VERSION" != "${GITHUB_REF_NAME#v}" ]]; then
+            echo "::error::Lite pubspec is $LITE_VERSION but the tag is ${GITHUB_REF_NAME#v} — rebase Lite onto main and force-push before tagging."
+            exit 1
+          fi
           flutter pub get
           flutter analyze
           flutter test

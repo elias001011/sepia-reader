@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 const _fontLicenses = {
   'Inter': 'assets/fonts/licenses/Inter-OFL.txt',
   'Merriweather': 'assets/fonts/licenses/Merriweather-OFL.txt',
+  'Merriweather (2017)': 'assets/fonts/licenses/Merriweather2017-OFL.txt',
   'Newsreader': 'assets/fonts/licenses/Newsreader-OFL.txt',
   'Merriweather Sans': 'assets/fonts/licenses/MerriweatherSans-OFL.txt',
   'Lora': 'assets/fonts/licenses/Lora-OFL.txt',

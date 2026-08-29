@@ -105,21 +105,32 @@ class _LibraryScreenState extends State<LibraryScreen> {
         ? const <LibraryFolder>[]
         : widget.controller.foldersIn(_currentFolderId);
 
+    // Before _MeasureSize has reported, use a close estimate so the content
+    // does not start flush at the top for one frame and then jump down.
+    final headerSpace = _headerHeight > 0
+        ? _headerHeight
+        : MediaQuery.paddingOf(context).top + 72;
+
     return Scaffold(
       body: Stack(
         children: [
           Positioned.fill(
-            child: RefreshIndicator(
-              // The spinner drops in below the floating header, not under it.
-              edgeOffset: _headerHeight,
-              onRefresh: _forceSync,
-              child: CustomScrollView(
+            // The floating header handles the top inset itself; SafeArea here
+            // keeps the library clear of the gesture bar and any side cutout,
+            // the way `body: SafeArea(...)` used to before this was pinned.
+            child: SafeArea(
+              top: false,
+              child: RefreshIndicator(
+                // The spinner drops in below the floating header, not under it.
+                edgeOffset: headerSpace,
+                onRefresh: _forceSync,
+                child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [
                   // Reserve the room the pinned header floats in; the library
                   // scrolls under it.
                   SliverToBoxAdapter(
-                    child: SizedBox(height: _headerHeight + 8),
+                    child: SizedBox(height: headerSpace + 8),
                   ),
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 48),
@@ -229,6 +240,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 ],
               ),
             ),
+            ),
           ),
           // Pinned above the library, floating over it. The bar you act on
           // stays put and the content slides under it; only the cards below
@@ -241,6 +253,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
             right: 0,
             child: _MeasureSize(
               onChange: (size) {
+                // Fires from a post-frame callback: the State may already be
+                // gone (hot reload, the home widget being swapped out).
+                if (!mounted) return;
                 if ((size.height - _headerHeight).abs() > 0.5) {
                   setState(() => _headerHeight = size.height);
                 }

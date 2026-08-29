@@ -518,6 +518,7 @@ class DocumentView extends StatelessWidget {
 /// `'Sistema'` (and any unknown value) falls back to the platform font.
 const readerFontChoices = <String>[
   'Merriweather',
+  'Merriweather (2017)',
   'Newsreader',
   'Merriweather Sans',
   'Literata',
