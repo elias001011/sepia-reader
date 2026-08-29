@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Sépia Reader: static web build and small, atomic JSON sync API."""
 
+import gzip
 import json
 import mimetypes
 import os
@@ -187,12 +188,21 @@ class Handler(BaseHTTPRequestHandler):
 
     def _send_json(self, status, payload):
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        accepts_gzip = "gzip" in self.headers.get("Accept-Encoding", "").lower()
+        encoded = (
+            gzip.compress(body, compresslevel=5)
+            if accepts_gzip and len(body) > 1024
+            else body
+        )
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
-        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Vary", "Accept-Encoding")
+        if encoded is not body:
+            self.send_header("Content-Encoding", "gzip")
+        self.send_header("Content-Length", str(len(encoded)))
         self.end_headers()
-        self.wfile.write(body)
+        self.wfile.write(encoded)
 
     def _static_path(self, url_path):
         path = urllib.parse.urlsplit(url_path).path

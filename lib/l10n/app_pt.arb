@@ -250,6 +250,7 @@
   "syncServerAddressHint": "Vazio: usar o endereço de onde o app foi aberto",
   "syncTestConnection": "Testar conexão",
   "syncTesting": "Testando…",
+  "syncTestOkSimple": "Conectado. O servidor respondeu normalmente.",
   "syncTestOk": "{count, plural, =1{Conectado. 1 documento no servidor.} other{Conectado. {count} documentos no servidor.}}",
   "@syncTestOk": {
     "placeholders": {

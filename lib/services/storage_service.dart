@@ -38,7 +38,7 @@ class SyncConfig {
 }
 
 /// Outcome of an explicit "test connection" from the settings screen.
-typedef SyncTestResult = ({bool ok, int documentCount, String? error});
+typedef SyncTestResult = ({bool ok, int? documentCount, String? error});
 
 class StorageService {
   StorageService({http.Client? client}) : _client = client ?? http.Client();
@@ -50,7 +50,12 @@ class StorageService {
   static const _syncConfigKey = 'sepia.syncconfig.v1';
   static const _lastSyncKey = 'sepia.lastsync.v1';
 
-  static const _networkTimeout = Duration(seconds: 6);
+  // A real sync may carry multi-megabyte documents over a sleepy phone's
+  // Wi-Fi. Six seconds was short enough to turn an otherwise healthy server
+  // into "Future not completed". The lightweight health probe remains short;
+  // transferring the library gets a realistic budget.
+  static const _probeTimeout = Duration(seconds: 6);
+  static const _networkTimeout = Duration(seconds: 30);
   static const _mergeHeaders = {
     'Content-Type': 'application/json',
     'X-Sepia-Write-Mode': 'merge',
@@ -127,6 +132,33 @@ class StorageService {
     await prefs.setString(_lastSyncKey, DateTime.now().toIso8601String());
   }
 
+  /// Reads only this device's saved documents, without touching the network.
+  ///
+  /// Startup uses the local variants so the first frame never waits for a
+  /// server. A background sync reconciles these values after the app is
+  /// already visible.
+  Future<List<LibraryDocument>> loadLocalDocuments() async {
+    final prefs = await SharedPreferences.getInstance();
+    return _decodeListRaw(prefs.getString(_documentsKey), _decodeDocuments);
+  }
+
+  Future<List<LibraryFolder>> loadLocalFolders() async {
+    final prefs = await SharedPreferences.getInstance();
+    return _decodeListRaw(prefs.getString(_foldersKey), _decodeFolders);
+  }
+
+  Future<List<ReadingBookmark>> loadLocalBookmarks() async {
+    final prefs = await SharedPreferences.getInstance();
+    return _decodeListRaw(prefs.getString(_bookmarksKey), _decodeBookmarks);
+  }
+
+  Future<AppSettings> loadLocalSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    return _withLocalSyncConfig(
+      _decodeSettings(prefs.getString(_settingsKey)) ?? const AppSettings(),
+    );
+  }
+
   /// Resolves an API path against the configured server, or returns null
   /// when syncing is off (in which case the app runs fully local).
   ///
@@ -201,31 +233,52 @@ class StorageService {
   /// currently enabled, so the settings screen can tell the user what is
   /// actually wrong instead of failing silently.
   Future<SyncTestResult> testConnection(String serverUrl) async {
-    final uri = _resolve(
-      '/api/documents',
-      SyncConfig(enabled: true, serverUrl: serverUrl),
-    );
-    if (uri == null) {
+    final config = SyncConfig(enabled: true, serverUrl: serverUrl);
+    final healthUri = _resolve('/healthz', config);
+    if (healthUri == null) {
       return (
         ok: false,
-        documentCount: 0,
+        documentCount: null,
         error: serverUrl.trim().isEmpty
             ? 'Informe o endereço do servidor'
             : 'URL inválida',
       );
     }
     try {
-      final response = await _client.get(uri).timeout(_networkTimeout);
+      // Current servers expose a tiny liveness response. The old probe fetched
+      // the entire document collection merely to prove the server existed —
+      // 2.4 MB in a real library — and routinely hit the six-second timeout.
+      final health = await _client.get(healthUri).timeout(_probeTimeout);
+      if (health.statusCode == 200) {
+        final decoded = jsonDecode(utf8.decode(health.bodyBytes));
+        if (decoded is Map && decoded['ok'] == true) {
+          return (ok: true, documentCount: null, error: null);
+        }
+        return (ok: false, documentCount: null, error: 'Resposta inesperada');
+      }
+
+      // Compatibility with servers from before /healthz existed. This path
+      // can be retired once those versions are no longer in use.
+      if (health.statusCode != 404) {
+        return (
+          ok: false,
+          documentCount: null,
+          error: 'HTTP ${health.statusCode}',
+        );
+      }
+
+      final documentsUri = _resolve('/api/documents', config)!;
+      final response = await _client.get(documentsUri).timeout(_networkTimeout);
       if (response.statusCode != 200) {
         return (
           ok: false,
-          documentCount: 0,
+          documentCount: null,
           error: 'HTTP ${response.statusCode}',
         );
       }
       final decoded = jsonDecode(utf8.decode(response.bodyBytes));
       if (decoded is! List) {
-        return (ok: false, documentCount: 0, error: 'Resposta inesperada');
+        return (ok: false, documentCount: null, error: 'Resposta inesperada');
       }
       // Live records only. The payload also carries tombstones — the marker
       // a deletion travels to other devices as — and counting those told the
@@ -235,8 +288,14 @@ class StorageService {
           .where((record) => record['deletedAt'] == null)
           .length;
       return (ok: true, documentCount: live, error: null);
+    } on TimeoutException {
+      return (
+        ok: false,
+        documentCount: null,
+        error: 'Tempo esgotado ao contatar o servidor',
+      );
     } catch (error) {
-      return (ok: false, documentCount: 0, error: '$error');
+      return (ok: false, documentCount: null, error: '$error');
     }
   }
 
@@ -254,9 +313,13 @@ class StorageService {
     required Map<String, dynamic> Function(T) encode,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    final local = _decodeListRaw(prefs.getString(key), decode);
     final remoteRaw = await _fetchJson(path);
     final remote = remoteRaw is List ? _decodeList(remoteRaw, decode) : null;
+
+    // Re-read after the network wait. A user can edit while background sync
+    // is in flight; using the snapshot from before the GET would overwrite
+    // that edit in local persistence when the response arrived.
+    final local = _decodeListRaw(prefs.getString(key), decode);
 
     final merged = purgeExpiredTombstones(
       remote == null ? local : mergeById(local, remote),
@@ -267,7 +330,11 @@ class StorageService {
     // Only write back when the server's copy actually differs, so a start-up
     // that changed nothing does not cost a needless upload.
     if (remoteRaw is List && jsonEncode(remoteRaw) != jsonEncode(encoded)) {
-      await _pushJson(path, encoded);
+      // The pull is complete once the merged local copy is durable. Publishing
+      // that merge stays in the serialized outgoing queue, but a slow PUT
+      // must not keep pull-to-refresh (or background startup sync) waiting for
+      // another full network timeout per collection.
+      unawaited(_pushJson(path, encoded));
     }
     return merged;
   }
@@ -433,6 +500,16 @@ class StorageService {
     unawaited(_pushJson('/api/documents', json));
   }
 
+  /// Persists the startup seed without starting a network request before the
+  /// first frame. The background sync will merge and publish it if needed.
+  Future<void> saveDocumentsLocally(List<LibraryDocument> documents) async {
+    final json = documents.map((document) => document.toJson()).toList();
+    await (await SharedPreferences.getInstance()).setString(
+      _documentsKey,
+      jsonEncode(json),
+    );
+  }
+
   Future<void> saveSettings(AppSettings settings) async {
     final json = settings.toJson();
     await (await SharedPreferences.getInstance()).setString(
@@ -478,10 +555,19 @@ class StorageService {
     // successful sync before the local edit has even arrived.
     await _pendingPushes;
     _serverResponses = 0;
-    final documents = await loadDocuments();
-    final folders = await loadFolders();
-    final bookmarks = await loadBookmarks();
-    final settings = await loadSettings();
+    // Independent endpoints should not multiply a timeout by four. The old
+    // serial sequence could leave a pull-to-refresh spinning for two minutes
+    // when a server was unreachable.
+    final results = await Future.wait<Object>([
+      loadDocuments(),
+      loadFolders(),
+      loadBookmarks(),
+      loadSettings(),
+    ]);
+    final documents = results[0] as List<LibraryDocument>;
+    final folders = results[1] as List<LibraryFolder>;
+    final bookmarks = results[2] as List<ReadingBookmark>;
+    final settings = results[3] as AppSettings;
     return (
       documents: documents,
       folders: folders,

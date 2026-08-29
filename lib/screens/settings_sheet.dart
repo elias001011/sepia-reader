@@ -42,7 +42,6 @@ class _SettingsSheetState extends State<SettingsSheet> {
   List<TtsVoice>? _voices;
   bool _loadingVoices = false;
 
-
   String? _appVersion;
   AppUpdate? _update;
   bool _checkingUpdate = false;
@@ -137,7 +136,9 @@ class _SettingsSheetState extends State<SettingsSheet> {
     setState(() {
       _testing = false;
       _syncStatus = result.ok
-          ? context.l10n.syncTestOk(result.documentCount)
+          ? result.documentCount == null
+                ? context.l10n.syncTestOkSimple
+                : context.l10n.syncTestOk(result.documentCount!)
           : context.l10n.syncTestFailed(result.error ?? '?');
     });
   }
@@ -193,7 +194,9 @@ class _SettingsSheetState extends State<SettingsSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            wipeFailed ? context.l10n.syncWipeFailed : context.l10n.syncWipeDone,
+            wipeFailed
+                ? context.l10n.syncWipeFailed
+                : context.l10n.syncWipeDone,
           ),
         ),
       );
@@ -244,9 +247,15 @@ class _SettingsSheetState extends State<SettingsSheet> {
             decoration: InputDecoration(labelText: context.l10n.theme),
             items: [
               DropdownMenuItem(value: 'light', child: Text(context.l10n.light)),
-              DropdownMenuItem(value: 'system', child: Text(context.l10n.system)),
+              DropdownMenuItem(
+                value: 'system',
+                child: Text(context.l10n.system),
+              ),
               DropdownMenuItem(value: 'dark', child: Text(context.l10n.dark)),
-              DropdownMenuItem(value: 'amoled', child: Text(context.l10n.amoled)),
+              DropdownMenuItem(
+                value: 'amoled',
+                child: Text(context.l10n.amoled),
+              ),
             ],
             onChanged: (value) {
               if (value != null) _setTheme(value);
@@ -258,7 +267,10 @@ class _SettingsSheetState extends State<SettingsSheet> {
             initialValue: _draft.localeCode,
             decoration: InputDecoration(labelText: context.l10n.language),
             items: [
-              DropdownMenuItem(value: 'system', child: Text(context.l10n.system)),
+              DropdownMenuItem(
+                value: 'system',
+                child: Text(context.l10n.system),
+              ),
               DropdownMenuItem(
                 value: 'pt_BR',
                 child: Text(context.l10n.portugueseBrazil),
@@ -336,7 +348,10 @@ class _SettingsSheetState extends State<SettingsSheet> {
               enabled: _neuralSupported,
             ),
             const SizedBox(height: 12),
-            if (_usingNeural) _neuralVoiceRow(context) else _voicePicker(context),
+            if (_usingNeural)
+              _neuralVoiceRow(context)
+            else
+              _voicePicker(context),
             const SizedBox(height: 8),
             _slider(
               context,
@@ -532,7 +547,9 @@ class _SettingsSheetState extends State<SettingsSheet> {
         });
       }
     } catch (error) {
-      if (mounted) setState(() => _updateError = context.l10n.updateFailed('$error'));
+      if (mounted) {
+        setState(() => _updateError = context.l10n.updateFailed('$error'));
+      }
     } finally {
       if (mounted) setState(() => _checkingUpdate = false);
     }
@@ -660,7 +677,9 @@ class _SettingsSheetState extends State<SettingsSheet> {
       child: Card(
         elevation: 0,
         margin: const EdgeInsets.only(bottom: 8),
-        color: selected ? scheme.secondaryContainer : scheme.surfaceContainerLow,
+        color: selected
+            ? scheme.secondaryContainer
+            : scheme.surfaceContainerLow,
         child: ListTile(
           leading: Icon(
             selected
@@ -758,7 +777,10 @@ class _SettingsSheetState extends State<SettingsSheet> {
 
   void _setTheme(String choice) => setState(() {
     _draft = switch (choice) {
-      'light' => _draft.copyWith(themeMode: ThemeMode.light, amoledTheme: false),
+      'light' => _draft.copyWith(
+        themeMode: ThemeMode.light,
+        amoledTheme: false,
+      ),
       'dark' => _draft.copyWith(themeMode: ThemeMode.dark, amoledTheme: false),
       'amoled' => _draft.copyWith(
         themeMode: ThemeMode.dark,

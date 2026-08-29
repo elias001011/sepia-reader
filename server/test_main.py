@@ -1,4 +1,5 @@
 import json
+import gzip
 import os
 import shutil
 import tempfile
@@ -135,6 +136,34 @@ class HeadlessServerTest(unittest.TestCase):
         payload = health_payload()
         self.assertEqual(payload["service"], "sepia-sync")
         self.assertEqual(payload["api"], sorted(main.API_FILES))
+
+    def test_large_json_responses_support_gzip(self):
+        documents = [
+            {
+                "id": "large",
+                "title": "Large",
+                "content": "compressible text " * 500,
+                "updatedAt": "2026-08-29T00:00:00",
+            }
+        ]
+        os.makedirs(main.DATA_DIR, exist_ok=True)
+        with open(
+            os.path.join(main.DATA_DIR, "documents.json"),
+            "w",
+            encoding="utf-8",
+        ) as handle:
+            json.dump(documents, handle)
+
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{self._port}/api/documents",
+            headers={"Accept-Encoding": "gzip"},
+        )
+        with urllib.request.urlopen(request, timeout=5) as response:
+            body = response.read()
+            self.assertEqual(response.headers["Content-Encoding"], "gzip")
+            self.assertIn("Accept-Encoding", response.headers["Vary"])
+
+        self.assertEqual(json.loads(gzip.decompress(body)), documents)
 
 
 if __name__ == "__main__":

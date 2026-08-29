@@ -34,6 +34,16 @@ jobs:
             exit 1
           fi
 
+      - name: Verify the original Merriweather files
+        shell: bash
+        run: |
+          sha256sum --check <<'EOF'
+          ba165b856ee8fa316cd0f87210df065aeb5bc94f5563872f5a0a9d9949a23d47  assets/fonts/Merriweather-400.ttf
+          f4dc499a1b051e49fd0f5dd1c347dacd91e3de2b2f84a902f1d550fe2f92a473  assets/fonts/Merriweather-400-Italic.ttf
+          2c90fecddc38cacb6142cb85a26b727547af69912f4344ccf50edcf51577a52a  assets/fonts/Merriweather-700.ttf
+          f6743d70cabd70be9754acd4f62074b3ec05c3d007b316e58ef8e2ddcacefd57  assets/fonts/Merriweather-800.ttf
+          EOF
+
       - name: Restore Android signing keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -84,6 +94,10 @@ jobs:
         shell: bash
         run: |
           git fetch --no-tags origin "+refs/heads/Lite:refs/remotes/origin/Lite"
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/Lite; then
+            echo "::error::Lite does not contain tagged commit $GITHUB_SHA — rebase Lite onto main before tagging."
+            exit 1
+          fi
           git worktree add ../sepia-lite origin/Lite
           # Carry the signing material over so Lite is signed exactly like the
           # main app — an unnoticed fallback to the debug key would make the

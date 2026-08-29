@@ -513,6 +513,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get syncTesting => 'Testando…';
 
   @override
+  String get syncTestOkSimple => 'Conectado. O servidor respondeu normalmente.';
+
+  @override
   String syncTestOk(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

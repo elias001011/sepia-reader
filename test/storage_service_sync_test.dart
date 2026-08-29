@@ -157,6 +157,126 @@ void main() {
     expect(body, isNot(contains('syncServerUrl')));
   });
 
+  test('inicialização local não espera nem inicia a rede', () async {
+    SharedPreferences.setMockInitialValues({
+      'sepia.syncconfig.v1': jsonEncode({
+        'syncEnabled': true,
+        'syncServerUrl': 'http://sync.test',
+      }),
+      'sepia.settings.v1': jsonEncode(
+        const AppSettings(syncEnabled: true).toJson(),
+      ),
+    });
+    var requests = 0;
+    var gets = 0;
+    final storage = StorageService(
+      client: MockClient((request) async {
+        requests++;
+        if (request.method == 'GET') gets++;
+        return http.Response(
+          request.url.path == '/api/settings' ? '{}' : '[]',
+          200,
+        );
+      }),
+    );
+    final controller = AppController(
+      storage: storage,
+      updateChecker: offlineUpdateChecker(),
+    );
+
+    await controller.initialize();
+
+    expect(requests, 0, reason: 'a primeira tela deve depender só do disco');
+    expect(controller.documents, isNotEmpty);
+
+    await controller.syncAfterLaunch();
+    expect(gets, 4, reason: 'o sync começa somente depois da abertura');
+    expect(requests, greaterThanOrEqualTo(gets));
+  });
+
+  test('edição feita durante o sync de abertura não é sobrescrita', () async {
+    final old = document('antigo', DateTime.utc(2026, 8, 29, 1));
+    SharedPreferences.setMockInitialValues({
+      'sepia.syncconfig.v1': jsonEncode({
+        'syncEnabled': true,
+        'syncServerUrl': 'http://sync.test',
+      }),
+      'sepia.documents.v1': jsonEncode([old.toJson()]),
+    });
+    final documentsStarted = Completer<void>();
+    final releaseDocuments = Completer<void>();
+    final storage = StorageService(
+      client: MockClient((request) async {
+        if (request.method == 'PUT') return http.Response(request.body, 200);
+        if (request.url.path == '/api/documents') {
+          documentsStarted.complete();
+          await releaseDocuments.future;
+          return http.Response(jsonEncode([old.toJson()]), 200);
+        }
+        return http.Response(
+          request.url.path == '/api/settings' ? '{}' : '[]',
+          200,
+        );
+      }),
+    );
+    final controller = AppController(
+      storage: storage,
+      updateChecker: offlineUpdateChecker(),
+    );
+    await controller.initialize();
+
+    final syncing = controller.syncAfterLaunch();
+    await documentsStarted.future;
+    await controller.updateDocument(
+      controller.documentById('d')!.copyWith(content: 'editado durante sync'),
+    );
+    releaseDocuments.complete();
+    await syncing;
+
+    expect(controller.documentById('d')!.content, 'editado durante sync');
+    final prefs = await SharedPreferences.getInstance();
+    expect(
+      prefs.getString('sepia.documents.v1'),
+      contains('editado durante sync'),
+    );
+  });
+
+  test('teste de conexão usa o healthz pequeno', () async {
+    final paths = <String>[];
+    final storage = StorageService(
+      client: MockClient((request) async {
+        paths.add(request.url.path);
+        return http.Response('{"ok":true}', 200);
+      }),
+    );
+
+    final result = await storage.testConnection('http://sync.test');
+
+    expect(result.ok, isTrue);
+    expect(result.documentCount, isNull);
+    expect(paths, ['/healthz']);
+  });
+
+  test('teste de conexão ainda aceita servidor anterior ao healthz', () async {
+    final paths = <String>[];
+    final storage = StorageService(
+      client: MockClient((request) async {
+        paths.add(request.url.path);
+        if (request.url.path == '/healthz') return http.Response('', 404);
+        return http.Response(
+          '[{"id":"a"},{"id":"b","deletedAt":"2026-08-29"}]',
+          200,
+        );
+      }),
+    );
+
+    final result = await storage.testConnection('http://sync.test');
+
+    expect(result.ok, isTrue);
+    expect(result.documentCount, 1);
+    expect(paths, ['/healthz', '/api/documents']);
+  });
+
   group('relógio de merge das configurações', () {
     Future<AppSettings> loadWith({
       required DateTime localAt,
@@ -225,33 +345,36 @@ void main() {
       expect(loaded.seedColor, const Color(0xFF999999));
     });
 
-    test('instalação nova adota a configuração do servidor sem relógio', () async {
-      SharedPreferences.setMockInitialValues({
-        'sepia.syncconfig.v1': jsonEncode({
-          'syncEnabled': true,
-          'syncServerUrl': 'http://sync.test',
-        }),
-      });
-      final storage = StorageService(
-        client: MockClient((request) async {
-          if (request.url.path == '/api/settings') {
-            return http.Response(
-              jsonEncode(const {
-                'seedColor': 0xFF445566,
-                'themeMode': 'dark',
-              }),
-              200,
-            );
-          }
-          return http.Response('[]', 200);
-        }),
-      );
+    test(
+      'instalação nova adota a configuração do servidor sem relógio',
+      () async {
+        SharedPreferences.setMockInitialValues({
+          'sepia.syncconfig.v1': jsonEncode({
+            'syncEnabled': true,
+            'syncServerUrl': 'http://sync.test',
+          }),
+        });
+        final storage = StorageService(
+          client: MockClient((request) async {
+            if (request.url.path == '/api/settings') {
+              return http.Response(
+                jsonEncode(const {
+                  'seedColor': 0xFF445566,
+                  'themeMode': 'dark',
+                }),
+                200,
+              );
+            }
+            return http.Response('[]', 200);
+          }),
+        );
 
-      final loaded = await storage.loadSettings();
+        final loaded = await storage.loadSettings();
 
-      expect(loaded.seedColor, const Color(0xFF445566));
-      expect(loaded.themeMode, ThemeMode.dark);
-    });
+        expect(loaded.seedColor, const Color(0xFF445566));
+        expect(loaded.themeMode, ThemeMode.dark);
+      },
+    );
   });
 
   test('favoritar avança o relógio usado pelo merge', () async {

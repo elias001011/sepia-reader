@@ -46,6 +46,7 @@ class AppController extends ChangeNotifier {
   final List<LibraryFolder> _folders = [];
   final List<ReadingBookmark> _bookmarks = [];
   AppSettings _settings = const AppSettings();
+  Future<SyncRunResult>? _syncInFlight;
 
   List<LibraryDocument> get documents {
     final sorted = live(_documents)
@@ -85,10 +86,14 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> initialize() async {
-    _settings = await _storage.loadSettings();
-    _folders.addAll(await _storage.loadFolders());
-    _documents.addAll(await _storage.loadDocuments());
-    _bookmarks.addAll(await _storage.loadBookmarks());
+    // Only local persistence belongs on the path to the first frame. Once a
+    // user enabled sync, the old startup awaited four network requests before
+    // runApp(), leaving a release build on its black native launch surface
+    // until they completed or timed out.
+    _settings = await _storage.loadLocalSettings();
+    _folders.addAll(await _storage.loadLocalFolders());
+    _documents.addAll(await _storage.loadLocalDocuments());
+    _bookmarks.addAll(await _storage.loadLocalBookmarks());
     // "Empty" means no *live* documents: a library whose documents were all
     // deleted should still get the welcome document back.
     if (live(_documents).isEmpty) {
@@ -113,7 +118,18 @@ class AppController extends ChangeNotifier {
       } else {
         _documents[existing] = welcome;
       }
-      await _persistDocuments();
+      await _storage.saveDocumentsLocally(_documents);
+    }
+  }
+
+  /// Reconciles with the server after the interface is already visible.
+  /// Failures stay non-fatal: local reading and editing must always open.
+  Future<SyncRunResult> syncAfterLaunch() async {
+    try {
+      return await forceSync();
+    } catch (error) {
+      debugPrint('sepia: background startup sync failed: $error');
+      return SyncRunResult.failed;
     }
   }
 
@@ -621,22 +637,75 @@ class AppController extends ChangeNotifier {
 
   /// Explicit user-triggered "force sync": pulls documents, folders and
   /// settings from the server unconditionally (an empty response is taken
-  /// at face value here, unlike the cautious startup load) and replaces the
-  /// in-memory state with it. Wired to the pull-to-refresh gesture on the
-  /// library screen.
-  Future<SyncRunResult> forceSync() async {
+  /// at face value here, unlike the cautious startup load) and merges the
+  /// answer with any edit made while the request was in flight. Wired to the
+  /// pull-to-refresh gesture on the library screen.
+  Future<SyncRunResult> forceSync() {
+    final active = _syncInFlight;
+    if (active != null) return active;
+    final run = _forceSync();
+    _syncInFlight = run;
+    return run.whenComplete(() {
+      if (identical(_syncInFlight, run)) _syncInFlight = null;
+    });
+  }
+
+  Future<SyncRunResult> _forceSync() async {
     if (!await _storage.isSyncEnabled()) return SyncRunResult.disabled;
+    final settingsClockAtStart = _settings.settingsUpdatedAt;
     final result = await _storage.forcePull();
+
+    // Background sync runs while the library is usable. Merge its answer with
+    // the current in-memory state instead of replacing it: an edit made while
+    // the GET was in flight must win by its newer timestamp.
+    final mergedDocuments = purgeExpiredTombstones(
+      mergeById(_documents, result.documents),
+    );
+    final mergedFolders = purgeExpiredTombstones(
+      mergeById(_folders, result.folders),
+    );
+    final mergedBookmarks = purgeExpiredTombstones(
+      mergeById(_bookmarks, result.bookmarks),
+    );
+    // StorageService already resolved the local/remote settings clocks. Trust
+    // that answer unless the user changed settings after this sync began; in
+    // that case updateSettings stamped a different clock and the live draft
+    // must win. This also preserves the legacy case where a fresh install
+    // adopts remote settings that have no timestamp yet.
+    final mergedSettings = _settings.settingsUpdatedAt == settingsClockAtStart
+        ? result.settings
+        : _settings;
+
     _documents
       ..clear()
-      ..addAll(result.documents);
+      ..addAll(mergedDocuments);
     _folders
       ..clear()
-      ..addAll(result.folders);
+      ..addAll(mergedFolders);
     _bookmarks
       ..clear()
-      ..addAll(result.bookmarks);
-    _settings = result.settings;
+      ..addAll(mergedBookmarks);
+    _settings = mergedSettings;
+
+    // StorageService persisted the network result before returning. If an
+    // in-flight local edit changed the merged answer, persist and publish the
+    // newer state once more so disk, memory and server converge.
+    if (jsonEncode(mergedDocuments.map((item) => item.toJson()).toList()) !=
+        jsonEncode(result.documents.map((item) => item.toJson()).toList())) {
+      await _storage.saveDocuments(mergedDocuments);
+    }
+    if (jsonEncode(mergedFolders.map((item) => item.toJson()).toList()) !=
+        jsonEncode(result.folders.map((item) => item.toJson()).toList())) {
+      await _storage.saveFolders(mergedFolders);
+    }
+    if (jsonEncode(mergedBookmarks.map((item) => item.toJson()).toList()) !=
+        jsonEncode(result.bookmarks.map((item) => item.toJson()).toList())) {
+      await _storage.saveBookmarks(mergedBookmarks);
+    }
+    if (jsonEncode(mergedSettings.toJson()) !=
+        jsonEncode(result.settings.toJson())) {
+      await _storage.saveSettings(mergedSettings);
+    }
     notifyListeners();
     return result.reachedServer ? SyncRunResult.done : SyncRunResult.failed;
   }

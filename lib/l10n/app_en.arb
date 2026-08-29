@@ -250,6 +250,7 @@
   "syncServerAddressHint": "Empty: use the address the app was opened from",
   "syncTestConnection": "Test connection",
   "syncTesting": "Testing…",
+  "syncTestOkSimple": "Connected. The server responded normally.",
   "syncTestOk": "{count, plural, =1{Connected. 1 document on the server.} other{Connected. {count} documents on the server.}}",
   "@syncTestOk": {
     "placeholders": {

@@ -11,6 +11,14 @@ import 'package:sepia_reader/widgets/sheet_scaffold.dart';
 /// Regressions found by review rather than by use. Each of these shipped
 /// working code that was quietly wrong.
 void main() {
+  test('a fonte padrão continua sendo a Merriweather original', () {
+    const settings = AppSettings();
+    expect(settings.readerFont, 'Merriweather');
+    expect(readerTextStyle(settings).fontFamily, 'Merriweather');
+    expect(settings.readerFontSize, 20);
+    expect(settings.readerLineHeight, 1.75);
+  });
+
   group('idioma de fonética por voz', () {
     test('cada voz do Kokoro fonetiza no próprio idioma', () {
       final kokoro = voicePacks.firstWhere((pack) => pack.isKokoro);

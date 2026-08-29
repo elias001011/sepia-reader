@@ -956,6 +956,12 @@ abstract class AppLocalizations {
   /// **'Testing…'**
   String get syncTesting;
 
+  /// No description provided for @syncTestOkSimple.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected. The server responded normally.'**
+  String get syncTestOkSimple;
+
   /// No description provided for @syncTestOk.
   ///
   /// In en, this message translates to:
