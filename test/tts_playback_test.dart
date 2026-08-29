@@ -352,6 +352,24 @@ void main() {
     expect(controller.state, TtsPlaybackState.paused);
   });
 
+  test('falha na fala reporta erro mesmo se o stop() também quebra', () async {
+    final controller = TtsPlaybackController(engine: FailEverythingEngine());
+    final sections = sectionsOf(fic());
+    await controller.start(
+      document: fic(),
+      section: sections.first,
+      voiceId: null,
+      rate: 1,
+      pitch: 1,
+    );
+    for (var i = 0; i < 10 && controller.isPlaying; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    expect(controller.error, isNotNull);
+    expect(controller.isActive, isFalse);
+  });
+
   test('parar libera o motor e zera o estado', () async {
     final engine = FakeEngine();
     final controller = TtsPlaybackController(engine: engine);
@@ -440,6 +458,13 @@ class MidSentenceFailEngine extends TtsEngine {
   Future<void> stop() async {}
   @override
   Future<void> release() async {}
+}
+
+/// Worse still: the utterance throws *and* so does stop(). The controller has
+/// to have recorded the error before it tried to tear down.
+class FailEverythingEngine extends MidSentenceFailEngine {
+  @override
+  Future<void> stop() async => throw StateError('stop failed too');
 }
 
 /// An engine that cannot start — the shape of a neural voice whose model is

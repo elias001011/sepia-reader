@@ -124,6 +124,12 @@ class _EditorScreenState extends State<EditorScreen> {
   /// repeated on every subsequent notification.
   String? _surfacedTtsError;
 
+  /// True only while [_startListening] is bringing a voice up. In that window
+  /// it, not the controller listener, decides what the user is told — so a
+  /// neural failure that is about to be papered over by the system-voice
+  /// fallback is not flashed on screen first.
+  bool _listenStarting = false;
+
   /// `.html` is shown as a rendered preview by default, with the source one
   /// tap away. The conversion is memoised because it walks the whole file.
   var _showMarkupSource = false;
@@ -316,6 +322,10 @@ class _EditorScreenState extends State<EditorScreen> {
     final savedContent = _contentController.text;
     final savedTitle = _titleController.text;
     await widget.controller.updateDocument(_draft);
+    // The write above is what mattered; if the editor was torn down during it
+    // (dispose() calls _save() for a still-dirty document) there is nothing
+    // left to reconcile, and the controllers below are already disposed.
+    if (!mounted) return;
     // Only mark the editor clean if nothing was typed during the await.
     // Clearing it unconditionally dropped a keystroke that landed mid-save:
     // the flag then said "saved", so _close() skipped its flush and dispose()
@@ -407,8 +417,9 @@ class _EditorScreenState extends State<EditorScreen> {
     if (controller == null) return;
     // A failure that lands after playback has already begun (the engine loses
     // its audio route mid-chapter) surfaces here — the checks in
-    // [_startListening] all ran before the first utterance was spoken.
-    _surfaceTtsError();
+    // [_startListening] all ran before the first utterance was spoken. During
+    // start-up, though, _startListening is in charge (see [_listenStarting]).
+    if (!_listenStarting) _surfaceTtsError();
     // No setState: the player bar listens to the controller itself. Calling
     // it here would rebuild the whole document once per sentence.
     if (!controller.isPlaying) return;
@@ -471,49 +482,60 @@ class _EditorScreenState extends State<EditorScreen> {
     DocumentSection section,
   ) async {
     final settings = widget.controller.settings;
-    await _ensureEngine();
-    // One rebuild, to put the player bar's listener into the tree. Every
-    // update after this comes through the listener instead.
-    if (mounted) setState(() {});
+    // While this runs, _startListening owns error reporting: the controller
+    // listener must not pop the neural error it is about to swallow by
+    // falling back to the system voice. Mid-chapter failures, which arrive
+    // after this returns, are the listener's to surface.
+    _listenStarting = true;
+    try {
+      await _ensureEngine();
+      // One rebuild, to put the player bar's listener into the tree. Every
+      // update after this comes through the listener instead.
+      if (mounted) setState(() {});
 
-    Future<void> run() => _speech.start(
-      document: document,
-      section: section,
-      voiceId: settings.ttsVoiceId.isEmpty ? null : settings.ttsVoiceId,
-      rate: settings.ttsRate,
-      pitch: settings.ttsPitch,
-    );
+      Future<void> run() => _speech.start(
+        document: document,
+        section: section,
+        voiceId: settings.ttsVoiceId.isEmpty ? null : settings.ttsVoiceId,
+        rate: settings.ttsRate,
+        pitch: settings.ttsPitch,
+      );
 
-    await run();
-    if (!mounted) return;
-    var controller = _tts!;
-
-    // A neural voice depends on a downloaded model, native inference and the
-    // device's audio output — three things that can be missing or broken in
-    // ways this app cannot fix. Silence is the wrong answer to "read this to
-    // me"; falling back to the platform voice and saying so is not.
-    if (controller.error != null && _engineKey != 'system') {
-      debugPrint('sepia: neural voice failed, falling back: ${controller.error}');
-      _engineKey = 'system';
-      await controller.useEngine(SystemTtsEngine());
       await run();
       if (!mounted) return;
-      controller = _tts!;
-      if (controller.error == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.ttsFellBackToSystem)),
-        );
-      }
-    }
+      var controller = _tts!;
 
-    if (controller.error != null) {
-      _surfaceTtsError();
-    } else if (controller.pieceCount == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.ttsNothingToRead)),
-      );
-    } else {
-      _showReaderControls();
+      // A neural voice depends on a downloaded model, native inference and the
+      // device's audio output — three things that can be missing or broken in
+      // ways this app cannot fix. Silence is the wrong answer to "read this to
+      // me"; falling back to the platform voice and saying so is not.
+      if (controller.error != null && _engineKey != 'system') {
+        debugPrint(
+          'sepia: neural voice failed, falling back: ${controller.error}',
+        );
+        _engineKey = 'system';
+        await controller.useEngine(SystemTtsEngine());
+        await run();
+        if (!mounted) return;
+        controller = _tts!;
+        if (controller.error == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(context.l10n.ttsFellBackToSystem)),
+          );
+        }
+      }
+
+      if (controller.error != null) {
+        _surfaceTtsError();
+      } else if (controller.pieceCount == 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.ttsNothingToRead)),
+        );
+      } else {
+        _showReaderControls();
+      }
+    } finally {
+      _listenStarting = false;
     }
   }
 

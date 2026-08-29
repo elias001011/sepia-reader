@@ -143,11 +143,12 @@ class TtsPlaybackController extends ChangeNotifier {
         // transition in this loop.
         if (generation != _generation) return;
         debugPrint('sepia: speaking failed: $error');
-        // A real mid-chapter failure: tear the session down the same way
-        // stop() does (engine stopped, queue cleared) and then surface the
-        // error, so the player bar cannot linger showing a dead pause button.
-        await stop();
+        // A real mid-chapter failure: record it first (stop() cannot, and a
+        // broken engine's stop() may itself throw), then tear the session
+        // down the same way stop() does so the player bar cannot linger
+        // showing a dead pause button.
         _error = '$error';
+        await stop();
         notifyListeners();
         return;
       }
@@ -209,7 +210,13 @@ class TtsPlaybackController extends ChangeNotifier {
     _documentId = null;
     _sectionTitle = null;
     if (wasActive) notifyListeners();
-    await _engine.stop();
+    // The player state is already reset; a backend that throws on the way
+    // down must not turn a stop into an unhandled async error.
+    try {
+      await _engine.stop();
+    } catch (error) {
+      debugPrint('sepia: engine stop failed: $error');
+    }
   }
 
   /// Stops and hands back whatever the engine was holding. The reader calls
