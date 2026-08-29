@@ -80,9 +80,12 @@ APK menor.
 ## Branches
 
 - `main`: base multiplataforma, app completo e documentação do projeto;
-- `Lite`: a variante enxuta descrita acima, ramificada de `main` a cada release;
-- `app`: entrega mobile (Android/iOS);
-- `web`: entrega web/PWA.
+- `Lite`: a variante enxuta descrita acima, ramificada de `main` a cada release.
+
+As antigas branches de entrega `app` e `web` foram aposentadas na v2.2.0 — o
+workflow de release (`release.yml`) já compila APKs, o pacote web e o servidor
+a cada tag. Os últimos estados delas ficam nas tags `archive/app` e
+`archive/web`.
 
 ## Rodando localmente
 

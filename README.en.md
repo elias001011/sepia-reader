@@ -180,8 +180,11 @@ smaller APK.
 
 - `main`: shared multiplatform source, the full app, and project documentation.
 - `Lite`: the trimmed variant above, branched from `main` at each release.
-- `app`: Android/iOS delivery with an Android build workflow.
-- `web`: web/PWA delivery with a static build workflow.
+
+The old `app` and `web` delivery branches were retired in v2.2.0 — the release
+workflow (`release.yml`) already builds the APKs, the web bundle and the server
+on every tag. Their last states live in the `archive/app` and `archive/web`
+tags.
 
 ## Run locally
 
