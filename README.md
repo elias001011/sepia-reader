@@ -9,7 +9,7 @@ Leitor, biblioteca e editor de Markdown feito em Flutter. O Sépia foi pensado p
 ### Ler
 - modo leitura que bloqueia edição, usa controles compactos e permite ocultá-los automaticamente;
 - fonte Merriweather e tema Sépia como padrão;
-- **treze famílias de leitura empacotadas** — Merriweather clássico (2.002, o padrão, com peso Black), Merriweather 4 (o redesenho de 2023 do Google Fonts), Newsreader, Merriweather Sans, Literata, Lora, Bitter, Source Serif 4, EB Garamond, Atkinson Hyperlegible, Inter, Roboto Mono e JetBrains Mono — cada uma pré-visualizada na própria letra no seletor;
+- **doze famílias de leitura empacotadas** — Merriweather (a de sempre), Newsreader, Merriweather Sans, Literata, Lora, Bitter, Source Serif 4, EB Garamond, Atkinson Hyperlegible, Inter, Roboto Mono e JetBrains Mono — cada uma pré-visualizada na própria letra no seletor;
 - **treze paletas de leitura** divididas em claras (Papel, Pergaminho, Creme, Cinza, Menta, Céu) e escuras (Sépia, Artifact, Noite, Tinta, Solarizado, Nord, AMOLED);
 - fonte, tamanho, entrelinha, largura, fundo e texto configuráveis;
 - marcadores ancorados ao trecho do texto, não à posição de rolagem — não escorregam quando o documento muda de tamanho;
@@ -114,7 +114,7 @@ flutter build apk --release                   # universal, todas juntas
 Para a variante enxuta, faça o mesmo a partir da branch `Lite`
 (`git switch Lite`). O CI de release já compila as duas a cada tag.
 
-O script web inclui o runtime Flutter, as treze famílias de leitura, os fallbacks Noto para emojis e símbolos, e roda tudo a partir do próprio `build/web`; a aplicação não depende de Google Fonts nem de um CDN em execução. A branch `Lite` empacota as mesmas fontes.
+O script web inclui o runtime Flutter, as doze famílias de leitura, os fallbacks Noto para emojis e símbolos, e roda tudo a partir do próprio `build/web`; a aplicação não depende de Google Fonts nem de um CDN em execução. A branch `Lite` empacota as mesmas fontes.
 
 As vozes neurais rodam via `sherpa_onnx`, que traz bibliotecas nativas para cada arquitetura Android. Por isso o `--split-per-abi`: um APK `arm64-v8a` carrega só a biblioteca do próprio aparelho, enquanto o universal carrega as de todas. Os modelos de voz **não** vão no APK — são baixados sob demanda pelo app, de dentro das configurações. A branch `Lite` não inclui `sherpa_onnx`.
 

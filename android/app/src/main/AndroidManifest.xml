@@ -1,4 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Sync and the update check both need the network. The debug/profile
+         manifests declare this; it has to be here for release too. It used
+         to arrive by manifest merge from a dependency (file_saver → dio);
+         dropping file_saver in 2.2.0 silently took the network with it. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="Sépia"
         android:name="${applicationName}"

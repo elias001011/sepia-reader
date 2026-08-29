@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 2.2.1+18
+version: 2.2.2+19
 
 environment:
   sdk: ^3.13.0
@@ -93,8 +93,8 @@ flutter:
         - asset: assets/fonts/Inter.ttf
         - asset: assets/fonts/Inter-Italic.ttf
           style: italic
-    # The classic Merriweather (v2.002, 2017) — the warm, familiar cut, not
-    # the 2023 "Version 2.100" redesign. Upstream static files, unmodified.
+    # Merriweather exactly as it shipped in every prior release — the
+    # upstream static files, untouched.
     - family: Merriweather
       fonts:
         - asset: assets/fonts/Merriweather-400.ttf
@@ -104,23 +104,8 @@ flutter:
           weight: 400
         - asset: assets/fonts/Merriweather-700.ttf
           weight: 700
-        - asset: assets/fonts/Merriweather-700-Italic.ttf
-          style: italic
-          weight: 700
-        - asset: assets/fonts/Merriweather-900.ttf
-          weight: 900
-    # The 2023 "Version 2.100" redesign of Merriweather — modernised metrics,
-    # the cut Google Fonts serves today. Offered alongside the classic so you
-    # can pick either. Latin subset, instanced at the text optical size.
-    - family: Merriweather 4
-      fonts:
-        - asset: assets/fonts/Merriweather4-400.ttf
-          weight: 400
-        - asset: assets/fonts/Merriweather4-400-Italic.ttf
-          style: italic
-          weight: 400
-        - asset: assets/fonts/Merriweather4-700.ttf
-          weight: 700
+        - asset: assets/fonts/Merriweather-800.ttf
+          weight: 800
     - family: Newsreader
       fonts:
         - asset: assets/fonts/Newsreader-400.ttf
