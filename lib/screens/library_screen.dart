@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import '../l10n/l10n.dart';
 import '../models/document_drop.dart';
@@ -44,6 +45,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
   bool _isImportingFiles = false;
   bool _isDraggingFiles = false;
   late final DocumentDropBinding _documentDropBinding;
+
+  /// Measured height of the pinned floating header, so the scroll view can
+  /// leave exactly that much room above its content. Updated whenever the
+  /// header's contents change (top bar ⇄ selection bar, a notice appearing).
+  double _headerHeight = 0;
 
   @override
   void initState() {
@@ -100,64 +106,23 @@ class _LibraryScreenState extends State<LibraryScreen> {
         : widget.controller.foldersIn(_currentFolderId);
 
     return Scaffold(
-      body: SafeArea(
-        child: Stack(
-          children: [
-            RefreshIndicator(
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: RefreshIndicator(
+              // The spinner drops in below the floating header, not under it.
+              edgeOffset: _headerHeight,
               onRefresh: _forceSync,
               child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [
+                  // Reserve the room the pinned header floats in; the library
+                  // scrolls under it.
                   SliverToBoxAdapter(
-                    child: _selecting
-                        ? _selectionBar(context)
-                        : _topBar(context),
+                    child: SizedBox(height: _headerHeight + 8),
                   ),
-                  // No SliverPadding around this one: an idle banner must
-                  // take up no space at all, and padding a shrunk child still
-                  // pushes everything below it down.
-                  SliverToBoxAdapter(
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 1180),
-                        child: VoiceDownloadBanner(
-                          downloads: widget.controller.voiceDownloads,
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (_update case final update?)
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                      sliver: SliverToBoxAdapter(
-                        child: Center(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 1180),
-                            child: UpdateCard(
-                              update: update,
-                              onDismiss: () => setState(() => _update = null),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  if (_isImportingFolder || _isImportingFiles)
-                    SliverToBoxAdapter(
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 1180),
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: const LinearProgressIndicator(),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(20, 28, 20, 48),
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 48),
                     sliver: SliverToBoxAdapter(
                       child: Center(
                         child: ConstrainedBox(
@@ -264,9 +229,27 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 ],
               ),
             ),
-            if (_isDraggingFiles) _dropOverlay(context),
-          ],
-        ),
+          ),
+          // Pinned above the library, floating over it. The bar you act on
+          // stays put and the content slides under it; only the cards below
+          // scroll away. `_MeasureSize` feeds the real height back so the
+          // spacer sliver above matches whatever is showing right now
+          // (top bar vs selection bar, with or without a notice).
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: _MeasureSize(
+              onChange: (size) {
+                if ((size.height - _headerHeight).abs() > 0.5) {
+                  setState(() => _headerHeight = size.height);
+                }
+              },
+              child: _floatingHeader(context),
+            ),
+          ),
+          if (_isDraggingFiles) _dropOverlay(context),
+        ],
       ),
       floatingActionButton:
           MediaQuery.sizeOf(context).width < 620 && !_selecting
@@ -336,6 +319,60 @@ class _LibraryScreenState extends State<LibraryScreen> {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  /// Everything pinned at the top: the bar (browsing or multi-select), and
+  /// any notices under it. Painted on the scaffold background so the library
+  /// slides cleanly out of sight beneath it.
+  Widget _floatingHeader(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.surface,
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _selecting ? _selectionBar(context) : _topBar(context),
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1180),
+                child: VoiceDownloadBanner(
+                  downloads: widget.controller.voiceDownloads,
+                ),
+              ),
+            ),
+            if (_update case final update?)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1180),
+                    child: UpdateCard(
+                      update: update,
+                      onDismiss: () => setState(() => _update = null),
+                    ),
+                  ),
+                ),
+              ),
+            if (_isImportingFolder || _isImportingFiles)
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1180),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: const LinearProgressIndicator(),
+                    ),
+                  ),
+                ),
+              ),
+            const SizedBox(height: 8),
+          ],
         ),
       ),
     );
@@ -1695,4 +1732,42 @@ String _relativeDate(BuildContext context, DateTime date) {
   if (difference.inDays < 1) return context.l10n.hoursAgo(difference.inHours);
   if (difference.inDays < 7) return context.l10n.daysAgo(difference.inDays);
   return MaterialLocalizations.of(context).formatCompactDate(date);
+}
+
+/// Reports its child's laid-out size once per change, after the frame. Used
+/// to keep the library's scroll offset in step with the pinned header, whose
+/// height is not fixed (a release notice makes it taller, multi-select mode
+/// makes it a little shorter).
+class _MeasureSize extends SingleChildRenderObjectWidget {
+  const _MeasureSize({required this.onChange, required super.child});
+
+  final ValueChanged<Size> onChange;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _MeasureSizeRenderObject(onChange);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    covariant _MeasureSizeRenderObject renderObject,
+  ) {
+    renderObject.onChange = onChange;
+  }
+}
+
+class _MeasureSizeRenderObject extends RenderProxyBox {
+  _MeasureSizeRenderObject(this.onChange);
+
+  ValueChanged<Size> onChange;
+  Size? _previous;
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    final size = child?.size ?? Size.zero;
+    if (size == _previous) return;
+    _previous = size;
+    WidgetsBinding.instance.addPostFrameCallback((_) => onChange(size));
+  }
 }

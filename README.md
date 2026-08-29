@@ -9,7 +9,7 @@ Leitor, biblioteca e editor de Markdown feito em Flutter. O Sépia foi pensado p
 ### Ler
 - modo leitura que bloqueia edição, usa controles compactos e permite ocultá-los automaticamente;
 - fonte Merriweather e tema Sépia como padrão;
-- **onze famílias de leitura empacotadas** — Merriweather (com peso ExtraBold), Merriweather Sans, Literata, Lora, Bitter, Source Serif 4, EB Garamond, Atkinson Hyperlegible, Inter, Roboto Mono e JetBrains Mono — cada uma pré-visualizada na própria letra no seletor;
+- **onze famílias de leitura empacotadas** — Merriweather clássico (2.002) com peso Black, Merriweather Sans, Literata, Lora, Bitter, Source Serif 4, EB Garamond, Atkinson Hyperlegible, Inter, Roboto Mono e JetBrains Mono — cada uma pré-visualizada na própria letra no seletor;
 - **treze paletas de leitura** divididas em claras (Papel, Pergaminho, Creme, Cinza, Menta, Céu) e escuras (Sépia, Artifact, Noite, Tinta, Solarizado, Nord, AMOLED);
 - fonte, tamanho, entrelinha, largura, fundo e texto configuráveis;
 - marcadores ancorados ao trecho do texto, não à posição de rolagem — não escorregam quando o documento muda de tamanho;
@@ -61,21 +61,21 @@ Cada Release traz **duas** builds Android do mesmo app:
 
 | | **Sépia** (`sepia-<versão>-android-*.apk`) | **Sépia Lite** (`sepia-lite-<versão>-android-*.apk`) |
 |---|---|---|
-| Foco | completo, 100% offline | APK mínimo para leitura |
-| Tamanho do APK `arm64` (por ABI) | ~48 MB | ~31 MB |
-| Fontes de leitura | 11 famílias **empacotadas** (funciona sem internet) | as mesmas famílias **baixadas sob demanda** via `google_fonts` e cacheadas no aparelho (precisa de internet só na primeira vez que cada fonte é usada) |
-| Voz neural (Piper / Kokoro, on-device) | sim, via `sherpa_onnx` | **não** — é o que mais pesa no APK |
+| Foco | completo | mesmo app, APK menor |
+| Tamanho do APK `arm64` (por ABI) | ~48 MB | ~25 MB |
+| Voz neural (Piper / Kokoro, on-device) | sim, via `sherpa_onnx` (~26 MB de libs nativas) | **não** — só a voz do sistema |
 | Voz do sistema (Android/navegador) | sim | sim |
-| Editor, marcadores, navegação por capítulos, temas, paletas | sim | sim |
+| Fontes, temas e as 13 paletas de leitura | idênticas nos dois, **empacotadas** (offline) | ← |
+| Editor, marcadores, navegação por capítulos | sim | sim |
 | Sincronização com servidor próprio | sim | sim |
 | Aviso de nova versão | aponta para os APKs `sepia-*` | aponta para os APKs `sepia-lite-*` |
 | `applicationId` | `dev.elias.sepia_reader` | `dev.elias.sepia_reader.lite` (as duas convivem no mesmo aparelho) |
 | Minificação R8 / *shrink* de recursos | não | sim |
 
-Em resumo: o Lite é o Sépia inteiro, só que sem as fontes embutidas e sem a
-pilha de voz neural on-device. Se você quer o menor APK possível e não se
-incomoda de baixar as fontes uma vez, use o Lite. Se quer tudo funcionando
-sem nenhuma conexão, use o Sépia normal.
+Em resumo: o Lite é o Sépia inteiro — mesma UI, mesmas fontes offline, mesmo
+sync — **sem a pilha de voz neural on-device**, que responde por quase toda a
+diferença de tamanho. Use o Lite se não precisa das vozes neurais e quer o
+APK menor.
 
 ## Branches
 
@@ -111,7 +111,7 @@ flutter build apk --release                   # universal, todas juntas
 Para a variante enxuta, faça o mesmo a partir da branch `Lite`
 (`git switch Lite`). O CI de release já compila as duas a cada tag.
 
-O script web inclui o runtime Flutter, as onze famílias de leitura, os fallbacks Noto para emojis e símbolos, e roda tudo a partir do próprio `build/web`; a aplicação não depende de Google Fonts nem de um CDN em execução. Na branch `Lite` as fontes saem do bundle e passam a ser buscadas por `google_fonts` na primeira vez que cada uma é usada.
+O script web inclui o runtime Flutter, as onze famílias de leitura, os fallbacks Noto para emojis e símbolos, e roda tudo a partir do próprio `build/web`; a aplicação não depende de Google Fonts nem de um CDN em execução. A branch `Lite` empacota as mesmas fontes.
 
 As vozes neurais rodam via `sherpa_onnx`, que traz bibliotecas nativas para cada arquitetura Android. Por isso o `--split-per-abi`: um APK `arm64-v8a` carrega só a biblioteca do próprio aparelho, enquanto o universal carrega as de todas. Os modelos de voz **não** vão no APK — são baixados sob demanda pelo app, de dentro das configurações. A branch `Lite` não inclui `sherpa_onnx`.
 
@@ -230,7 +230,7 @@ Todos usam a assinatura de desenvolvimento atual e são indicados para instalaç
 
 ## Stack
 
-Flutter + Material 3, `flutter_markdown_plus`, `highlight`, `file_picker` (importar e exportar), `shared_preferences`, `sherpa_onnx` (voz neural on-device) e fontes OFL empacotadas localmente — na branch `Lite`, `sherpa_onnx` sai e `google_fonts` entra no lugar do bundle de fontes.
+Flutter + Material 3, `flutter_markdown_plus`, `highlight`, `file_picker` (importar e exportar), `shared_preferences`, `sherpa_onnx` (voz neural on-device) e fontes OFL empacotadas localmente — a branch `Lite` só não inclui `sherpa_onnx`.
 
 ## Licença
 

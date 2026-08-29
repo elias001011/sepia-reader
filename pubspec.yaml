@@ -93,6 +93,8 @@ flutter:
         - asset: assets/fonts/Inter.ttf
         - asset: assets/fonts/Inter-Italic.ttf
           style: italic
+    # The classic Merriweather (v2.002, 2017) — the warm, familiar cut, not
+    # the 2023 "Version 2.100" redesign. Upstream static files, unmodified.
     - family: Merriweather
       fonts:
         - asset: assets/fonts/Merriweather-400.ttf
@@ -102,8 +104,11 @@ flutter:
           weight: 400
         - asset: assets/fonts/Merriweather-700.ttf
           weight: 700
-        - asset: assets/fonts/Merriweather-800.ttf
-          weight: 800
+        - asset: assets/fonts/Merriweather-700-Italic.ttf
+          style: italic
+          weight: 700
+        - asset: assets/fonts/Merriweather-900.ttf
+          weight: 900
     - family: Merriweather Sans
       fonts:
         - asset: assets/fonts/MerriweatherSans-400.ttf

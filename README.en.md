@@ -9,7 +9,7 @@ A calm, local-first Markdown library, reader, and editor built with Flutter. Sé
 ### Reading
 - reading mode that locks editing, uses compact controls, and can hide them automatically;
 - Merriweather and the Sépia theme by default;
-- **eleven bundled reading families** — Merriweather (with an ExtraBold weight), Merriweather Sans, Literata, Lora, Bitter, Source Serif 4, EB Garamond, Atkinson Hyperlegible, Inter, Roboto Mono, and JetBrains Mono — each previewed in its own letters in the picker;
+- **eleven bundled reading families** — the classic Merriweather (2.002) with a Black weight, Merriweather Sans, Literata, Lora, Bitter, Source Serif 4, EB Garamond, Atkinson Hyperlegible, Inter, Roboto Mono, and JetBrains Mono — each previewed in its own letters in the picker;
 - **thirteen reading palettes**, split into light (Paper, Parchment, Cream, Grey, Mint, Sky) and dark (Sépia, Artifact, Night, Ink, Solarized, Nord, AMOLED);
 - configurable font, size, line height, width, background, and text colour;
 - bookmarks anchored to the passage rather than to a scroll position — they do not drift when the document changes size;
@@ -144,7 +144,7 @@ library is never touched by that choice.
 If Sépia will be hosted under a URL subpath, rebuild the web app with
 Flutter's matching `--base-href` option.
 
-The release archive bundles Flutter's rendering runtime, the eleven reading families, and Noto emoji and symbol fallbacks. The running app depends on neither Google Fonts nor a public CDN. On the `Lite` branch the fonts leave the bundle and are fetched by `google_fonts` the first time each one is used.
+The release archive bundles Flutter's rendering runtime, the eleven reading families, and Noto emoji and symbol fallbacks. The running app depends on neither Google Fonts nor a public CDN. The `Lite` branch bundles the same fonts.
 
 ### Deploy to Netlify
 
@@ -160,21 +160,21 @@ Every Release ships **two** Android builds of the same app:
 
 | | **Sépia** (`sepia-<version>-android-*.apk`) | **Sépia Lite** (`sepia-lite-<version>-android-*.apk`) |
 |---|---|---|
-| Focus | full-featured, 100% offline | smallest possible reading APK |
-| `arm64` APK size (per-ABI) | ~48 MB | ~31 MB |
-| Reading fonts | 11 families **bundled** (works with no internet) | the same families **fetched on demand** via `google_fonts` and cached on device (internet needed only the first time each font is used) |
-| On-device neural voice (Piper / Kokoro) | yes, via `sherpa_onnx` | **no** — it is the largest part of the APK |
+| Focus | full-featured | same app, smaller APK |
+| `arm64` APK size (per-ABI) | ~48 MB | ~25 MB |
+| On-device neural voice (Piper / Kokoro) | yes, via `sherpa_onnx` (~26 MB of native libs) | **no** — system voice only |
 | System voice (Android/browser) | yes | yes |
-| Editor, bookmarks, chapter navigation, themes, palettes | yes | yes |
+| Fonts, themes and the 13 reading palettes | identical in both, **bundled** (offline) | ← |
+| Editor, bookmarks, chapter navigation | yes | yes |
 | Sync with your own server | yes | yes |
 | New-version notice | points at the `sepia-*` APKs | points at the `sepia-lite-*` APKs |
 | `applicationId` | `dev.elias.sepia_reader` | `dev.elias.sepia_reader.lite` (the two coexist on one device) |
 | R8 minification / resource shrinking | no | yes |
 
-In short, Lite is the whole of Sépia minus the bundled fonts and the
-on-device neural-TTS stack. Want the smallest APK and don't mind fetching
-fonts once? Use Lite. Want everything working with no connection at all? Use
-the regular build.
+In short, Lite is the whole of Sépia — same UI, same offline fonts, same sync
+— minus the on-device neural-TTS stack, which accounts for nearly all of the
+size difference. Use Lite if you don't need the neural voices and want the
+smaller APK.
 
 ## Branches
 
@@ -210,7 +210,7 @@ flutter build apk --release                   # universal, all of them
 For the trimmed variant, do the same from the `Lite` branch
 (`git switch Lite`). The release CI builds both on every tag.
 
-The web script bundles the Flutter runtime, the eleven reading families, and the Noto fallbacks for emoji and symbols into `build/web` itself; the app depends on neither Google Fonts nor a CDN at runtime. On the `Lite` branch the fonts leave the bundle and are fetched by `google_fonts` the first time each is used.
+The web script bundles the Flutter runtime, the eleven reading families, and the Noto fallbacks for emoji and symbols into `build/web` itself; the app depends on neither Google Fonts nor a CDN at runtime. The `Lite` branch bundles the same fonts.
 
 Neural voices run through `sherpa_onnx`, which ships native libraries for every Android architecture. That is what `--split-per-abi` is for: an `arm64-v8a` APK carries only the library its own device needs, while the universal one carries all of them. The voice models are **not** in the APK — the app downloads them on demand from its settings. The `Lite` branch does not include `sherpa_onnx`.
 
@@ -238,7 +238,7 @@ The MVP does not send document contents to a backend. On mobile and web, prefere
 
 ## Stack
 
-Flutter, Material 3, `flutter_markdown_plus`, `highlight`, `file_picker` (import and export), `shared_preferences`, `sherpa_onnx` (on-device neural voice), and locally bundled OFL fonts — on the `Lite` branch, `sherpa_onnx` is dropped and `google_fonts` replaces the font bundle.
+Flutter, Material 3, `flutter_markdown_plus`, `highlight`, `file_picker` (import and export), `shared_preferences`, `sherpa_onnx` (on-device neural voice), and locally bundled OFL fonts — the `Lite` branch simply omits `sherpa_onnx`.
 
 ## License
 
