@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -338,15 +339,20 @@ class _SettingsSheetState extends State<SettingsSheet> {
               description: context.l10n.ttsEngineSystemDescription,
               enabled: true,
             ),
-            _engineOption(
-              context,
-              value: 'neural',
-              title: context.l10n.ttsEngineNeural,
-              description: _neuralSupported
-                  ? context.l10n.ttsEngineNeuralDescription
-                  : context.l10n.ttsEngineNeuralUnavailableWeb,
-              enabled: _neuralSupported,
-            ),
+            // Sépia Lite ships without the on-device neural stack, so on a
+            // phone this option can never be enabled — hide it rather than
+            // show a permanently greyed row. On the web the greyed row still
+            // explains why the platform voice is the only one available.
+            if (_neuralSupported || kIsWeb)
+              _engineOption(
+                context,
+                value: 'neural',
+                title: context.l10n.ttsEngineNeural,
+                description: _neuralSupported
+                    ? context.l10n.ttsEngineNeuralDescription
+                    : context.l10n.ttsEngineNeuralUnavailableWeb,
+                enabled: _neuralSupported,
+              ),
             const SizedBox(height: 12),
             if (_usingNeural)
               _neuralVoiceRow(context)

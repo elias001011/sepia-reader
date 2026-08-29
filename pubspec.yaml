@@ -46,11 +46,6 @@ dependencies:
   scrollable_positioned_list: ^0.3.8
   flutter_tts: ^4.2.5
   markdown: ^7.3.1
-  sherpa_onnx: ^1.13.6
-  path_provider: ^2.1.6
-  audioplayers: ^6.8.1
-  crypto: ^3.0.7
-  convert: ^3.1.2
   package_info_plus: ^10.2.1
   url_launcher: ^6.3.2
   device_info_plus: ^13.2.0

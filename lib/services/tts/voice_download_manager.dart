@@ -83,6 +83,10 @@ class VoiceDownloadManager extends ChangeNotifier {
   Future<void> refreshInstalled() async {
     if (!store.isSupported) {
       _loadedInstalled = true;
+      // Yield before notifying, so listeners are not rebuilt during the frame
+      // that called this (settings opens it from initState). The supported
+      // path already gets this for free from its await on installedPacks().
+      await Future<void>.delayed(Duration.zero);
       notifyListeners();
       return;
     }

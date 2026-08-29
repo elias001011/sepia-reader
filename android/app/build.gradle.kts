@@ -18,7 +18,9 @@ android {
     }
 
     defaultConfig {
-        applicationId = "dev.elias.sepia_reader"
+        // ".lite" so Sépia Lite installs alongside the full app instead of
+        // replacing it. The Kotlin/namespace package stays the same.
+        applicationId = "dev.elias.sepia_reader.lite"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -50,6 +52,14 @@ android {
             } else {
                 signingConfigs.getByName("debug")
             }
+            // Lite turns every size lever it safely can. Verified on-device:
+            // the app launches, renders and navigates with these rules.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }

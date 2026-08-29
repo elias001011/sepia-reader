@@ -831,7 +831,7 @@ No modo leitura, o botão de fone lê o documento em voz alta.
 
 - Se o texto tem títulos `#` ou `##`, dá para escolher **de qual capítulo começar** — ou continuar de onde você parou.
 - A voz padrão é a do próprio Android ou do navegador: não baixa nada e funciona sem internet.
-- Em **Configurações → Leitura em voz alta** dá para mudar a **velocidade**, trocar de voz, e baixar uma **voz neural** que roda no próprio aparelho, sem mandar seu texto para servidor nenhum. São 35 vozes em 14 idiomas, em dois níveis: Piper (~80 MB, leve) e Kokoro (~400 MB, mais natural).
+- Em **Configurações → Leitura em voz alta** dá para mudar a **velocidade** e trocar de voz.
 
 ## Marcadores
 
@@ -880,7 +880,7 @@ In reading mode, the headphone button reads the document out loud.
 
 - If the text has `#` or `##` headings, you can pick **which chapter to start from** — or carry on from where you stopped.
 - The default voice is the one Android or your browser already has: nothing to download, and it works offline.
-- Under **Settings → Read aloud** you can change the **speed**, switch voices, and download a **neural voice** that runs on the device itself, without sending your text to any server. Thirty-five voices across fourteen languages, in two tiers: Piper (~80 MB, light) and Kokoro (~400 MB, more natural).
+- Under **Settings → Read aloud** you can change the **speed** and switch voices.
 
 ## Bookmarks
 

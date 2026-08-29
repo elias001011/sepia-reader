@@ -4,6 +4,8 @@
 
 A calm, local-first Markdown library, reader, and editor built with Flutter. Sépia lets you keep documents together, edit them without changing tools, and hide the interface when it is time to simply read.
 
+> **This branch is Sépia Lite** — the same app, just as offline, in a smaller APK: without the on-device neural-TTS stack (system voice only). Full differences in the [Sépia and Sépia Lite](#sépia-and-sépia-lite) table.
+
 ## Features
 
 ### Reading
