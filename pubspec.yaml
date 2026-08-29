@@ -83,8 +83,10 @@ flutter:
     - assets/sepia_icon.png
     - assets/fonts/licenses/
 
-  # Reading faces are bundled (Sépia works fully offline). Each is a Latin
-  # subset of the official Google Fonts source, instanced to static weights.
+  # Reading faces are bundled (Sépia works fully offline). Inter, Merriweather
+  # and Roboto Mono are the upstream Google Fonts static files; the families
+  # added later are Latin subsets of the same source, instanced to static
+  # weights to keep the download small.
   fonts:
     - family: Inter
       fonts:
@@ -100,8 +102,8 @@ flutter:
           weight: 400
         - asset: assets/fonts/Merriweather-700.ttf
           weight: 700
-        - asset: assets/fonts/Merriweather-900.ttf
-          weight: 900
+        - asset: assets/fonts/Merriweather-800.ttf
+          weight: 800
     - family: Merriweather Sans
       fonts:
         - asset: assets/fonts/MerriweatherSans-400.ttf

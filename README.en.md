@@ -9,7 +9,7 @@ A calm, local-first Markdown library, reader, and editor built with Flutter. Sé
 ### Reading
 - reading mode that locks editing, uses compact controls, and can hide them automatically;
 - Merriweather and the Sépia theme by default;
-- **eleven bundled reading families** — Merriweather (with a Black weight), Merriweather Sans, Literata, Lora, Bitter, Source Serif 4, EB Garamond, Atkinson Hyperlegible, Inter, Roboto Mono, and JetBrains Mono — each previewed in its own letters in the picker;
+- **eleven bundled reading families** — Merriweather (with an ExtraBold weight), Merriweather Sans, Literata, Lora, Bitter, Source Serif 4, EB Garamond, Atkinson Hyperlegible, Inter, Roboto Mono, and JetBrains Mono — each previewed in its own letters in the picker;
 - **thirteen reading palettes**, split into light (Paper, Parchment, Cream, Grey, Mint, Sky) and dark (Sépia, Artifact, Night, Ink, Solarized, Nord, AMOLED);
 - configurable font, size, line height, width, background, and text colour;
 - bookmarks anchored to the passage rather than to a scroll position — they do not drift when the document changes size;

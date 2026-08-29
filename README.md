@@ -9,7 +9,7 @@ Leitor, biblioteca e editor de Markdown feito em Flutter. O Sépia foi pensado p
 ### Ler
 - modo leitura que bloqueia edição, usa controles compactos e permite ocultá-los automaticamente;
 - fonte Merriweather e tema Sépia como padrão;
-- **onze famílias de leitura empacotadas** — Merriweather (com peso Black), Merriweather Sans, Literata, Lora, Bitter, Source Serif 4, EB Garamond, Atkinson Hyperlegible, Inter, Roboto Mono e JetBrains Mono — cada uma pré-visualizada na própria letra no seletor;
+- **onze famílias de leitura empacotadas** — Merriweather (com peso ExtraBold), Merriweather Sans, Literata, Lora, Bitter, Source Serif 4, EB Garamond, Atkinson Hyperlegible, Inter, Roboto Mono e JetBrains Mono — cada uma pré-visualizada na própria letra no seletor;
 - **treze paletas de leitura** divididas em claras (Papel, Pergaminho, Creme, Cinza, Menta, Céu) e escuras (Sépia, Artifact, Noite, Tinta, Solarizado, Nord, AMOLED);
 - fonte, tamanho, entrelinha, largura, fundo e texto configuráveis;
 - marcadores ancorados ao trecho do texto, não à posição de rolagem — não escorregam quando o documento muda de tamanho;
