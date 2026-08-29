@@ -115,10 +115,16 @@ class _LibraryScreenState extends State<LibraryScreen> {
       body: Stack(
         children: [
           Positioned.fill(
-            // The floating header handles the top inset itself; SafeArea here
-            // keeps the library clear of the gesture bar and any side cutout,
-            // the way `body: SafeArea(...)` used to before this was pinned.
-            child: SafeArea(
+            // The floating header handles the top inset itself; SafeArea keeps
+            // the library clear of the gesture bar and any side cutout, the
+            // way `body: SafeArea(...)` used to before this was pinned.
+            // removeTop then zeroes the status-bar inset for descendants, so a
+            // nested scroll view (the card grid) does not re-add it as a gap —
+            // that regressed the moment the body-level SafeArea went away.
+            child: MediaQuery.removePadding(
+              context: context,
+              removeTop: true,
+              child: SafeArea(
               top: false,
               child: RefreshIndicator(
                 // The spinner drops in below the floating header, not under it.
@@ -165,6 +171,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                       shrinkWrap: true,
                                       physics:
                                           const NeverScrollableScrollPhysics(),
+                                      // Explicit: a BoxScrollView with a null
+                                      // padding inherits MediaQuery.padding,
+                                      // which the old body-level SafeArea used
+                                      // to have zeroed. Without this the grid
+                                      // takes the status-bar inset as a gap
+                                      // above the first card.
+                                      padding: EdgeInsets.zero,
                                       gridDelegate:
                                           SliverGridDelegateWithFixedCrossAxisCount(
                                             crossAxisCount: columns,
@@ -239,6 +252,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   ),
                 ],
               ),
+            ),
             ),
             ),
           ),
