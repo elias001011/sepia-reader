@@ -29,8 +29,33 @@ class LibraryDocument implements SyncableRecord {
   final DateTime? deletedAt;
 
   bool get isMarkdown => extension == 'md' || extension == 'markdown';
-  int get wordCount =>
-      content.trim().isEmpty ? 0 : content.trim().split(RegExp(r'\s+')).length;
+  int get wordCount {
+    // Avoid `trim().split(RegExp(...))`: on a book-sized document that made
+    // two full strings plus a list containing every word. This scanner has
+    // constant auxiliary memory. Library cards deliberately do not call it
+    // during build; it remains useful for explicit document statistics.
+    var words = 0;
+    var inWord = false;
+    for (final unit in content.codeUnits) {
+      final whitespace = unit <= 0x20 ||
+          unit == 0x85 ||
+          unit == 0xA0 ||
+          unit == 0x1680 ||
+          (unit >= 0x2000 && unit <= 0x200A) ||
+          unit == 0x2028 ||
+          unit == 0x2029 ||
+          unit == 0x202F ||
+          unit == 0x205F ||
+          unit == 0x3000;
+      if (whitespace) {
+        inWord = false;
+      } else if (!inWord) {
+        words++;
+        inWord = true;
+      }
+    }
+    return words;
+  }
   int get readingMinutes => wordCount == 0 ? 0 : (wordCount / 220).ceil();
 
   LibraryDocument copyWith({
