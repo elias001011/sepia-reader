@@ -132,9 +132,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'agulha');
     await tester.pump(const Duration(milliseconds: 200));
-    for (var i = 0; i < 100 && find.text('Arquivo 6.md').evaluate().isEmpty; i++) {
-      await tester.pump(const Duration(milliseconds: 20));
-    }
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(seconds: 1)),
+    );
+    await tester.pumpAndSettle();
 
     expect(find.text('Arquivo 6.md'), findsOneWidget);
     expect(find.text('Arquivo 5.md'), findsNothing);
