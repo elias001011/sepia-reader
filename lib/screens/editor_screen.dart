@@ -450,9 +450,13 @@ class _EditorScreenState extends State<EditorScreen>
     // Splicing a multi-megabyte book creates another full-size string. Keep
     // that allocation off the UI isolate; the captured pieces also guarantee
     // this save cannot accidentally include text typed after it started.
-    final fullContent = wasSectioned
-        ? await compute(_joinEditorSections, [prefix, sectionContent, suffix])
-        : sectionContent;
+    final sectionParts = [prefix, sectionContent, suffix];
+    final fullLength = prefix.length + sectionContent.length + suffix.length;
+    final fullContent = !wasSectioned
+        ? sectionContent
+        : fullLength >= 256 * 1024
+            ? await compute(_joinEditorSections, sectionParts)
+            : _joinEditorSections(sectionParts);
     final draft = document.copyWith(
       title: title,
       content: fullContent,
