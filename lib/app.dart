@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'l10n/app_localizations.dart';
+import 'models/app_settings.dart';
 import 'screens/library_screen.dart';
 import 'state/app_controller.dart';
 import 'theme/sepia_theme.dart';
@@ -115,10 +116,13 @@ class SepiaApp extends StatefulWidget {
 }
 
 class _SepiaAppState extends State<SepiaApp> {
+  late AppSettings _settings;
+
   @override
   void initState() {
     super.initState();
-    widget.controller.addListener(_refresh);
+    _settings = widget.controller.settings;
+    widget.controller.addListener(_refreshSettings);
     // Let MaterialApp paint the local library first. Network reconciliation
     // begins on the following frame and can never hold the launch screen up.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -128,15 +132,23 @@ class _SepiaAppState extends State<SepiaApp> {
 
   @override
   void dispose() {
-    widget.controller.removeListener(_refresh);
+    widget.controller.removeListener(_refreshSettings);
     widget.controller.dispose();
     super.dispose();
   }
 
-  void _refresh() => setState(() {});
+  /// The app shell only depends on settings. Document and folder changes are
+  /// already observed by the screens that display them.
+  void _refreshSettings() {
+    final next = widget.controller.settings;
+    if (!identical(next, _settings) && mounted) {
+      setState(() => _settings = next);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final settings = widget.controller.settings;
+    final settings = _settings;
     return MaterialApp(
       onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
       debugShowCheckedModeBanner: false,

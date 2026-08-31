@@ -63,8 +63,16 @@ class StorageService {
 
   final http.Client _client;
 
+  /// JSON for unchanged documents, keyed by the object that produced it.
+  /// Autosave changes one record, so re-encoding every other large body on
+  /// every save was pure main-isolate work.
+  final Map<String, ({LibraryDocument document, String json})>
+  _encodedDocuments = {};
+
   SyncConfig? _cachedSyncConfig;
   Future<void> _pendingPushes = Future.value();
+  Future<void> _pendingDocumentWrites = Future.value();
+  Future<bool>? _mergeWriteCapability;
 
   /// Counts GETs that actually came back from the server. [forcePull] resets
   /// it so a user-triggered sync can report whether the server was reached
@@ -116,6 +124,7 @@ class StorageService {
 
   Future<void> saveSyncConfig(SyncConfig config) async {
     _cachedSyncConfig = config;
+    _mergeWriteCapability = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_syncConfigKey, jsonEncode(config.toJson()));
   }
@@ -204,26 +213,32 @@ class StorageService {
     // Keep outgoing snapshots in issue order. The server merges records too,
     // but serialization here also protects settings (a single object) and
     // prevents an older request from finishing after a newer one.
-    final queued = _pendingPushes.then((_) async {
-      try {
-        final uri = _resolve(path, await loadSyncConfig());
-        if (uri == null) return;
-        final response = await _client
-            .put(uri, headers: _mergeHeaders, body: jsonEncode(body))
-            .timeout(_networkTimeout);
-        if (response.statusCode != 200) {
-          debugPrint('sepia: PUT $path returned ${response.statusCode}');
-        } else {
-          await _markSynced();
-        }
-      } catch (error) {
-        // Never let one failed push poison the queue: the next call chains
-        // off this future and would otherwise never run.
-        debugPrint('sepia: PUT $path failed: $error');
-      }
-    });
+    return _enqueuePush(() => _sendJson(path, body));
+  }
+
+  Future<void> _enqueuePush(Future<void> Function() operation) {
+    final queued = _pendingPushes.then((_) => operation());
     _pendingPushes = queued;
     return queued;
+  }
+
+  Future<void> _sendJson(String path, Object body) async {
+    try {
+      final uri = _resolve(path, await loadSyncConfig());
+      if (uri == null) return;
+      final response = await _client
+          .put(uri, headers: _mergeHeaders, body: jsonEncode(body))
+          .timeout(_networkTimeout);
+      if (response.statusCode != 200) {
+        debugPrint('sepia: PUT $path returned ${response.statusCode}');
+      } else {
+        await _markSynced();
+      }
+    } catch (error) {
+      // Never let one failed push poison the queue: every queued operation
+      // completes even when its network request does not.
+      debugPrint('sepia: PUT $path failed: $error');
+    }
   }
 
   @visibleForTesting
@@ -319,13 +334,19 @@ class StorageService {
     // Re-read after the network wait. A user can edit while background sync
     // is in flight; using the snapshot from before the GET would overwrite
     // that edit in local persistence when the response arrived.
+    if (key == _documentsKey) await _pendingDocumentWrites;
     final local = _decodeListRaw(prefs.getString(key), decode);
 
     final merged = purgeExpiredTombstones(
       remote == null ? local : mergeById(local, remote),
     );
     final encoded = merged.map(encode).toList();
-    await prefs.setString(key, jsonEncode(encoded));
+    final encodedJson = jsonEncode(encoded);
+    if (key == _documentsKey) {
+      await _writeDocumentsLocally(encodedJson);
+    } else {
+      await prefs.setString(key, encodedJson);
+    }
 
     // Only write back when the server's copy actually differs, so a start-up
     // that changed nothing does not cost a needless upload.
@@ -371,10 +392,17 @@ class StorageService {
   );
 
   List<LibraryDocument> _decodeDocuments(List<dynamic> raw) => raw
-      .map(
-        (item) =>
-            LibraryDocument.fromJson(Map<String, dynamic>.from(item as Map)),
-      )
+      .map((item) {
+        try {
+          return LibraryDocument.fromJson(
+            Map<String, dynamic>.from(item as Map),
+          );
+        } catch (error) {
+          debugPrint('sepia: skipped malformed document: $error');
+          return null;
+        }
+      })
+      .whereType<LibraryDocument>()
       .toList();
 
   /// Forces the device's own sync preferences onto a settings object, so a
@@ -467,10 +495,17 @@ class StorageService {
   );
 
   List<LibraryFolder> _decodeFolders(List<dynamic> raw) => raw
-      .map(
-        (item) =>
-            LibraryFolder.fromJson(Map<String, dynamic>.from(item as Map)),
-      )
+      .map((item) {
+        try {
+          return LibraryFolder.fromJson(
+            Map<String, dynamic>.from(item as Map),
+          );
+        } catch (error) {
+          debugPrint('sepia: skipped malformed folder: $error');
+          return null;
+        }
+      })
+      .whereType<LibraryFolder>()
       .toList();
 
   Future<List<ReadingBookmark>> loadBookmarks() => _loadMerged(
@@ -507,22 +542,92 @@ class StorageService {
   }
 
   Future<void> saveDocuments(List<LibraryDocument> documents) async {
-    final json = documents.map((document) => document.toJson()).toList();
-    await (await SharedPreferences.getInstance()).setString(
-      _documentsKey,
-      jsonEncode(json),
-    );
-    unawaited(_pushJson('/api/documents', json));
+    // Encode before the first await: AppController owns a mutable list, and a
+    // later edit must not leak into this older snapshot while prefs loads.
+    final encoded = _encodeDocuments(documents);
+    final remote = documents.map((document) => document.toJson()).toList();
+    await _writeDocumentsLocally(encoded);
+    unawaited(_pushJson('/api/documents', remote));
+  }
+
+  /// Keeps the complete local snapshot. A server gets only the changed record
+  /// when it explicitly advertises merge support; legacy servers get the full
+  /// list because their PUT endpoint replaced the collection.
+  Future<void> saveDocument(
+    List<LibraryDocument> documents,
+    LibraryDocument changed,
+  ) async {
+    final encoded = _encodeDocuments(documents);
+    final fullRemote = documents
+        .map((document) => document.toJson())
+        .toList(growable: false);
+    final changedRemote = changed.toJson();
+    await _writeDocumentsLocally(encoded);
+    unawaited(_pushDocumentDelta(fullRemote, changedRemote));
   }
 
   /// Persists the startup seed without starting a network request before the
   /// first frame. The background sync will merge and publish it if needed.
   Future<void> saveDocumentsLocally(List<LibraryDocument> documents) async {
-    final json = documents.map((document) => document.toJson()).toList();
-    await (await SharedPreferences.getInstance()).setString(
-      _documentsKey,
-      jsonEncode(json),
+    final encoded = _encodeDocuments(documents);
+    await _writeDocumentsLocally(encoded);
+  }
+
+  /// SharedPreferences writes are asynchronous. Keep document snapshots in
+  /// issue order so a slower old autosave cannot overwrite a newer one.
+  Future<void> _writeDocumentsLocally(String encoded) {
+    final write = _pendingDocumentWrites.then((_) async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_documentsKey, encoded);
+    });
+    // A failed write is still returned to its caller, but it must not poison
+    // later saves queued by the editor.
+    _pendingDocumentWrites = write.then<void>(
+      (_) {},
+      onError: (_, __) {},
     );
+    return write;
+  }
+
+  Future<void> _pushDocumentDelta(
+    List<Map<String, dynamic>> full,
+    Map<String, dynamic> changed,
+  ) => _enqueuePush(() async {
+    final supportsMerge = await (_mergeWriteCapability ??=
+        _serverSupportsMergeWrites());
+    await _sendJson('/api/documents', supportsMerge ? [changed] : full);
+  });
+
+  Future<bool> _serverSupportsMergeWrites() async {
+    final uri = _resolve('/healthz', await loadSyncConfig());
+    if (uri == null) return false;
+    try {
+      final response = await _client.get(uri).timeout(_probeTimeout);
+      if (response.statusCode != 200) return false;
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      if (decoded is! Map) return false;
+      final modes = decoded['write_modes'];
+      return modes is List && modes.contains('merge');
+    } catch (_) {
+      return false;
+    }
+  }
+
+  String _encodeDocuments(List<LibraryDocument> documents) {
+    final ids = documents.map((document) => document.id).toSet();
+    _encodedDocuments.removeWhere((id, _) => !ids.contains(id));
+    final records = <String>[];
+    for (final document in documents) {
+      final cached = _encodedDocuments[document.id];
+      if (cached != null && identical(cached.document, document)) {
+        records.add(cached.json);
+        continue;
+      }
+      final encoded = jsonEncode(document.toJson());
+      _encodedDocuments[document.id] = (document: document, json: encoded);
+      records.add(encoded);
+    }
+    return '[${records.join(',')}]';
   }
 
   Future<void> saveSettings(AppSettings settings) async {

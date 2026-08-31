@@ -163,12 +163,16 @@ class AppController extends ChangeNotifier {
     return document;
   }
 
-  Future<void> updateDocument(LibraryDocument document) async {
+  Future<void> updateDocument(
+    LibraryDocument document, {
+    bool notify = true,
+  }) async {
     final index = _liveDocumentIndex(document.id);
     if (index == -1) return;
-    _documents[index] = document.copyWith(updatedAt: DateTime.now());
-    await _persistDocuments();
-    notifyListeners();
+    final updated = document.copyWith(updatedAt: DateTime.now());
+    _documents[index] = updated;
+    await _storage.saveDocument(_documents, updated);
+    if (notify) notifyListeners();
   }
 
   Future<void> renameDocument(String id, String name) async {
