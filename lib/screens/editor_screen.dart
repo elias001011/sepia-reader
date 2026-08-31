@@ -25,6 +25,56 @@ import 'chapter_navigation_sheet.dart';
 import 'listen_sheet.dart';
 import 'reader_settings_sheet.dart';
 
+int _countWords(Iterable<String> parts) {
+  var words = 0;
+  var inWord = false;
+  for (final part in parts) {
+    for (final unit in part.codeUnits) {
+      final whitespace = unit <= 0x20 ||
+          unit == 0x85 ||
+          unit == 0xA0 ||
+          unit == 0x1680 ||
+          (unit >= 0x2000 && unit <= 0x200A) ||
+          unit == 0x2028 ||
+          unit == 0x2029 ||
+          unit == 0x202F ||
+          unit == 0x205F ||
+          unit == 0x3000;
+      if (whitespace) {
+        inWord = false;
+      } else if (!inWord) {
+        words++;
+        inWord = true;
+      }
+    }
+  }
+  return words;
+}
+
+/// Inserts a block construct with a blank line on each occupied side. `---`
+/// directly under prose is a Setext heading, which the old toolbar produced.
+@visibleForTesting
+({String text, int cursor}) insertMarkdownBlock(
+  String source, {
+  required int start,
+  required int end,
+  required String block,
+}) {
+  final before = source.substring(0, start);
+  final after = source.substring(end);
+  final prefix = before.isEmpty || before.endsWith('\n\n')
+      ? ''
+      : before.endsWith('\n') ? '\n' : '\n\n';
+  final suffix = after.isEmpty
+      ? '\n'
+      : after.startsWith('\n\n') ? '' : after.startsWith('\n') ? '\n' : '\n\n';
+  final replacement = '$prefix$block$suffix';
+  return (
+    text: source.replaceRange(start, end, replacement),
+    cursor: start + replacement.length,
+  );
+}
+
 class EditorScreen extends StatefulWidget {
   const EditorScreen({
     super.key,
@@ -38,7 +88,8 @@ class EditorScreen extends StatefulWidget {
   State<EditorScreen> createState() => _EditorScreenState();
 }
 
-class _EditorScreenState extends State<EditorScreen> {
+class _EditorScreenState extends State<EditorScreen>
+    with WidgetsBindingObserver {
   late final TextEditingController _contentController;
   late final TextEditingController _titleController;
   final UndoHistoryController _undoController = UndoHistoryController();
@@ -55,6 +106,7 @@ class _EditorScreenState extends State<EditorScreen> {
     minutes: 0,
   ));
   late final ValueNotifier<String> _previewContent;
+  bool _previewVisible = false;
 
   Timer? _saveTimer;
   Timer? _statsTimer;
@@ -135,6 +187,7 @@ class _EditorScreenState extends State<EditorScreen> {
   var _showMarkupSource = false;
   String? _markupSource;
   String? _markupResult;
+  LibraryDocument? _readerSourceSnapshot;
 
   LibraryDocument? get _stored =>
       widget.controller.documentById(widget.documentId);
@@ -158,7 +211,17 @@ class _EditorScreenState extends State<EditorScreen> {
         setState(() => _editingTitle = false);
       }
     });
+    WidgetsBinding.instance.addObserver(this);
     widget.controller.addListener(_refresh);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // dispose is not guaranteed when Android/iOS suspends or kills a process.
+    // Flush the debounce while the app still has execution time.
+    if (state != AppLifecycleState.resumed && _dirty.value) {
+      unawaited(_save());
+    }
   }
 
   @override
@@ -170,6 +233,7 @@ class _EditorScreenState extends State<EditorScreen> {
     _readerControls.dispose();
     _tts?.dispose();
     if (_dirty.value) unawaited(_save());
+    WidgetsBinding.instance.removeObserver(this);
     widget.controller.removeListener(_refresh);
     _undoController.dispose();
     _dirty.dispose();
@@ -182,8 +246,14 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 
   ({int words, int minutes}) _statsFor(String content) {
-    final trimmed = content.trim();
-    final words = trimmed.isEmpty ? 0 : trimmed.split(RegExp(r'\s+')).length;
+    final words = _countWords([content]);
+    return (words: words, minutes: words == 0 ? 0 : (words / 220).ceil());
+  }
+
+  ({int words, int minutes}) _currentStats() {
+    final words = _sectioned
+        ? _countWords([_sectionPrefix, _contentController.text, _sectionSuffix])
+        : _countWords([_contentController.text]);
     return (words: words, minutes: words == 0 ? 0 : (words / 220).ceil());
   }
 
@@ -200,15 +270,14 @@ class _EditorScreenState extends State<EditorScreen> {
     _saveTimer = Timer(const Duration(milliseconds: 700), _save);
     _statsTimer?.cancel();
     _statsTimer = Timer(const Duration(milliseconds: 400), () {
-      // Counts describe the whole document even while a slice is being
-      // edited, so the word count does not appear to collapse when the user
-      // moves between chapters.
-      _stats.value = _statsFor(_fullContent);
+      _stats.value = _currentStats();
     });
     _previewTimer?.cancel();
-    _previewTimer = Timer(const Duration(milliseconds: 400), () {
-      _previewContent.value = _contentController.text;
-    });
+    if (_previewVisible) {
+      _previewTimer = Timer(const Duration(milliseconds: 400), () {
+        _previewContent.value = _contentController.text;
+      });
+    }
   }
 
   /// The full document, with the section currently in the field spliced back
@@ -321,7 +390,7 @@ class _EditorScreenState extends State<EditorScreen> {
     // Snapshot exactly what is being persisted, before the await.
     final savedContent = _contentController.text;
     final savedTitle = _titleController.text;
-    await widget.controller.updateDocument(_draft);
+    await widget.controller.updateDocument(_draft, notify: false);
     // The write above is what mattered; if the editor was torn down during it
     // (dispose() calls _save() for a still-dirty document) there is nothing
     // left to reconcile, and the controllers below are already disposed.
@@ -341,7 +410,7 @@ class _EditorScreenState extends State<EditorScreen> {
   /// The document as reading mode should show it: `.html` becomes markdown
   /// unless the source was explicitly asked for, everything else is itself.
   LibraryDocument get _readerDocument {
-    final draft = _draft;
+    final draft = _readerSourceSnapshot ?? _draft;
     final isMarkup = documentKindOf(draft.extension) == DocumentKind.markup;
     // Source view, and every non-HTML document, is shown as it is — an
     // .html file read as source lands in the code viewer, which is what
@@ -541,6 +610,9 @@ class _EditorScreenState extends State<EditorScreen> {
 
   void _enterReadingMode() {
     FocusScope.of(context).unfocus();
+    // Reuse one source object for the whole reading session so the
+    // identity-keyed Markdown chunk cache survives bookmark/chapter actions.
+    _readerSourceSnapshot = _draft;
     _readerControls.value = true;
     setState(() => _readingMode = true);
     _scheduleReaderControlsHide();
@@ -761,6 +833,7 @@ class _EditorScreenState extends State<EditorScreen> {
       body: LayoutBuilder(
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= 900;
+          _previewVisible = wide || _showPreview;
           return Column(
             children: [
               if (!wide && !_showPreview || wide)
@@ -1005,7 +1078,9 @@ class _EditorScreenState extends State<EditorScreen> {
       selected: {_showPreview},
       onSelectionChanged: (value) {
         FocusScope.of(context).unfocus();
-        setState(() => _showPreview = value.first);
+        final showPreview = value.first;
+        if (showPreview) _previewContent.value = _contentController.text;
+        setState(() => _showPreview = showPreview);
       },
     ),
   );
@@ -1076,7 +1151,7 @@ class _EditorScreenState extends State<EditorScreen> {
         (
           label: context.l10n.horizontalRule,
           icon: Icons.horizontal_rule_rounded,
-          onTap: () => _insert('\n---\n'),
+          onTap: () => _insertBlock('---'),
         ),
       ],
     ];
@@ -1577,6 +1652,7 @@ class _EditorScreenState extends State<EditorScreen> {
     // speaking over the editor, and nothing should stay loaded for a
     // document the user is no longer reading.
     unawaited(_tts?.release());
+    _readerSourceSnapshot = null;
     _readerControls.value = true;
     setState(() => _readingMode = false);
   }
@@ -1615,15 +1691,21 @@ class _EditorScreenState extends State<EditorScreen> {
     );
   }
 
-  void _insert(String text) {
+  void _insertBlock(String block) {
     final selection = _contentController.selection;
     final start = selection.isValid
         ? selection.start
         : _contentController.text.length;
     final end = selection.isValid ? selection.end : start;
+    final insertion = insertMarkdownBlock(
+      _contentController.text,
+      start: start,
+      end: end,
+      block: block,
+    );
     _contentController.value = _contentController.value.copyWith(
-      text: _contentController.text.replaceRange(start, end, text),
-      selection: TextSelection.collapsed(offset: start + text.length),
+      text: insertion.text,
+      selection: TextSelection.collapsed(offset: insertion.cursor),
       composing: TextRange.empty,
     );
   }

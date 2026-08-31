@@ -32,6 +32,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   final _searchController = TextEditingController();
   String _query = '';
   String? _currentFolderId;
+  final Map<String, ({DateTime updatedAt, String text})> _searchIndex = {};
 
   /// Ids picked in multi-select mode. Empty means the screen is in its
   /// normal browsing state; non-empty swaps the top bar for the action bar
@@ -74,6 +75,33 @@ class _LibraryScreenState extends State<LibraryScreen> {
     if (mounted) setState(() {});
   }
 
+  String _searchableText(LibraryDocument document) {
+    final cached = _searchIndex[document.id];
+    if (cached != null && cached.updatedAt == document.updatedAt) {
+      return cached.text;
+    }
+    final text = '${document.title}.${document.extension}\n${document.content}'
+        .toLowerCase();
+    _searchIndex[document.id] = (updatedAt: document.updatedAt, text: text);
+    return text;
+  }
+
+  String _folderPathNames(
+    String? folderId,
+    Map<String, LibraryFolder> folderById,
+  ) {
+    final names = <String>[];
+    final seen = <String>{};
+    var currentId = folderId;
+    while (currentId != null && seen.add(currentId)) {
+      final folder = folderById[currentId];
+      if (folder == null) break;
+      names.add(folder.name);
+      currentId = folder.parentId;
+    }
+    return names.reversed.join(' / ');
+  }
+
   /// A newer release, once one has been found. Checked when the library
   /// opens, quietly: a missing connection is not worth interrupting anyone
   /// for, so a failure here leaves the banner simply absent.
@@ -91,19 +119,46 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final searching = _query.trim().isNotEmpty;
-    final sourceDocuments = searching
-        ? widget.controller.documents
-        : widget.controller.documentsIn(_currentFolderId);
-    final documents = sourceDocuments.where((document) {
-      final haystack =
-          '${document.title}.${document.extension} ${document.content}'
-              .toLowerCase();
-      return haystack.contains(_query.toLowerCase());
-    }).toList();
+    final normalizedQuery = _query.trim().toLowerCase();
+    final searching = normalizedQuery.isNotEmpty;
+    final allDocuments = widget.controller.documents;
+    final allFolders = widget.controller.folders;
+    if (_searchIndex.isNotEmpty) {
+      final liveIds = allDocuments.map((document) => document.id).toSet();
+      _searchIndex.removeWhere((id, _) => !liveIds.contains(id));
+    }
+    final documents = searching
+        ? allDocuments
+            .where((document) =>
+                _searchableText(document).contains(normalizedQuery))
+            .toList(growable: false)
+        : allDocuments
+            .where((document) => document.folderId == _currentFolderId)
+            .toList(growable: false);
     final folders = searching
         ? const <LibraryFolder>[]
-        : widget.controller.foldersIn(_currentFolderId);
+        : allFolders
+            .where((folder) => folder.parentId == _currentFolderId)
+            .toList(growable: false);
+    final folderById = {for (final folder in allFolders) folder.id: folder};
+    final childFolderCounts = <String, int>{};
+    for (final folder in allFolders) {
+      final parentId = folder.parentId;
+      if (parentId != null) {
+        childFolderCounts.update(parentId, (count) => count + 1,
+            ifAbsent: () => 1);
+      }
+    }
+    final folderDocumentCounts = <String, int>{};
+    for (final document in allDocuments) {
+      var folderId = document.folderId;
+      final seen = <String>{};
+      while (folderId != null && seen.add(folderId)) {
+        folderDocumentCounts.update(folderId, (count) => count + 1,
+            ifAbsent: () => 1);
+        folderId = folderById[folderId]?.parentId;
+      }
+    }
 
     // Before _MeasureSize has reported, use a close estimate so the content
     // does not start flush at the top for one frame and then jump down.
@@ -139,7 +194,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     child: SizedBox(height: headerSpace + 8),
                   ),
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 48),
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
                     sliver: SliverToBoxAdapter(
                       child: Center(
                         child: ConstrainedBox(
@@ -159,97 +214,50 @@ class _LibraryScreenState extends State<LibraryScreen> {
                               const SizedBox(height: 16),
                               if (documents.isEmpty && folders.isEmpty)
                                 _emptyState(context)
-                              else
-                                LayoutBuilder(
-                                  builder: (context, constraints) {
-                                    final columns = constraints.maxWidth >= 980
-                                        ? 3
-                                        : constraints.maxWidth >= 620
-                                        ? 2
-                                        : 1;
-                                    return GridView.builder(
-                                      shrinkWrap: true,
-                                      physics:
-                                          const NeverScrollableScrollPhysics(),
-                                      // Explicit: a BoxScrollView with a null
-                                      // padding inherits MediaQuery.padding,
-                                      // which the old body-level SafeArea used
-                                      // to have zeroed. Without this the grid
-                                      // takes the status-bar inset as a gap
-                                      // above the first card.
-                                      padding: EdgeInsets.zero,
-                                      gridDelegate:
-                                          SliverGridDelegateWithFixedCrossAxisCount(
-                                            crossAxisCount: columns,
-                                            mainAxisExtent: 238,
-                                            crossAxisSpacing: 16,
-                                            mainAxisSpacing: 16,
-                                          ),
-                                      itemCount:
-                                          folders.length + documents.length,
-                                      itemBuilder: (context, index) {
-                                        if (index < folders.length) {
-                                          final folder = folders[index];
-                                          return _FolderCard(
-                                            folder: folder,
-                                            documentCount: widget.controller
-                                                .folderDocumentCount(folder.id),
-                                            childFolderCount: widget.controller
-                                                .foldersIn(folder.id)
-                                                .length,
-                                            selecting: _selecting,
-                                            selected: _selectedFolderIds
-                                                .contains(folder.id),
-                                            onToggleSelect: () =>
-                                                _toggleSelectFolder(folder.id),
-                                            onOpen: () =>
-                                                _enterFolder(folder.id),
-                                            onRename: () =>
-                                                _renameFolder(folder),
-                                            onMove: () => _moveFolder(folder),
-                                            onDelete: () =>
-                                                _deleteFolder(folder),
-                                          );
-                                        }
-                                        final document =
-                                            documents[index - folders.length];
-                                        return _DocumentCard(
-                                          document: document,
-                                          folderPath: searching
-                                              ? widget.controller
-                                                    .folderPath(
-                                                      document.folderId,
-                                                    )
-                                                    .map(
-                                                      (folder) => folder.name,
-                                                    )
-                                                    .join(' / ')
-                                              : null,
-                                          selecting: _selecting,
-                                          selected: _selectedDocIds
-                                              .contains(document.id),
-                                          onToggleSelect: () =>
-                                              _toggleSelectDoc(document.id),
-                                          onOpen: () => _open(document),
-                                          onFavorite: () => widget.controller
-                                              .toggleFavorite(document.id),
-                                          onRename: () =>
-                                              _renameDocument(document),
-                                          onMove: () => _moveDocument(document),
-                                          onExport: () => _export(document),
-                                          onDelete: () =>
-                                              _confirmDelete(document),
-                                        );
-                                      },
-                                    );
-                                  },
-                                ),
                             ],
                           ),
                         ),
                       ),
                     ),
                   ),
+                  if (documents.isNotEmpty || folders.isNotEmpty)
+                    SliverLayoutBuilder(
+                      builder: (context, constraints) {
+                        final side = constraints.crossAxisExtent > 1220
+                            ? (constraints.crossAxisExtent - 1180) / 2
+                            : 20.0;
+                        final contentWidth = constraints.crossAxisExtent - side * 2;
+                        final columns = contentWidth >= 980
+                            ? 3
+                            : contentWidth >= 620 ? 2 : 1;
+                        return SliverPadding(
+                          padding: EdgeInsets.fromLTRB(side, 0, side, 48),
+                          sliver: SliverGrid(
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: columns,
+                                  mainAxisExtent: 238,
+                                  crossAxisSpacing: 16,
+                                  mainAxisSpacing: 16,
+                                ),
+                            delegate: SliverChildBuilderDelegate(
+                              (context, index) => _libraryCard(
+                                index: index,
+                                folders: folders,
+                                documents: documents,
+                                searching: searching,
+                                folderById: folderById,
+                                folderDocumentCounts: folderDocumentCounts,
+                                childFolderCounts: childFolderCounts,
+                              ),
+                              childCount: folders.length + documents.length,
+                            ),
+                          ),
+                        );
+                      },
+                    )
+                  else
+                    const SliverToBoxAdapter(child: SizedBox(height: 48)),
                 ],
               ),
             ),
@@ -288,6 +296,48 @@ class _LibraryScreenState extends State<LibraryScreen> {
               label: Text(context.l10n.newLabel),
             )
           : null,
+    );
+  }
+
+  Widget _libraryCard({
+    required int index,
+    required List<LibraryFolder> folders,
+    required List<LibraryDocument> documents,
+    required bool searching,
+    required Map<String, LibraryFolder> folderById,
+    required Map<String, int> folderDocumentCounts,
+    required Map<String, int> childFolderCounts,
+  }) {
+    if (index < folders.length) {
+      final folder = folders[index];
+      return _FolderCard(
+        folder: folder,
+        documentCount: folderDocumentCounts[folder.id] ?? 0,
+        childFolderCount: childFolderCounts[folder.id] ?? 0,
+        selecting: _selecting,
+        selected: _selectedFolderIds.contains(folder.id),
+        onToggleSelect: () => _toggleSelectFolder(folder.id),
+        onOpen: () => _enterFolder(folder.id),
+        onRename: () => _renameFolder(folder),
+        onMove: () => _moveFolder(folder),
+        onDelete: () => _deleteFolder(folder),
+      );
+    }
+    final document = documents[index - folders.length];
+    return _DocumentCard(
+      document: document,
+      folderPath: searching
+          ? _folderPathNames(document.folderId, folderById)
+          : null,
+      selecting: _selecting,
+      selected: _selectedDocIds.contains(document.id),
+      onToggleSelect: () => _toggleSelectDoc(document.id),
+      onOpen: () => _open(document),
+      onFavorite: () => widget.controller.toggleFavorite(document.id),
+      onRename: () => _renameDocument(document),
+      onMove: () => _moveDocument(document),
+      onExport: () => _export(document),
+      onDelete: () => _confirmDelete(document),
     );
   }
 
@@ -1181,14 +1231,23 @@ class _LibraryScreenState extends State<LibraryScreen> {
   );
 
   Future<void> _open(LibraryDocument document) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => EditorScreen(
-          controller: widget.controller,
-          documentId: document.id,
+    // Do not rebuild the hidden library for every editor autosave.
+    widget.controller.removeListener(_refresh);
+    try {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => EditorScreen(
+            controller: widget.controller,
+            documentId: document.id,
+          ),
         ),
-      ),
-    );
+      );
+    } finally {
+      if (mounted) {
+        widget.controller.addListener(_refresh);
+        setState(() {});
+      }
+    }
   }
 
   Future<void> _createDocument() async {
@@ -1611,7 +1670,11 @@ class _DocumentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final preview = document.content
+    // A three-line card never needs to scan the rest of a long document.
+    final previewSource = document.content.length > 1200
+        ? document.content.substring(0, 1200)
+        : document.content;
+    final preview = previewSource
         .replaceAll(RegExp(r'[#*_>`\[\]()]'), '')
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();

@@ -83,6 +83,22 @@ void main() {
     });
   });
 
+  test('registro malformado não apaga os documentos válidos', () async {
+    final valid = document('conteúdo recuperável', DateTime(2026, 8, 31));
+    SharedPreferences.setMockInitialValues({
+      'sepia.documents.v1': jsonEncode([
+        valid.toJson(),
+        {'id': 'quebrado', 'title': 42},
+      ]),
+    });
+
+    final loaded = await StorageService().loadLocalDocuments();
+
+    expect(loaded, hasLength(1));
+    expect(loaded.single.id, valid.id);
+    expect(loaded.single.content, 'conteúdo recuperável');
+  });
+
   test('PUTs são serializados e pedem merge ao servidor', () async {
     SharedPreferences.setMockInitialValues({
       'sepia.syncconfig.v1': jsonEncode({
@@ -127,6 +143,81 @@ void main() {
       isTrue,
     );
     expect(requests.last.body, contains('segundo'));
+  });
+
+  test('autosave envia só o documento alterado e preserva o local', () async {
+    SharedPreferences.setMockInitialValues({
+      'sepia.syncconfig.v1': jsonEncode({
+        'syncEnabled': true,
+        'syncServerUrl': 'http://sync.test',
+      }),
+    });
+    http.Request? pushed;
+    final storage = StorageService(
+      client: MockClient((request) async {
+        if (request.url.path == '/healthz') {
+          return http.Response(jsonEncode({
+            'ok': true,
+            'write_modes': ['replace', 'merge'],
+          }), 200);
+        }
+        if (request.method == 'PUT') pushed = request;
+        return http.Response('[]', 200);
+      }),
+    );
+    final first = document('primeiro', DateTime(2026, 8, 27, 1));
+    final second = LibraryDocument(
+      id: 'outro',
+      title: 'Outro',
+      content: 'não mudou',
+      extension: 'md',
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026, 8, 27, 1),
+    );
+
+    await storage.saveDocument([first, second], first);
+    await storage.waitForPendingSync();
+
+    final remote = jsonDecode(pushed!.body) as List<dynamic>;
+    expect(remote, hasLength(1));
+    expect((remote.single as Map<String, dynamic>)['id'], first.id);
+    final prefs = await SharedPreferences.getInstance();
+    final local = jsonDecode(prefs.getString('sepia.documents.v1')!) as List;
+    expect(local, hasLength(2));
+    expect(local.map((item) => (item as Map)['id']),
+        containsAll(['d', 'outro']));
+  });
+
+  test('autosave envia snapshot completo a servidor antigo', () async {
+    SharedPreferences.setMockInitialValues({
+      'sepia.syncconfig.v1': jsonEncode({
+        'syncEnabled': true,
+        'syncServerUrl': 'http://sync.test',
+      }),
+    });
+    http.Request? pushed;
+    final storage = StorageService(
+      client: MockClient((request) async {
+        if (request.method == 'PUT') pushed = request;
+        // Servidores anteriores não anunciavam o modo merge no healthcheck.
+        return http.Response(jsonEncode({'ok': true}), 200);
+      }),
+    );
+    final first = document('primeiro', DateTime(2026, 8, 27, 1));
+    final second = LibraryDocument(
+      id: 'outro',
+      title: 'Outro',
+      content: 'não mudou',
+      extension: 'md',
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026, 8, 27, 1),
+    );
+
+    await storage.saveDocument([first, second], first);
+    await storage.waitForPendingSync();
+
+    final remote = jsonDecode(pushed!.body) as List<dynamic>;
+    expect(remote, hasLength(2));
   });
 
   test('configuração remota não recebe o endereço local de sync', () async {

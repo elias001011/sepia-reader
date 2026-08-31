@@ -119,6 +119,7 @@ class HeadlessServerTest(unittest.TestCase):
         payload = json.loads(body)
         self.assertTrue(payload["ok"])
         self.assertFalse(payload["serves_web"])
+        self.assertIn("merge", payload["write_modes"])
         self.assertIn("/api/documents", payload["api"])
 
     def test_sync_api_still_answers_headless(self):
