@@ -218,13 +218,24 @@ jobs:
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >-
-          gh release create "$RELEASE_TAG"
-          dist/sepia-*.apk
-          dist/sepia-*-web.tar.gz
-          dist/sepia-*-server.py
-          dist/SHA256SUMS.txt
-          --repo "$GITHUB_REPOSITORY"
-          --title "Sépia $RELEASE_TAG"
-          --generate-notes
-          --verify-tag
+        shell: bash
+        run: |
+          assets=(
+            dist/sepia-*.apk
+            dist/sepia-*-web.tar.gz
+            dist/sepia-*-server.py
+            dist/SHA256SUMS.txt
+          )
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            # Retrying a validated release must repair/replace its assets
+            # instead of failing after all builds have completed.
+            gh release upload "$RELEASE_TAG" "${assets[@]}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --clobber
+          else
+            gh release create "$RELEASE_TAG" "${assets[@]}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Sépia $RELEASE_TAG" \
+              --generate-notes \
+              --verify-tag
+          fi
