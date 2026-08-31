@@ -27,7 +27,10 @@ pastas mas introduzido engasgos na busca e dois defeitos de exibição.
   ou entrar em tela dividida mostra o preview atualizado, não o texto de quando o
   editor abriu.
 
-## 2.2.7 — 2026-08-31
+## 2.2.7 — 2026-08-31 (retirada)
+
+Publicada e retirada no mesmo dia: os APKs traziam engasgos de FPS na busca e ao
+abrir pastas. O conteúdo abaixo foi corrigido e relançado na 2.2.8.
 
 - **Desempenho:** bibliotecas grandes agora virtualizam os cartões e deixam de
   reprocessar o corpo de todos os documentos a cada clique ou salvamento.
