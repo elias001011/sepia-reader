@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
@@ -50,6 +51,8 @@ int _countWords(Iterable<String> parts) {
   }
   return words;
 }
+
+String _joinEditorSections(List<String> parts) => parts.join();
 
 /// Inserts a block construct with a blank line on each occupied side. `---`
 /// directly under prose is a Setext heading, which the old toolbar produced.
@@ -109,6 +112,7 @@ class _EditorScreenState extends State<EditorScreen>
   bool _previewVisible = false;
 
   Timer? _saveTimer;
+  Future<void> _saveQueue = Future.value();
   Timer? _statsTimer;
   Timer? _previewTimer;
   Timer? _readerControlsTimer;
@@ -149,6 +153,8 @@ class _EditorScreenState extends State<EditorScreen>
   int _editSectionIndex = 0;
   String _sectionPrefix = '';
   String _sectionSuffix = '';
+  int _outsideSectionWords = 0;
+  bool _programmaticTextChange = false;
 
   /// Whether this document is long enough, and has enough structure, for
   /// sectioned editing to actually do something. When it is not — a short
@@ -203,9 +209,9 @@ class _EditorScreenState extends State<EditorScreen>
     _contentController = TextEditingController(text: _sectionText(document.content))
       ..addListener(_onChanged);
     _titleController = TextEditingController(text: document.title)
-      ..addListener(_onChanged);
+      ..addListener(_onTitleChanged);
     _previewContent = ValueNotifier(_sectionText(document.content));
-    _stats.value = _statsFor(document.content);
+    _stats.value = _currentStats();
     _titleFocus.addListener(() {
       if (!_titleFocus.hasFocus && _editingTitle && mounted) {
         setState(() => _editingTitle = false);
@@ -245,14 +251,9 @@ class _EditorScreenState extends State<EditorScreen>
     super.dispose();
   }
 
-  ({int words, int minutes}) _statsFor(String content) {
-    final words = _countWords([content]);
-    return (words: words, minutes: words == 0 ? 0 : (words / 220).ceil());
-  }
-
   ({int words, int minutes}) _currentStats() {
     final words = _sectioned
-        ? _countWords([_sectionPrefix, _contentController.text, _sectionSuffix])
+        ? _outsideSectionWords + _countWords([_contentController.text])
         : _countWords([_contentController.text]);
     return (words: words, minutes: words == 0 ? 0 : (words / 220).ceil());
   }
@@ -262,6 +263,7 @@ class _EditorScreenState extends State<EditorScreen>
   }
 
   void _onChanged() {
+    if (_programmaticTextChange) return;
     // No setState here: rebuilding the whole editor on every keystroke made
     // large documents crawl (a full document copy, two regex passes over the
     // entire text for the counters, and a live markdown re-render).
@@ -278,6 +280,12 @@ class _EditorScreenState extends State<EditorScreen>
         _previewContent.value = _contentController.text;
       });
     }
+  }
+
+  void _onTitleChanged() {
+    _dirty.value = true;
+    _saveTimer?.cancel();
+    _saveTimer = Timer(const Duration(milliseconds: 700), _save);
   }
 
   /// The full document, with the section currently in the field spliced back
@@ -322,6 +330,7 @@ class _EditorScreenState extends State<EditorScreen>
       _editSectionIndex = 0;
       _sectionPrefix = '';
       _sectionSuffix = '';
+      _outsideSectionWords = 0;
       return;
     }
     final sections = editableSectionsOf(content);
@@ -331,6 +340,7 @@ class _EditorScreenState extends State<EditorScreen>
       _editSectionIndex = 0;
       _sectionPrefix = '';
       _sectionSuffix = '';
+      _outsideSectionWords = 0;
       return;
     }
     _sectioned = true;
@@ -339,6 +349,11 @@ class _EditorScreenState extends State<EditorScreen>
     final section = sections[_editSectionIndex];
     _sectionPrefix = content.substring(0, section.start);
     _sectionSuffix = content.substring(section.end);
+    // Only the active slice changes while typing. Recounting the immutable
+    // prefix and suffix every 400 ms made sectioned editing scan the entire
+    // book despite keeping only one chapter in EditableText.
+    _outsideSectionWords =
+        _countWords([_sectionPrefix]) + _countWords([_sectionSuffix]);
   }
 
   String _sectionText(String content) {
@@ -356,10 +371,15 @@ class _EditorScreenState extends State<EditorScreen>
     setState(() {
       _configureSections(content, index: index);
       final text = _sectionText(content);
-      _contentController.value = TextEditingValue(
-        text: text,
-        selection: const TextSelection.collapsed(offset: 0),
-      );
+      _programmaticTextChange = true;
+      try {
+        _contentController.value = TextEditingValue(
+          text: text,
+          selection: const TextSelection.collapsed(offset: 0),
+        );
+      } finally {
+        _programmaticTextChange = false;
+      }
       _previewContent.value = text;
     });
   }
@@ -377,10 +397,16 @@ class _EditorScreenState extends State<EditorScreen>
       _editSectionIndex = 0;
       _sectionPrefix = '';
       _sectionSuffix = '';
-      _contentController.value = TextEditingValue(
-        text: content,
-        selection: const TextSelection.collapsed(offset: 0),
-      );
+      _outsideSectionWords = 0;
+      _programmaticTextChange = true;
+      try {
+        _contentController.value = TextEditingValue(
+          text: content,
+          selection: const TextSelection.collapsed(offset: 0),
+        );
+      } finally {
+        _programmaticTextChange = false;
+      }
       _previewContent.value = content;
     });
   }
@@ -390,7 +416,48 @@ class _EditorScreenState extends State<EditorScreen>
     // Snapshot exactly what is being persisted, before the await.
     final savedContent = _contentController.text;
     final savedTitle = _titleController.text;
-    await widget.controller.updateDocument(_draft, notify: false);
+    final persistedTitle = savedTitle.trim().isEmpty
+        ? context.l10n.untitled
+        : savedTitle.trim();
+    final document = _stored!;
+    final prefix = _sectionPrefix;
+    final suffix = _sectionSuffix;
+    final wasSectioned = _sectioned;
+    final operation = _saveQueue.then(
+      (_) => _persistSnapshot(
+        document: document,
+        title: persistedTitle,
+        rawTitle: savedTitle,
+        sectionContent: savedContent,
+        prefix: prefix,
+        suffix: suffix,
+        wasSectioned: wasSectioned,
+      ),
+    );
+    _saveQueue = operation.then<void>((_) {}, onError: (_, __) {});
+    await operation;
+  }
+
+  Future<void> _persistSnapshot({
+    required LibraryDocument document,
+    required String title,
+    required String rawTitle,
+    required String sectionContent,
+    required String prefix,
+    required String suffix,
+    required bool wasSectioned,
+  }) async {
+    // Splicing a multi-megabyte book creates another full-size string. Keep
+    // that allocation off the UI isolate; the captured pieces also guarantee
+    // this save cannot accidentally include text typed after it started.
+    final fullContent = wasSectioned
+        ? await compute(_joinEditorSections, [prefix, sectionContent, suffix])
+        : sectionContent;
+    final draft = document.copyWith(
+      title: title,
+      content: fullContent,
+    );
+    await widget.controller.updateDocument(draft, notify: false);
     // The write above is what mattered; if the editor was torn down during it
     // (dispose() calls _save() for a still-dirty document) there is nothing
     // left to reconcile, and the controllers below are already disposed.
@@ -400,11 +467,14 @@ class _EditorScreenState extends State<EditorScreen>
     // the flag then said "saved", so _close() skipped its flush and dispose()
     // cancelled the pending timer. A still-dirty flag just means the queued
     // timer (or _close) will persist the newer text.
-    if (_contentController.text == savedContent &&
-        _titleController.text == savedTitle) {
+    if (_contentController.text == sectionContent &&
+        _titleController.text == rawTitle) {
       _dirty.value = false;
     }
-    _refreshSectionable();
+    // A sectioned document is already known to be sectionable. Rebuilding
+    // and parsing the complete document after every autosave defeated the
+    // point of editing only one chapter at a time.
+    if (!_sectioned) _refreshSectionable();
   }
 
   /// The document as reading mode should show it: `.html` becomes markdown
@@ -1749,10 +1819,15 @@ class _EditorScreenState extends State<EditorScreen>
       setState(() {
         _configureSections(content, index: 0);
         final text = _sectionText(content);
-        _contentController.value = TextEditingValue(
-          text: text,
-          selection: const TextSelection.collapsed(offset: 0),
-        );
+        _programmaticTextChange = true;
+        try {
+          _contentController.value = TextEditingValue(
+            text: text,
+            selection: const TextSelection.collapsed(offset: 0),
+          );
+        } finally {
+          _programmaticTextChange = false;
+        }
         _previewContent.value = text;
       });
     } else if (!newValue && _sectioned) {
