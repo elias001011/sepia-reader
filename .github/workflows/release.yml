@@ -9,12 +9,21 @@ on:
     # after every validation succeeds, then publish in the same run.
     branches:
       - "release/v*.*.*"
+  # GitHub Apps may suppress workflows for refs they create. Opening a
+  # `Release vX.Y.Z` issue as the repository owner is the equivalent audited
+  # trigger and runs this workflow from the default branch's exact HEAD.
+  issues:
+    types: [opened]
 
 permissions:
   contents: write
 
 jobs:
   release:
+    if: >-
+      github.event_name != 'issues' ||
+      (github.event.issue.user.login == github.repository_owner &&
+      startsWith(github.event.issue.title, 'Release v'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -31,14 +40,20 @@ jobs:
 
       - name: Resolve and verify release ref
         shell: bash
+        env:
+          RELEASE_ISSUE_TITLE: ${{ github.event.issue.title }}
         run: |
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then
             RELEASE_TAG="$GITHUB_REF_NAME"
+          elif [[ "$GITHUB_EVENT_NAME" == issues ]]; then
+            RELEASE_TAG="${RELEASE_ISSUE_TITLE#Release }"
           else
             RELEASE_TAG="${GITHUB_REF_NAME#release/}"
+          fi
+          if [[ "$GITHUB_REF" != refs/tags/* ]]; then
             git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
             if [[ "$(git rev-parse origin/main)" != "$GITHUB_SHA" ]]; then
-              echo "::error::Release branch must point to main's exact HEAD."
+              echo "::error::Release trigger must run at main's exact HEAD."
               exit 1
             fi
           fi
@@ -177,7 +192,7 @@ jobs:
           path: dist
 
       - name: Create the validated tag
-        if: startsWith(github.ref, 'refs/heads/release/')
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         shell: bash
         run: |
           REMOTE_SHA="$(git ls-remote --tags origin "refs/tags/$RELEASE_TAG" | cut -f1)"
