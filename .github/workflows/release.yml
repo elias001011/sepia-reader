@@ -4,6 +4,11 @@ on:
   push:
     tags:
       - "v*.*.*"
+    # GitHub Apps do not expose tag creation in every client. A protected
+    # release branch at main's exact HEAD lets this workflow create the tag
+    # after every validation succeeds, then publish in the same run.
+    branches:
+      - "release/v*.*.*"
 
 permissions:
   contents: write
@@ -24,10 +29,29 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Resolve and verify release ref
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            RELEASE_TAG="$GITHUB_REF_NAME"
+          else
+            RELEASE_TAG="${GITHUB_REF_NAME#release/}"
+            git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+            if [[ "$(git rev-parse origin/main)" != "$GITHUB_SHA" ]]; then
+              echo "::error::Release branch must point to main's exact HEAD."
+              exit 1
+            fi
+          fi
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid release tag: $RELEASE_TAG"
+            exit 1
+          fi
+          echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
+
       - name: Verify tag and package version
         shell: bash
         run: |
-          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          TAG_VERSION="${RELEASE_TAG#v}"
           APP_VERSION="$(sed -n 's/^version: \([^+]*\).*/\1/p' pubspec.yaml)"
           if [[ "$TAG_VERSION" != "$APP_VERSION" ]]; then
             echo "Tag version $TAG_VERSION does not match pubspec version $APP_VERSION."
@@ -111,8 +135,8 @@ jobs:
           # The Lite branch is built from its own tip, not from this tag, so
           # its version can silently drift. Refuse to ship a mismatch.
           LITE_VERSION="$(sed -n 's/^version: \([^+]*\).*/\1/p' pubspec.yaml)"
-          if [[ "$LITE_VERSION" != "${GITHUB_REF_NAME#v}" ]]; then
-            echo "::error::Lite pubspec is $LITE_VERSION but the tag is ${GITHUB_REF_NAME#v} — rebase Lite onto main and force-push before tagging."
+          if [[ "$LITE_VERSION" != "${RELEASE_TAG#v}" ]]; then
+            echo "::error::Lite pubspec is $LITE_VERSION but the tag is ${RELEASE_TAG#v} — merge main into Lite before releasing."
             exit 1
           fi
           flutter pub get
@@ -133,7 +157,7 @@ jobs:
       - name: Package release files
         shell: bash
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_TAG#v}"
           mkdir -p dist
           for abi in arm64-v8a armeabi-v7a x86_64 universal; do
             src="build/release-apks/${abi}.apk"
@@ -149,19 +173,26 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: sepia-${{ github.ref_name }}
+          name: sepia-${{ env.RELEASE_TAG }}
           path: dist
+
+      - name: Create the validated tag
+        if: startsWith(github.ref, 'refs/heads/release/')
+        shell: bash
+        run: |
+          git tag "$RELEASE_TAG" "$GITHUB_SHA"
+          git push origin "refs/tags/$RELEASE_TAG"
 
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
-          gh release create "$GITHUB_REF_NAME"
+          gh release create "$RELEASE_TAG"
           dist/sepia-*.apk
           dist/sepia-*-web.tar.gz
           dist/sepia-*-server.py
           dist/SHA256SUMS.txt
           --repo "$GITHUB_REPOSITORY"
-          --title "Sépia $GITHUB_REF_NAME"
+          --title "Sépia $RELEASE_TAG"
           --generate-notes
           --verify-tag
