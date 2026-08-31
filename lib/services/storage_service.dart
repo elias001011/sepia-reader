@@ -12,6 +12,9 @@ import '../models/library_folder.dart';
 import '../models/syncable.dart';
 import 'sync_merge.dart';
 
+String _joinDocumentJsonRecords(List<String> records) =>
+    '[${records.join(',')}]';
+
 /// Locally-stored sync preferences.
 ///
 /// Deliberately kept out of the synced settings payload: if the only copy
@@ -544,10 +547,15 @@ class StorageService {
   Future<void> saveDocuments(List<LibraryDocument> documents) async {
     // Encode before the first await: AppController owns a mutable list, and a
     // later edit must not leak into this older snapshot while prefs loads.
-    final encoded = _encodeDocuments(documents);
-    final remote = documents.map((document) => document.toJson()).toList();
-    await _writeDocumentsLocally(encoded);
-    unawaited(_pushJson('/api/documents', remote));
+    final snapshot = List<LibraryDocument>.of(documents);
+    final records = _encodeDocumentRecords(snapshot);
+    await _writeDocumentRecordsLocally(records);
+    unawaited(
+      _pushJson(
+        '/api/documents',
+        snapshot.map((document) => document.toJson()).toList(growable: false),
+      ),
+    );
   }
 
   /// Keeps the complete local snapshot. A server gets only the changed record
@@ -557,20 +565,35 @@ class StorageService {
     List<LibraryDocument> documents,
     LibraryDocument changed,
   ) async {
-    final encoded = _encodeDocuments(documents);
-    final fullRemote = documents
-        .map((document) => document.toJson())
-        .toList(growable: false);
+    final snapshot = List<LibraryDocument>.of(documents);
+    final records = _encodeDocumentRecords(snapshot);
     final changedRemote = changed.toJson();
-    await _writeDocumentsLocally(encoded);
-    unawaited(_pushDocumentDelta(fullRemote, changedRemote));
+    await _writeDocumentRecordsLocally(records);
+    unawaited(_pushDocumentDelta(snapshot, changedRemote));
   }
 
   /// Persists the startup seed without starting a network request before the
   /// first frame. The background sync will merge and publish it if needed.
   Future<void> saveDocumentsLocally(List<LibraryDocument> documents) async {
-    final encoded = _encodeDocuments(documents);
-    await _writeDocumentsLocally(encoded);
+    final records = _encodeDocumentRecords(List<LibraryDocument>.of(documents));
+    await _writeDocumentRecordsLocally(records);
+  }
+
+  /// Joins the complete SharedPreferences snapshot away from the UI isolate.
+  /// The per-record cache means an autosave only JSON-encodes the changed
+  /// document, but the old `records.join(',')` still copied the entire
+  /// library on the main isolate every time.
+  Future<void> _writeDocumentRecordsLocally(List<String> records) {
+    final write = _pendingDocumentWrites.then((_) async {
+      final encoded = await compute(_joinDocumentJsonRecords, records);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_documentsKey, encoded);
+    });
+    _pendingDocumentWrites = write.then<void>(
+      (_) {},
+      onError: (_, __) {},
+    );
+    return write;
   }
 
   /// SharedPreferences writes are asynchronous. Keep document snapshots in
@@ -584,18 +607,24 @@ class StorageService {
     // later saves queued by the editor.
     _pendingDocumentWrites = write.then<void>(
       (_) {},
-      onError: (_, _) {},
+      onError: (_, __) {},
     );
     return write;
   }
 
   Future<void> _pushDocumentDelta(
-    List<Map<String, dynamic>> full,
+    List<LibraryDocument> full,
     Map<String, dynamic> changed,
   ) => _enqueuePush(() async {
     final supportsMerge = await (_mergeWriteCapability ??=
         _serverSupportsMergeWrites());
-    await _sendJson('/api/documents', supportsMerge ? [changed] : full);
+    // Modern servers receive one small record. Only construct a complete
+    // remote snapshot for a legacy replace-only server; doing it eagerly on
+    // every autosave walked all documents even when it was never used.
+    final body = supportsMerge
+        ? [changed]
+        : full.map((document) => document.toJson()).toList(growable: false);
+    await _sendJson('/api/documents', body);
   });
 
   Future<bool> _serverSupportsMergeWrites() async {
@@ -613,7 +642,7 @@ class StorageService {
     }
   }
 
-  String _encodeDocuments(List<LibraryDocument> documents) {
+  List<String> _encodeDocumentRecords(List<LibraryDocument> documents) {
     final ids = documents.map((document) => document.id).toSet();
     _encodedDocuments.removeWhere((id, _) => !ids.contains(id));
     final records = <String>[];
@@ -627,7 +656,7 @@ class StorageService {
       _encodedDocuments[document.id] = (document: document, json: encoded);
       records.add(encoded);
     }
-    return '[${records.join(',')}]';
+    return records;
   }
 
   Future<void> saveSettings(AppSettings settings) async {
