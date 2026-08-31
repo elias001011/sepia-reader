@@ -180,8 +180,16 @@ jobs:
         if: startsWith(github.ref, 'refs/heads/release/')
         shell: bash
         run: |
-          git tag "$RELEASE_TAG" "$GITHUB_SHA"
-          git push origin "refs/tags/$RELEASE_TAG"
+          REMOTE_SHA="$(git ls-remote --tags origin "refs/tags/$RELEASE_TAG" | cut -f1)"
+          if [[ -z "$REMOTE_SHA" ]]; then
+            git tag "$RELEASE_TAG" "$GITHUB_SHA"
+            git push origin "refs/tags/$RELEASE_TAG"
+          elif [[ "$REMOTE_SHA" != "$GITHUB_SHA" ]]; then
+            echo "::error::Tag $RELEASE_TAG already points to $REMOTE_SHA."
+            exit 1
+          else
+            echo "Tag $RELEASE_TAG already points to this validated commit."
+          fi
 
       - name: Publish GitHub Release
         env:
