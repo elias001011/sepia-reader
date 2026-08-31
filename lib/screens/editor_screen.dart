@@ -434,7 +434,7 @@ class _EditorScreenState extends State<EditorScreen>
         wasSectioned: wasSectioned,
       ),
     );
-    _saveQueue = operation.then<void>((_) {}, onError: (_, __) {});
+    _saveQueue = operation.then<void>((_) {}, onError: (_, _) {});
     await operation;
   }
 
