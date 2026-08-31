@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:sepia_reader/app.dart';
 import 'package:sepia_reader/models/app_settings.dart';
+import 'package:sepia_reader/screens/editor_screen.dart';
 import 'package:sepia_reader/services/document_sections.dart';
 import 'package:sepia_reader/state/app_controller.dart';
 
@@ -27,6 +28,31 @@ String hugeWithChapters() {
 }
 
 void main() {
+  group('inserção de blocos Markdown', () {
+    test('linha horizontal não transforma o diálogo anterior em título', () {
+      const source = '- Diálogo.';
+      final result = insertMarkdownBlock(
+        source,
+        start: source.length,
+        end: source.length,
+        block: '---',
+      );
+      expect(result.text, '- Diálogo.\n\n---\n');
+      expect(result.cursor, result.text.length);
+    });
+
+    test('reaproveita linhas em branco que já cercam o bloco', () {
+      const source = 'Antes.\n\nDepois.';
+      final result = insertMarkdownBlock(
+        source,
+        start: 8,
+        end: 8,
+        block: '---',
+      );
+      expect(result.text, 'Antes.\n\n---\n\nDepois.');
+    });
+  });
+
   group('editableSectionsOf', () {
     test('as fatias cobrem o texto inteiro, sem buraco nem sobreposição', () {
       final content = hugeWithChapters();

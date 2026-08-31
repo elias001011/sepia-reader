@@ -6,6 +6,20 @@ que já está em `main` mas ainda não foi lançado.
 
 ## Não lançado
 
+## 2.2.7 — 2026-08-31
+
+- **Desempenho:** bibliotecas grandes agora virtualizam os cartões e deixam de
+  reprocessar o corpo de todos os documentos a cada clique ou salvamento.
+- **Editor e leitor:** preview oculto deixa de renderizar durante a digitação;
+  contagem de palavras e navegação reutilizam os dados já calculados.
+- **Sincronização:** o autosave reaproveita o JSON dos documentos inalterados e
+  servidores novos recebem apenas o registro editado. Servidores antigos são
+  detectados e continuam recebendo a coleção completa com segurança.
+- **Proteção de dados:** gravações locais são ordenadas, o app salva ao ser
+  suspenso e um registro malformado não descarta os demais documentos válidos.
+- **Markdown:** o botão de linha horizontal agora insere o espaço necessário,
+  evitando transformar acidentalmente o diálogo anterior em título Setext.
+  Títulos Setext escritos de propósito continuam funcionando como na v1.
 - **Voz:** uma falha no meio de um capítulo (o aparelho perde a saída de áudio,
   a voz do sistema morre) agora encerra a leitura e mostra o motivo, em vez de
   deixar a barra do player parada com um botão de pausa que não faz nada. Uma

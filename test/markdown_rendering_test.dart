@@ -25,6 +25,20 @@ LibraryDocument guideDoc() => LibraryDocument(
 
 void main() {
   group('fatiamento', () {
+    test('mantém a semântica Setext da v1 e separa uma régua explícita', () {
+      // A v1 entregava o documento inteiro ao mesmo MarkdownBody usado hoje.
+      // Sem linha em branco, `---` é legitimamente um título Setext e precisa
+      // continuar no mesmo bloco para conservar essa semântica.
+      expect(splitMarkdownBlocks('Subtítulo\n---'), ['Subtítulo\n---']);
+
+      // O editor, por outro lado, deve produzir este segundo formato ao tocar
+      // no botão de régua: dois blocos, nunca um sublinhado Setext acidental.
+      expect(
+        splitMarkdownBlocks('- Diálogo.\n\n---\n'),
+        ['- Diálogo.', '---'],
+      );
+    });
+
     test('um título nunca engole a lista ou a citação que vem depois', () {
       final chunks = chunksForDocument(guideDoc());
       for (final chunk in chunks) {

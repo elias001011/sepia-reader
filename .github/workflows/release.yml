@@ -86,10 +86,10 @@ jobs:
           cp build/app/outputs/flutter-apk/app-release.apk build/release-apks/universal.apk
           ls -lh build/release-apks
 
-      # The Lite branch is the same app with the on-device neural-TTS stack
-      # and the bundled reading fonts stripped out — a far smaller APK. It
-      # ships from this same tag, built from its own branch in a worktree so
-      # the two never share a build directory.
+      # The Lite branch is the same reader with only the on-device neural-TTS
+      # stack removed. It deliberately keeps the bundled reading fonts and
+      # every other feature. It ships from this same tag, built from its own
+      # branch in a worktree so the two never share a build directory.
       - name: Build Sépia Lite APKs
         shell: bash
         run: |

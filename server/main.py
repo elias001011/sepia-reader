@@ -63,6 +63,10 @@ def health_payload():
         "ok": True,
         "service": "sepia-sync",
         "api": sorted(API_FILES),
+        # Clients may send a single changed record only when this capability
+        # is advertised. Older servers replaced the whole collection on PUT,
+        # so assuming merge support could erase every omitted document.
+        "write_modes": ["replace", "merge"],
         "serves_web": os.path.isfile(os.path.join(WEB_DIR, "index.html")),
     }
 
