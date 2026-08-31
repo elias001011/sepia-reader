@@ -591,7 +591,7 @@ class StorageService {
     });
     _pendingDocumentWrites = write.then<void>(
       (_) {},
-      onError: (_, __) {},
+      onError: (_, _) {},
     );
     return write;
   }
@@ -607,7 +607,7 @@ class StorageService {
     // later saves queued by the editor.
     _pendingDocumentWrites = write.then<void>(
       (_) {},
-      onError: (_, __) {},
+      onError: (_, _) {},
     );
     return write;
   }
