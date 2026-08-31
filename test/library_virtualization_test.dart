@@ -139,6 +139,17 @@ void main() {
 
     expect(find.text('Arquivo 6.md'), findsOneWidget);
     expect(find.text('Arquivo 5.md'), findsNothing);
+
+    // A notification that changes nothing a query could match (here a settings
+    // save) must not re-run the whole content search and blank the results.
+    await controller.updateSettings(controller.settings);
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(
+      find.byType(LinearProgressIndicator),
+      findsNothing,
+      reason: '_refresh não pode reagendar a busca quando o acervo não mudou',
+    );
+    expect(find.text('Arquivo 6.md'), findsOneWidget);
   });
 }
 

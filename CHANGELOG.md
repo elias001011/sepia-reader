@@ -6,6 +6,27 @@ que já está em `main` mas ainda não foi lançado.
 
 ## Não lançado
 
+## 2.2.8 — 2026-08-31
+
+Acabamento da otimização da 2.2.7, que tinha resolvido o travamento ao abrir
+pastas mas introduzido engasgos na busca e dois defeitos de exibição.
+
+- **Busca:** digitar na busca não reprocessa mais a biblioteca inteira a cada
+  evento de fundo (favoritar um resultado, um sync terminando) — só quando algum
+  documento que a busca poderia casar realmente mudou. Os resultados param de
+  piscar e a varredura pesada sai do caminho da digitação.
+- **Biblioteca:** a contagem de documentos por pasta deixa de ser recalculada
+  durante a busca, quando nenhum cartão de pasta está na tela.
+- **Editor:** abrir o mesmo documento com um toque duplo rápido não deixa mais um
+  ouvinte preso, que multiplicava o custo dos itens acima.
+- **Sincronização:** uma falha momentânea ao sondar o servidor (aparelho sem
+  rede na abertura, servidor ainda subindo) não prende mais o autosave no envio
+  da coleção inteira pelo resto da sessão — a sonda é refeita no próximo
+  salvamento.
+- **Editor:** o preview escondido volta a acompanhar o texto, então girar a tela
+  ou entrar em tela dividida mostra o preview atualizado, não o texto de quando o
+  editor abriu.
+
 ## 2.2.7 — 2026-08-31
 
 - **Desempenho:** bibliotecas grandes agora virtualizam os cartões e deixam de

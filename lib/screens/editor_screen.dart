@@ -109,7 +109,6 @@ class _EditorScreenState extends State<EditorScreen>
     minutes: 0,
   ));
   late final ValueNotifier<String> _previewContent;
-  bool _previewVisible = false;
 
   Timer? _saveTimer;
   Future<void> _saveQueue = Future.value();
@@ -275,11 +274,13 @@ class _EditorScreenState extends State<EditorScreen>
       _stats.value = _currentStats();
     });
     _previewTimer?.cancel();
-    if (_previewVisible) {
-      _previewTimer = Timer(const Duration(milliseconds: 400), () {
-        _previewContent.value = _contentController.text;
-      });
-    }
+    // Keep the preview text current even while it is off screen: a hidden
+    // ValueNotifier has no listeners, so this costs nothing, and it means a
+    // narrow->wide layout change (rotate, unfold, split-screen) reveals an
+    // up-to-date preview instead of the text as it was when the editor opened.
+    _previewTimer = Timer(const Duration(milliseconds: 400), () {
+      _previewContent.value = _contentController.text;
+    });
   }
 
   void _onTitleChanged() {
@@ -907,7 +908,6 @@ class _EditorScreenState extends State<EditorScreen>
       body: LayoutBuilder(
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= 900;
-          _previewVisible = wide || _showPreview;
           return Column(
             children: [
               if (!wide && !_showPreview || wide)

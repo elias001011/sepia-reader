@@ -53,6 +53,16 @@ class _LibraryScreenState extends State<LibraryScreen> {
   int _searchGeneration = 0;
   bool _searchRunning = false;
 
+  /// Signature of the document set the on-screen search results were computed
+  /// from. A bare [_refresh] (a favourite toggled, a background sync landing)
+  /// must not re-run the whole content search — and blank the results for a
+  /// frame — when nothing a query could match has actually changed.
+  int? _searchedCorpusSignature;
+
+  /// Balances the [_refresh] listener detach/attach in [_open] so a fast
+  /// double-open cannot leave a duplicate registration behind.
+  int _openDepth = 0;
+
   /// Ids picked in multi-select mode. Empty means the screen is in its
   /// normal browsing state; non-empty swaps the top bar for the action bar
   /// and turns a card tap into a select/deselect.
@@ -92,8 +102,24 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   void _refresh() {
-    if (_query.trim().isNotEmpty) _scheduleSearch(_searchController.text);
+    if (_query.trim().isNotEmpty) {
+      final signature = _corpusSignature(widget.controller.documents);
+      if (signature != _searchedCorpusSignature) {
+        _scheduleSearch(_searchController.text);
+      }
+    }
     if (mounted) setState(() {});
+  }
+
+  /// Cheap fingerprint of the searchable corpus. `updatedAt` moves on every
+  /// edit, so id + timestamp catches any change that could alter which
+  /// documents a query matches, without hashing the bodies themselves.
+  int _corpusSignature(List<LibraryDocument> documents) {
+    var hash = documents.length;
+    for (final document in documents) {
+      hash = Object.hash(hash, document.id, document.updatedAt);
+    }
+    return hash;
   }
 
   void _scheduleSearch(String value) {
@@ -115,11 +141,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
         _query = '';
         _searchResultIds = const {};
         _searchRunning = false;
+        _searchedCorpusSignature = null;
       });
       return;
     }
 
     final documents = widget.controller.documents;
+    final signature = _corpusSignature(documents);
     setState(() {
       _query = value;
       _searchResultIds = const {};
@@ -142,6 +170,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     setState(() {
       _searchResultIds = result.toSet();
       _searchRunning = false;
+      _searchedCorpusSignature = signature;
     });
   }
 
@@ -188,6 +217,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     _searchDebounce?.cancel();
     _searchGeneration++;
     _searchController.clear();
+    _searchedCorpusSignature = null;
     if (_query.isNotEmpty || _searchRunning) {
       setState(() {
         _query = '';
@@ -246,23 +276,29 @@ class _LibraryScreenState extends State<LibraryScreen> {
         : allFolders
             .where((folder) => folder.parentId == _currentFolderId)
             .toList(growable: false);
+    // `folderById` is still needed while searching, to print each result's
+    // folder path. The two count maps are only read by _FolderCard, which is
+    // never built during a search — so skip that whole walk of every document
+    // up its ancestor chain on the typing path.
     final folderById = {for (final folder in allFolders) folder.id: folder};
     final childFolderCounts = <String, int>{};
-    for (final folder in allFolders) {
-      final parentId = folder.parentId;
-      if (parentId != null) {
-        childFolderCounts.update(parentId, (count) => count + 1,
-            ifAbsent: () => 1);
-      }
-    }
     final folderDocumentCounts = <String, int>{};
-    for (final document in allDocuments) {
-      var folderId = document.folderId;
-      final seen = <String>{};
-      while (folderId != null && seen.add(folderId)) {
-        folderDocumentCounts.update(folderId, (count) => count + 1,
-            ifAbsent: () => 1);
-        folderId = folderById[folderId]?.parentId;
+    if (!searching) {
+      for (final folder in allFolders) {
+        final parentId = folder.parentId;
+        if (parentId != null) {
+          childFolderCounts.update(parentId, (count) => count + 1,
+              ifAbsent: () => 1);
+        }
+      }
+      for (final document in allDocuments) {
+        var folderId = document.folderId;
+        final seen = <String>{};
+        while (folderId != null && seen.add(folderId)) {
+          folderDocumentCounts.update(folderId, (count) => count + 1,
+              ifAbsent: () => 1);
+          folderId = folderById[folderId]?.parentId;
+        }
       }
     }
 
@@ -822,6 +858,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     _searchDebounce?.cancel();
     _searchGeneration++;
     _searchController.clear();
+    _searchedCorpusSignature = null;
     setState(() {
       _currentFolderId = folderId;
       _query = '';
@@ -1340,8 +1377,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
   );
 
   Future<void> _open(LibraryDocument document) async {
-    // Do not rebuild the hidden library for every editor autosave.
-    widget.controller.removeListener(_refresh);
+    // Do not rebuild the hidden library for every editor autosave. The depth
+    // counter keeps a fast double-open (two pushes before the first settles)
+    // from detaching once and re-attaching twice, which would leak a listener.
+    if (_openDepth++ == 0) widget.controller.removeListener(_refresh);
     try {
       await Navigator.of(context).push(
         MaterialPageRoute(
@@ -1352,7 +1391,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         ),
       );
     } finally {
-      if (mounted) {
+      if (--_openDepth == 0 && mounted) {
         widget.controller.addListener(_refresh);
         setState(() {});
       }
