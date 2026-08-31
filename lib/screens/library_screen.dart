@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
@@ -20,6 +21,21 @@ import '../widgets/voice_download_banner.dart';
 import 'editor_screen.dart';
 import 'settings_sheet.dart';
 
+/// Searches multi-megabyte documents without lowercasing and retaining a
+/// second copy of the whole library. On native platforms [compute] runs this
+/// scan on a worker isolate, so a content query never executes in build/layout.
+List<String> _searchDocumentBodies(Map<String, Object> request) {
+  final query = request['query']! as String;
+  final documents = (request['documents']! as List).cast<List>();
+  final pattern = RegExp(RegExp.escape(query), caseSensitive: false);
+  return [
+    for (final document in documents)
+      if (pattern.hasMatch(document[1] as String) ||
+          pattern.hasMatch(document[2] as String))
+        document[0] as String,
+  ];
+}
+
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key, required this.controller});
   final AppController controller;
@@ -32,7 +48,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
   final _searchController = TextEditingController();
   String _query = '';
   String? _currentFolderId;
-  final Map<String, ({DateTime updatedAt, String text})> _searchIndex = {};
+  Timer? _searchDebounce;
+  Set<String> _searchResultIds = const {};
+  int _searchGeneration = 0;
+  bool _searchRunning = false;
 
   /// Ids picked in multi-select mode. Empty means the screen is in its
   /// normal browsing state; non-empty swaps the top bar for the action bar
@@ -67,23 +86,115 @@ class _LibraryScreenState extends State<LibraryScreen> {
   void dispose() {
     widget.controller.removeListener(_refresh);
     _documentDropBinding.dispose();
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
   void _refresh() {
+    if (_query.trim().isNotEmpty) _scheduleSearch(_searchController.text);
     if (mounted) setState(() {});
   }
 
-  String _searchableText(LibraryDocument document) {
-    final cached = _searchIndex[document.id];
-    if (cached != null && cached.updatedAt == document.updatedAt) {
-      return cached.text;
+  void _scheduleSearch(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(
+      const Duration(milliseconds: 180),
+      () => _runSearch(value),
+    );
+  }
+
+  void _onSearchChanged(String value) => _scheduleSearch(value);
+
+  Future<void> _runSearch(String value) async {
+    if (!mounted) return;
+    final query = value.trim();
+    final generation = ++_searchGeneration;
+    if (query.isEmpty) {
+      setState(() {
+        _query = '';
+        _searchResultIds = const {};
+        _searchRunning = false;
+      });
+      return;
     }
-    final text = '${document.title}.${document.extension}\n${document.content}'
-        .toLowerCase();
-    _searchIndex[document.id] = (updatedAt: document.updatedAt, text: text);
-    return text;
+
+    final documents = widget.controller.documents;
+    setState(() {
+      _query = value;
+      _searchResultIds = const {};
+      _searchRunning = true;
+    });
+    final result = kIsWeb
+        ? await _searchDocumentsCooperatively(documents, query, generation)
+        : await compute(_searchDocumentBodies, {
+            'query': query,
+            'documents': [
+              for (final document in documents)
+                <String>[
+                  document.id,
+                  '${document.title}.${document.extension}',
+                  document.content,
+                ],
+            ],
+          });
+    if (!mounted || generation != _searchGeneration) return;
+    setState(() {
+      _searchResultIds = result.toSet();
+      _searchRunning = false;
+    });
+  }
+
+  /// Flutter Web has no worker isolate behind [compute]. Scan bounded pieces
+  /// and yield between them instead, so a large file cannot monopolise the
+  /// browser event loop for the whole query. The overlap preserves matches
+  /// that cross a chunk boundary.
+  Future<List<String>> _searchDocumentsCooperatively(
+    List<LibraryDocument> documents,
+    String query,
+    int generation,
+  ) async {
+    const chunkSize = 64 * 1024;
+    final pattern = RegExp(RegExp.escape(query), caseSensitive: false);
+    final overlap = (query.length - 1).clamp(0, chunkSize - 1);
+    final matches = <String>[];
+    for (final document in documents) {
+      if (generation != _searchGeneration) return const [];
+      if (pattern.hasMatch('${document.title}.${document.extension}')) {
+        matches.add(document.id);
+        continue;
+      }
+      final content = document.content;
+      var offset = 0;
+      var found = false;
+      while (offset < content.length) {
+        final end = (offset + chunkSize).clamp(0, content.length);
+        if (pattern.hasMatch(content.substring(offset, end))) {
+          found = true;
+          break;
+        }
+        if (end == content.length) break;
+        offset = end - overlap;
+        await Future<void>.delayed(Duration.zero);
+        if (generation != _searchGeneration) return const [];
+      }
+      if (found) matches.add(document.id);
+      await Future<void>.delayed(Duration.zero);
+    }
+    return matches;
+  }
+
+  void _clearSearch() {
+    _searchDebounce?.cancel();
+    _searchGeneration++;
+    _searchController.clear();
+    if (_query.isNotEmpty || _searchRunning) {
+      setState(() {
+        _query = '';
+        _searchResultIds = const {};
+        _searchRunning = false;
+      });
+    }
   }
 
   String _folderPathNames(
@@ -123,14 +234,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final searching = normalizedQuery.isNotEmpty;
     final allDocuments = widget.controller.documents;
     final allFolders = widget.controller.folders;
-    if (_searchIndex.isNotEmpty) {
-      final liveIds = allDocuments.map((document) => document.id).toSet();
-      _searchIndex.removeWhere((id, _) => !liveIds.contains(id));
-    }
     final documents = searching
         ? allDocuments
-            .where((document) =>
-                _searchableText(document).contains(normalizedQuery))
+            .where((document) => _searchResultIds.contains(document.id))
             .toList(growable: false)
         : allDocuments
             .where((document) => document.folderId == _currentFolderId)
@@ -212,7 +318,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                 folderCount: folders.length,
                               ),
                               const SizedBox(height: 16),
-                              if (documents.isEmpty && folders.isEmpty)
+                              if (_searchRunning)
+                                const LinearProgressIndicator()
+                              else if (documents.isEmpty && folders.isEmpty)
                                 _emptyState(context)
                             ],
                           ),
@@ -620,17 +728,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
           );
           final search = TextField(
             controller: _searchController,
-            onChanged: (value) => setState(() => _query = value),
+            onChanged: _onSearchChanged,
             decoration: InputDecoration(
               hintText: context.l10n.searchHint,
               prefixIcon: const Icon(Icons.search_rounded),
               suffixIcon: _query.isEmpty
                   ? null
                   : IconButton(
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() => _query = '');
-                      },
+                      onPressed: _clearSearch,
                       icon: const Icon(Icons.close_rounded),
                     ),
             ),
@@ -714,10 +819,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
   );
 
   void _enterFolder(String? folderId) {
+    _searchDebounce?.cancel();
+    _searchGeneration++;
     _searchController.clear();
     setState(() {
       _currentFolderId = folderId;
       _query = '';
+      _searchResultIds = const {};
+      _searchRunning = false;
       _selectedDocIds.clear();
       _selectedFolderIds.clear();
     });
@@ -1827,11 +1936,6 @@ class _DocumentCard extends StatelessWidget {
                   const SizedBox(width: 5),
                   Text(
                     _relativeDate(context, document.updatedAt),
-                    style: Theme.of(context).textTheme.labelMedium,
-                  ),
-                  const Spacer(),
-                  Text(
-                    context.l10n.wordCount(document.wordCount),
                     style: Theme.of(context).textTheme.labelMedium,
                   ),
                 ],
