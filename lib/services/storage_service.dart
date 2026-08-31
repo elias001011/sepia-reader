@@ -75,7 +75,11 @@ class StorageService {
   SyncConfig? _cachedSyncConfig;
   Future<void> _pendingPushes = Future.value();
   Future<void> _pendingDocumentWrites = Future.value();
-  Future<bool>? _mergeWriteCapability;
+  /// `true`/`false` once the server has given a definitive answer about merge
+  /// writes; stays null while only transient failures (offline, server still
+  /// waking) have been seen, so the next autosave probes again instead of
+  /// falling back to full-collection uploads for the rest of the session.
+  bool? _mergeWriteCapability;
 
   /// Counts GETs that actually came back from the server. [forcePull] resets
   /// it so a user-triggered sync can report whether the server was reached
@@ -622,8 +626,12 @@ class StorageService {
     List<LibraryDocument> full,
     Map<String, dynamic> changed,
   ) => _enqueuePush(() async {
-    final supportsMerge = await (_mergeWriteCapability ??=
-        _serverSupportsMergeWrites());
+    var supportsMerge = _mergeWriteCapability;
+    if (supportsMerge == null) {
+      final probed = await _probeMergeSupport();
+      if (probed != null) _mergeWriteCapability = probed;
+      supportsMerge = probed ?? false;
+    }
     // Modern servers receive one small record. Only construct a complete
     // remote snapshot for a legacy replace-only server; doing it eagerly on
     // every autosave walked all documents even when it was never used.
@@ -633,18 +641,24 @@ class StorageService {
     await _sendJson('/api/documents', body);
   });
 
-  Future<bool> _serverSupportsMergeWrites() async {
+  /// `true`/`false` when the server has answered for certain, `null` when the
+  /// probe could not reach it (offline, timeout, a proxy 5xx) so the caller
+  /// retries next time rather than caching a pessimistic guess all session.
+  Future<bool?> _probeMergeSupport() async {
     final uri = _resolve('/healthz', await loadSyncConfig());
     if (uri == null) return false;
     try {
       final response = await _client.get(uri).timeout(_probeTimeout);
-      if (response.statusCode != 200) return false;
+      // A server old enough to lack /healthz has no merge endpoint either;
+      // that 404 is a definitive answer. Other non-200s are transient.
+      if (response.statusCode == 404) return false;
+      if (response.statusCode != 200) return null;
       final decoded = jsonDecode(utf8.decode(response.bodyBytes));
       if (decoded is! Map) return false;
       final modes = decoded['write_modes'];
       return modes is List && modes.contains('merge');
     } catch (_) {
-      return false;
+      return null;
     }
   }
 
