@@ -200,8 +200,17 @@ jobs:
             git tag "$RELEASE_TAG" "$GITHUB_SHA"
             git push origin "refs/tags/$RELEASE_TAG"
           elif [[ "$REMOTE_SHA" != "$GITHUB_SHA" ]]; then
-            echo "::error::Tag $RELEASE_TAG already points to $REMOTE_SHA."
-            exit 1
+            # A failed release attempt may have created the tag before a
+            # workflow-only repair landed. Accept that exact situation, but
+            # never publish artifacts when application/source files differ.
+            if git merge-base --is-ancestor "$REMOTE_SHA" "$GITHUB_SHA" &&
+              git diff --quiet "$REMOTE_SHA" "$GITHUB_SHA" -- . \
+                ':(exclude).github/workflows/release.yml'; then
+              echo "Tag $RELEASE_TAG predates workflow-only repairs; keeping it."
+            else
+              echo "::error::Tag $RELEASE_TAG already points to $REMOTE_SHA with source differences."
+              exit 1
+            fi
           else
             echo "Tag $RELEASE_TAG already points to this validated commit."
           fi
