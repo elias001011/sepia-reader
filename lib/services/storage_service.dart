@@ -585,7 +585,13 @@ class StorageService {
   /// library on the main isolate every time.
   Future<void> _writeDocumentRecordsLocally(List<String> records) {
     final write = _pendingDocumentWrites.then((_) async {
-      final encoded = await compute(_joinDocumentJsonRecords, records);
+      final encodedSize = records.fold<int>(
+        2,
+        (total, record) => total + record.length + 1,
+      );
+      final encoded = encodedSize >= 256 * 1024
+          ? await compute(_joinDocumentJsonRecords, records)
+          : _joinDocumentJsonRecords(records);
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_documentsKey, encoded);
     });
