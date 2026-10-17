@@ -5,6 +5,12 @@ Este arquivo resume o que muda para quem usa o app, e mantém uma seção para o
 que já está em `main` mas ainda não foi lançado.
 
 
+## 2.5.3 — 2026-10-17
+
+- Entrar numa pasta não leva mais a lista de volta ao topo; a posição da rolagem é mantida.
+- O interruptor de acesso pela CLI some para quem não usa servidor, em vez de mostrar erro nas configurações.
+- Ao tocar em "arquivos", a lista rola até a primeira linha de arquivos também nos layouts de várias colunas.
+
 ## 2.5.2 — 2026-10-17
 
 - Mostra o ícone das pastas nos layouts de grade e lista compactos na cor de destaque, como no layout padrão.

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -80,7 +81,13 @@ class _CliAccessSwitchState extends State<CliAccessSwitch> {
   }
 
   @override
-  Widget build(BuildContext context) => Column(
+  Widget build(BuildContext context) {
+    // Outside the web there is no origin to ask when no server is set, so the
+    // switch stays hidden for people who do not use a server.
+    if (!kIsWeb && widget.serverUrl().trim().isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Column(
     mainAxisSize: MainAxisSize.min,
     children: [
       if (_busy) const LinearProgressIndicator(),
@@ -108,4 +115,5 @@ class _CliAccessSwitchState extends State<CliAccessSwitch> {
         ),
     ],
   );
+  }
 }

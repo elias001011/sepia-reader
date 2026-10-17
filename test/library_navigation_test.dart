@@ -72,7 +72,7 @@ void _phoneView(WidgetTester tester) {
 
 void main() {
   testWidgets(
-    'entrar numa pasta começa no topo e voltar à raiz restaura a posição',
+    'entrar numa pasta mantém a posição da rolagem e voltar à raiz a restaura',
     (tester) async {
       _phoneView(tester);
       final controller = await _seed();
@@ -87,16 +87,17 @@ void main() {
       await tester.tap(find.text('Capítulos'));
       await tester.pumpAndSettle();
       expect(find.textContaining('Dentro 0.'), findsOneWidget);
-      expect(_library(tester).offset, 0);
+      expect(_library(tester).offset, closeTo(rootOffset, 0.5));
 
       await tester.drag(find.byType(CustomScrollView), const Offset(0, -400));
       await tester.pumpAndSettle();
       expect(_library(tester).offset, greaterThan(0));
 
+      final offsetInFolder = _library(tester).offset;
       await tester.tap(find.text('Raiz da biblioteca'));
       await tester.pumpAndSettle();
       expect(find.textContaining('Raiz '), findsWidgets);
-      expect(_library(tester).offset, closeTo(rootOffset, 0.5));
+      expect(_library(tester).offset, closeTo(offsetInFolder, 0.5));
       expect(tester.takeException(), isNull);
     },
   );
