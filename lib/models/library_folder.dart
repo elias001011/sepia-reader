@@ -42,9 +42,9 @@ class LibraryFolder implements SyncableRecord {
     'id': id,
     'name': name,
     'parentId': parentId,
-    'createdAt': createdAt.toIso8601String(),
-    'updatedAt': updatedAt.toIso8601String(),
-    if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
+    'createdAt': createdAt.toUtc().toIso8601String(),
+    'updatedAt': updatedAt.toUtc().toIso8601String(),
+    if (deletedAt != null) 'deletedAt': deletedAt!.toUtc().toIso8601String(),
   };
 
   factory LibraryFolder.fromJson(Map<String, dynamic> json) => LibraryFolder(

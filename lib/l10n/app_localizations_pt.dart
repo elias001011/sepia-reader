@@ -81,7 +81,7 @@ class AppLocalizationsPt extends AppLocalizations {
       'Usa as superfícies e cores de texto atuais do app durante a leitura.';
 
   @override
-  String get presets => 'Presets';
+  String get presets => 'Tema';
 
   @override
   String get presetsLight => 'Claros';
@@ -1000,4 +1000,82 @@ class AppLocalizationsPt extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get libraryLayout => 'Layout da biblioteca';
+
+  @override
+  String get layoutStandard => 'Padrão';
+
+  @override
+  String get layoutGrid => 'Grade compacta';
+
+  @override
+  String get layoutList => 'Lista compacta';
+
+  @override
+  String get keepScreenOn => 'Manter a tela ligada durante a leitura';
+
+  @override
+  String get keepScreenOnHint =>
+      'Impede o bloqueio automático enquanto o leitor estiver aberto.';
+
+  @override
+  String get customTheme => 'Personalizado';
+
+  @override
+  String get charcoalPreset => 'Carvão';
+
+  @override
+  String get rosePreset => 'Rosa suave';
+
+  @override
+  String get olivePreset => 'Oliva';
+
+  @override
+  String get importFont => 'Importar fonte (.ttf / .otf)';
+
+  @override
+  String get importFontHint =>
+      'Use fontes que você tem direito de usar, como Bookerly, Georgia ou Michelangelus. Salvas só neste aparelho.';
+
+  @override
+  String get fontImportError =>
+      'Não foi possível carregar essa fonte (limite de 5 MB).';
+
+  @override
+  String get copyDocument => 'Copiar documento inteiro';
+
+  @override
+  String get copiedDocument => 'Documento copiado';
+
+  @override
+  String get copyFailed => 'Não foi possível copiar. Tente exportar o arquivo.';
+
+  @override
+  String get cliSection => 'Acesso pelo terminal';
+
+  @override
+  String get cliHint =>
+      'A CLI usa o servidor de sincronização e funciona com ou sem interface web. No computador: sepia --ssh --ssh-port 8022 -p 8888 192.168.2.5. A ativação do acesso direto é feita nas configurações do servidor, pelo terminal.';
+
+  @override
+  String get serverAccessSettings => 'Configurar acesso no servidor';
+
+  @override
+  String get serverToken => 'Token do servidor (opcional)';
+
+  @override
+  String get cliEnabled => 'Permitir acesso pela CLI';
+
+  @override
+  String get serverConfigHint =>
+      'Esta opção controla a CLI no servidor conectado. Para alterar pela rede, configure SEPIA_TOKEN no servidor e informe o mesmo token aqui; por SSH/localhost ele é opcional.';
+
+  @override
+  String get serverConfigError =>
+      'Não foi possível acessar as configurações. Verifique o endereço, o token e a versão 2.5 do servidor.';
+
+  @override
+  String get saveCustomTheme => 'Salvar como tema personalizado';
 }

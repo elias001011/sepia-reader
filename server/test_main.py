@@ -73,10 +73,10 @@ class MergeSettingsTest(unittest.TestCase):
 
 class ServerSocketOptionsTest(unittest.TestCase):
     def test_restart_friendly_socket_options(self):
-        # allow_reuse_address is inherited; allow_reuse_port is what this
-        # subclass adds so a restart can bind before the old socket is gone.
+        # Reuse TIME_WAIT addresses, but never distribute requests between
+        # an old and new instance sharing the same listening port.
         self.assertTrue(Server.allow_reuse_address)
-        self.assertTrue(Server.allow_reuse_port)
+        self.assertFalse(Server.allow_reuse_port)
         self.assertTrue(Server.daemon_threads)
 
 

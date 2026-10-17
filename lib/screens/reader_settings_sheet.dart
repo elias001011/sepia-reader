@@ -3,6 +3,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import '../services/custom_fonts.dart';
+
 import '../l10n/l10n.dart';
 import '../models/app_settings.dart';
 import '../state/app_controller.dart';
@@ -22,11 +24,13 @@ class ReaderSettingsSheet extends StatefulWidget {
 
 class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
   late AppSettings _draft;
+  late bool _darkPresets;
 
   @override
   void initState() {
     super.initState();
     _draft = widget.controller.settings;
+    _darkPresets = _draft.readerBackground.computeLuminance() < .5;
   }
 
   /// Whether anything here differs from what is stored.
@@ -97,138 +101,164 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
           ),
         ),
         children: [
-                const SizedBox(height: 10),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(context.l10n.followAppTheme),
-                  subtitle: Text(context.l10n.followAppThemeDescription),
-                  value: _draft.readerFollowsTheme,
-                  onChanged: (value) => setState(
-                    () => _draft = _draft.copyWith(readerFollowsTheme: value),
+          const SizedBox(height: 10),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(context.l10n.followAppTheme),
+            subtitle: Text(context.l10n.followAppThemeDescription),
+            value: _draft.readerFollowsTheme,
+            onChanged: (value) => setState(
+              () => _draft = _draft.copyWith(readerFollowsTheme: value),
+            ),
+          ),
+          const SizedBox(height: 22),
+          SegmentedButton<bool>(
+            segments: [
+              ButtonSegment(
+                value: false,
+                icon: const Icon(Icons.light_mode_outlined),
+                label: Text(context.l10n.presetsLight),
+              ),
+              ButtonSegment(
+                value: true,
+                icon: const Icon(Icons.dark_mode_outlined),
+                label: Text(context.l10n.presetsDark),
+              ),
+            ],
+            selected: {_darkPresets},
+            onSelectionChanged: (value) =>
+                setState(() => _darkPresets = value.single),
+          ),
+          const SizedBox(height: 12),
+          _themeList(context),
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: Text(context.l10n.customTheme),
+            children: [
+              ColorField(
+                label: context.l10n.readerBackground,
+                value: _draft.readerBackground,
+                onChanged: (value) => setState(
+                  () => _draft = _draft.copyWith(
+                    readerBackground: value,
+                    readerFollowsTheme: false,
                   ),
                 ),
-                const SizedBox(height: 22),
-                Text(
-                  context.l10n.presets,
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  context.l10n.presetsLight,
-                  style: Theme.of(context).textTheme.labelSmall,
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    for (final preset in _lightPresets(context))
-                      _preset(context, preset.label, preset.bg, preset.text),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  context.l10n.presetsDark,
-                  style: Theme.of(context).textTheme.labelSmall,
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    for (final preset in _darkPresets(context))
-                      _preset(context, preset.label, preset.bg, preset.text),
-                  ],
-                ),
-                const SizedBox(height: 22),
-                DropdownButtonFormField<String>(
-                  isExpanded: true,
-                  initialValue: readerFontChoices.contains(_draft.readerFont)
-                      ? _draft.readerFont
-                      : 'Sistema',
-                  decoration: InputDecoration(labelText: context.l10n.font),
-                  items: [
-                    for (final font in readerFontChoices)
-                      DropdownMenuItem(
-                        value: font,
-                        child: Text(
-                          font == 'Sistema' ? context.l10n.systemFont : font,
-                          // Render each name in its own face so the list is a
-                          // set of specimens, not just labels.
-                          style: font == 'Sistema'
-                              ? null
-                              : TextStyle(fontFamily: font),
-                        ),
-                      ),
-                  ],
-                  onChanged: (font) => setState(
-                    () => _draft = _draft.copyWith(readerFont: font),
+              ),
+              ColorField(
+                label: context.l10n.textColor,
+                value: _draft.readerText,
+                onChanged: (value) => setState(
+                  () => _draft = _draft.copyWith(
+                    readerText: value,
+                    readerFollowsTheme: false,
                   ),
                 ),
-                const SizedBox(height: 18),
-                _slider(
-                  context,
-                  label: context.l10n.size,
-                  value: _draft.readerFontSize,
-                  min: 14,
-                  max: 34,
-                  divisions: 20,
-                  suffix: '${_draft.readerFontSize.round()} px',
-                  onChanged: (value) => setState(
-                    () => _draft = _draft.copyWith(readerFontSize: value),
+              ),
+              TextButton.icon(
+                icon: const Icon(Icons.save_outlined),
+                label: Text(context.l10n.saveCustomTheme),
+                onPressed: () => setState(
+                  () => _draft = _draft.copyWith(
+                    customReaderBackground: _draft.readerBackground,
+                    customReaderText: _draft.readerText,
                   ),
                 ),
-                _slider(
-                  context,
-                  label: context.l10n.lineHeight,
-                  value: _draft.readerLineHeight,
-                  min: 1.2,
-                  max: 2.2,
-                  divisions: 10,
-                  suffix: _draft.readerLineHeight.toStringAsFixed(1),
-                  onChanged: (value) => setState(
-                    () => _draft = _draft.copyWith(readerLineHeight: value),
+              ),
+            ],
+          ),
+          const SizedBox(height: 22),
+          DropdownButtonFormField<String>(
+            isExpanded: true,
+            initialValue:
+                [
+                  ...readerFontChoices,
+                  ...CustomFonts.families,
+                ].contains(_draft.readerFont)
+                ? _draft.readerFont
+                : 'Sistema',
+            decoration: InputDecoration(labelText: context.l10n.font),
+            items: [
+              for (final font in [
+                ...readerFontChoices,
+                ...CustomFonts.families,
+              ])
+                DropdownMenuItem(
+                  value: font,
+                  child: Text(
+                    font == 'Sistema' ? context.l10n.systemFont : font,
+                    // Render each name in its own face so the list is a
+                    // set of specimens, not just labels.
+                    style: font == 'Sistema'
+                        ? null
+                        : TextStyle(fontFamily: font),
                   ),
                 ),
-                _slider(
-                  context,
-                  label: context.l10n.pageWidth,
-                  value: _draft.readerWidth,
-                  min: 520,
-                  max: 1040,
-                  divisions: 13,
-                  suffix: '${_draft.readerWidth.round()} px',
-                  onChanged: (value) => setState(
-                    () => _draft = _draft.copyWith(readerWidth: value),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ColorField(
-                  label: context.l10n.readerBackground,
-                  value: _draft.readerBackground,
-                  onChanged: (value) => setState(
-                    () => _draft = _draft.copyWith(
-                      readerBackground: value,
-                      readerFollowsTheme: false,
-                    ),
-                  ),
-                ),
-                ColorField(
-                  label: context.l10n.textColor,
-                  value: _draft.readerText,
-                  onChanged: (value) => setState(
-                    () => _draft = _draft.copyWith(
-                      readerText: value,
-                      readerFollowsTheme: false,
-                    ),
-                  ),
-                ),
+            ],
+            onChanged: (font) =>
+                setState(() => _draft = _draft.copyWith(readerFont: font)),
+          ),
+          TextButton.icon(
+            onPressed: _importFont,
+            icon: const Icon(Icons.file_upload_outlined),
+            label: Text(context.l10n.importFont),
+          ),
+          Text(
+            context.l10n.importFontHint,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 18),
+          _slider(
+            context,
+            label: context.l10n.size,
+            value: _draft.readerFontSize,
+            min: 14,
+            max: 34,
+            divisions: 20,
+            suffix: '${_draft.readerFontSize.round()} px',
+            onChanged: (value) =>
+                setState(() => _draft = _draft.copyWith(readerFontSize: value)),
+          ),
+          _slider(
+            context,
+            label: context.l10n.lineHeight,
+            value: _draft.readerLineHeight,
+            min: 1.2,
+            max: 2.2,
+            divisions: 10,
+            suffix: _draft.readerLineHeight.toStringAsFixed(1),
+            onChanged: (value) => setState(
+              () => _draft = _draft.copyWith(readerLineHeight: value),
+            ),
+          ),
+          _slider(
+            context,
+            label: context.l10n.pageWidth,
+            value: _draft.readerWidth,
+            min: 520,
+            max: 1040,
+            divisions: 13,
+            suffix: '${_draft.readerWidth.round()} px',
+            onChanged: (value) =>
+                setState(() => _draft = _draft.copyWith(readerWidth: value)),
+          ),
+          const SizedBox(height: 8),
         ],
       ),
     );
   }
 
   List<_ReaderPreset> _lightPresets(BuildContext context) => [
+    (
+      label: context.l10n.rosePreset,
+      bg: const Color(0xFFF5E9E7),
+      text: const Color(0xFF3C2C2B),
+    ),
+    (
+      label: context.l10n.olivePreset,
+      bg: const Color(0xFFEAEBD9),
+      text: const Color(0xFF303421),
+    ),
     (
       label: context.l10n.paperPreset,
       bg: const Color(0xFFFFFBF2),
@@ -261,7 +291,12 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
     ),
   ];
 
-  List<_ReaderPreset> _darkPresets(BuildContext context) => [
+  List<_ReaderPreset> _darkThemeChoices(BuildContext context) => [
+    (
+      label: context.l10n.charcoalPreset,
+      bg: const Color(0xFF1E1E1E),
+      text: const Color(0xFFDAD7D0),
+    ),
     (
       label: context.l10n.sepiaPreset,
       bg: const Color(0xFF6B4933),
@@ -299,26 +334,83 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
     ),
   ];
 
-  Widget _preset(
-    BuildContext context,
-    String label,
-    Color background,
-    Color text,
-  ) => ActionChip(
-    avatar: CircleAvatar(
-      backgroundColor: background,
-      radius: 10,
-      child: Icon(Icons.circle, size: 8, color: text),
-    ),
-    label: Text(label),
-    onPressed: () => setState(
-      () => _draft = _draft.copyWith(
-        readerBackground: background,
-        readerText: text,
-        readerFollowsTheme: false,
-      ),
-    ),
-  );
+  Future<void> _importFont() async {
+    try {
+      final family = await CustomFonts.import();
+      if (mounted && family != null) {
+        setState(() => _draft = _draft.copyWith(readerFont: family));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.l10n.fontImportError)));
+      }
+    }
+  }
+
+  Widget _themeList(BuildContext context) {
+    final presets = _darkPresets
+        ? _darkThemeChoices(context)
+        : _lightPresets(context);
+    final selected = presets.indexWhere(
+      (p) => p.bg == _draft.readerBackground && p.text == _draft.readerText,
+    );
+    return DropdownButtonFormField<int>(
+      key: ValueKey('reader-theme-$_darkPresets-$selected'),
+      initialValue: selected,
+      isExpanded: true,
+      decoration: InputDecoration(labelText: context.l10n.presets),
+      items: [
+        DropdownMenuItem(value: -1, child: Text(context.l10n.customTheme)),
+        for (var i = 0; i < presets.length; i++)
+          DropdownMenuItem(
+            value: i,
+            child: Row(
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: presets[i].bg,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Theme.of(context).dividerColor),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    'Aa',
+                    style: TextStyle(color: presets[i].text, fontSize: 12),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(presets[i].label),
+              ],
+            ),
+          ),
+      ],
+      onChanged: (index) {
+        if (index == null) return;
+        if (index < 0) {
+          setState(
+            () => _draft = _draft.copyWith(
+              readerBackground: _draft.customReaderBackground,
+              readerText: _draft.customReaderText,
+              readerFollowsTheme: false,
+            ),
+          );
+          return;
+        }
+        final preset = presets[index];
+        setState(
+          () => _draft = _draft.copyWith(
+            readerBackground: preset.bg,
+            readerText: preset.text,
+            readerFollowsTheme: false,
+          ),
+        );
+      },
+    );
+  }
 
   Widget _slider(
     BuildContext context, {

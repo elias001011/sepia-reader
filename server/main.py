@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Sépia Reader: static web build and small, atomic JSON sync API."""
 
+import argparse
+import hmac
+import ipaddress
+import uuid
 import gzip
 import json
 import mimetypes
@@ -19,6 +23,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.environ.get("SEPIA_WEB_DIR", os.path.join(BASE_DIR, "web"))
 DATA_DIR = os.environ.get("SEPIA_DATA_DIR", os.path.join(BASE_DIR, "data"))
 PORT = int(os.environ.get("SEPIA_PORT", "8888"))
+HOST = os.environ.get("SEPIA_HOST", "0.0.0.0")
+TOKEN = os.environ.get("SEPIA_TOKEN", "")
 MAX_BODY_BYTES = 64 * 1024 * 1024
 MERGE_HEADER = "X-Sepia-Write-Mode"
 
@@ -61,6 +67,9 @@ def health_payload():
     """
     return {
         "ok": True,
+        "version": "2.5.0",
+        "cli_enabled": server_config()["cliEnabled"],
+        "authentication": bool(TOKEN),
         "service": "sepia-sync",
         "api": sorted(API_FILES),
         # Clients may send a single changed record only when this capability
@@ -89,14 +98,16 @@ def _data_path(filename):
     return os.path.join(DATA_DIR, filename)
 
 
-def _read_json(filename, default):
+def _read_json(filename, default, strict=False):
     path = _data_path(filename)
     if not os.path.exists(path):
         return default
     try:
         with open(path, "r", encoding="utf-8") as handle:
             return json.load(handle)
-    except (json.JSONDecodeError, OSError):
+    except (json.JSONDecodeError, OSError) as error:
+        if strict:
+            raise CliError("cannot read library data; restore or repair " + filename, 500) from error
         return default
 
 
@@ -176,16 +187,271 @@ def merge_settings(existing, incoming):
     return incoming if incoming_time > existing_time else existing
 
 
+# Optional terminal gateway; configuration lives outside synced reader settings.
+def server_config():
+    config = _read_json("server-config.json", {})
+    return {"cliEnabled": config.get("cliEnabled") is True}
+
+
+def configure_cli(enabled):
+    _write_json_atomic("server-config.json", {"cliEnabled": bool(enabled)})
+
+
+class CliError(ValueError):
+    def __init__(self, message, status=400):
+        super().__init__(message)
+        self.status = status
+
+
+def cli_operation(payload):
+    """Execute one library operation under DATA_LOCK, sharing sync tombstones.
+
+    Paths address library records, never paths on the server filesystem.
+    Edits carry an optimistic revision to avoid clobbering a concurrent save.
+    """
+    if not isinstance(payload, dict):
+        raise CliError("expected an object")
+    command = payload.get("command", "ls")
+    path = payload.get("path", "/")
+    if not isinstance(path, str):
+        raise CliError("path must be a string")
+    docs = _read_json("documents.json", [], strict=True)
+    folders = _read_json("folders.json", [], strict=True)
+    if not isinstance(docs, list) or not isinstance(folders, list) or not all(
+        isinstance(r, dict) and isinstance(r.get("id"), str) for r in docs + folders
+    ):
+        raise CliError("invalid library schema; repair the data before editing", 500)
+    live_folders = [f for f in folders if not f.get("deletedAt")]
+    live_docs = [d for d in docs if not d.get("deletedAt")]
+    if not all(isinstance(f.get("name"), str) for f in live_folders) or not all(
+        isinstance(d.get("title"), str) and isinstance(d.get("content"), str)
+        and isinstance(d.get("extension", "md"), str) for d in live_docs
+    ):
+        raise CliError("invalid library schema; repair the data before editing", 500)
+
+    def name(record):
+        return record["name"] if "name" in record else record["title"] + "." + record.get("extension", "md")
+
+    def resolve(value, folder_only=False):
+        if not isinstance(value, str) or not value.startswith("/"):
+            raise CliError("use an absolute library path")
+        parts = [part for part in value.split("/") if part and part != "."]
+        if any(part == ".." for part in parts):
+            raise CliError("parent traversal must be normalized by the client")
+        parent = None
+        found = None
+        for index, part in enumerate(parts):
+            candidates = [f for f in live_folders if f.get("parentId") == parent and name(f) == part]
+            if index == len(parts) - 1 and not folder_only:
+                candidates += [d for d in live_docs if d.get("folderId") == parent and name(d) == part]
+            if len(candidates) != 1:
+                raise CliError("path not found or ambiguous: " + value, 404 if not candidates else 409)
+            found = candidates[0]
+            parent = found["id"]
+        return found
+
+    def destination(value):
+        if not isinstance(value, str) or not value.startswith("/"):
+            raise CliError("destination must be an absolute library path")
+        parent_path, _, leaf = value.rstrip("/").rpartition("/")
+        if not leaf or leaf in (".", "..") or any(ord(c) < 32 for c in leaf):
+            raise CliError("invalid name")
+        parent_record = resolve(parent_path or "/", folder_only=True)
+        return parent_record["id"] if parent_record else None, leaf
+
+    def ensure_free(parent, leaf, exclude=None):
+        matches = [f for f in live_folders if f.get("parentId") == parent]
+        matches += [d for d in live_docs if d.get("folderId") == parent]
+        if any(name(r) == leaf and r["id"] != exclude for r in matches):
+            raise CliError("destination already exists", 409)
+
+    def document_name(leaf):
+        title, ext = os.path.splitext(leaf)
+        if not ext:
+            return leaf, "md"
+        if ext.lower() not in TEXT_EXTENSIONS:
+            raise CliError("unsupported text file extension")
+        return title, ext[1:].lower()
+
+    now = datetime.now(timezone.utc).isoformat()
+    if command in ("ls", "tree"):
+        folder = resolve(path, folder_only=True)
+        parent = folder["id"] if folder else None
+        if command == "tree":
+            return {"folders": live_folders, "documents": [
+                {k: v for k, v in d.items() if k != "content"} for d in live_docs
+            ]}
+        return {"entries": sorted([
+            {"name": name(f), "type": "folder", "id": f["id"]}
+            for f in live_folders if f.get("parentId") == parent
+        ] + [
+            {"name": name(d), "type": "file", "id": d["id"],
+             "bytes": len(d.get("content", "").encode("utf-8")), "updatedAt": d.get("updatedAt")}
+            for d in live_docs if d.get("folderId") == parent
+        ], key=lambda e: (e["type"] != "folder", e["name"].casefold()))}
+    if command == "get":
+        record = resolve(path)
+        if record is None or "content" not in record:
+            raise CliError("expected a file")
+        return record
+    if command == "mkdir":
+        parent, leaf = destination(path)
+        ensure_free(parent, leaf)
+        record = {"id": str(uuid.uuid4()), "name": leaf, "parentId": parent,
+                  "createdAt": now, "updatedAt": now}
+        folders.append(record)
+        _write_json_atomic("folders.json", folders)
+        return record
+    if command == "put":
+        parent, leaf = destination(path)
+        title, ext = document_name(leaf)
+        # An extension-less upload is stored as .md, just like app-created documents.
+        leaf = title + "." + ext
+        content = payload.get("content")
+        if not isinstance(content, str) or len(content.encode("utf-8")) > 5 * 1024 * 1024 or "\x00" in content:
+            raise CliError("expected UTF-8 text up to 5 MB")
+        candidates = [d for d in live_docs if d.get("folderId") == parent and name(d) == leaf]
+        if len(candidates) > 1:
+            raise CliError("ambiguous file name", 409)
+        record = candidates[0] if candidates else None
+        ensure_free(parent, leaf, record["id"] if record else None)
+        if record:
+            if payload.get("expectedUpdatedAt") != record.get("updatedAt"):
+                raise CliError("file changed; fetch it again before overwriting", 409)
+            record.update(content=content, updatedAt=now)
+        else:
+            if payload.get("expectedUpdatedAt") is not None:
+                raise CliError("file was deleted; fetch the library again", 409)
+            record = {"id": str(uuid.uuid4()), "title": title, "extension": ext,
+                      "content": content, "folderId": parent, "createdAt": now,
+                      "updatedAt": now, "isFavorite": False}
+            docs.append(record)
+        _write_json_atomic("documents.json", docs)
+        return {k: v for k, v in record.items() if k != "content"}
+    if command == "mv":
+        record = resolve(path)
+        if record is None:
+            raise CliError("cannot move root")
+        parent, leaf = destination(payload.get("destination"))
+        if "name" in record:
+            ancestor = parent
+            seen = set()
+            by_id = {f["id"]: f for f in live_folders}
+            while ancestor is not None:
+                if ancestor == record["id"] or ancestor in seen:
+                    raise CliError("cannot move a folder inside itself")
+                seen.add(ancestor)
+                ancestor = by_id.get(ancestor, {}).get("parentId")
+            ensure_free(parent, leaf, record["id"])
+            record.update(name=leaf, parentId=parent, updatedAt=now)
+            _write_json_atomic("folders.json", folders)
+        else:
+            title, ext = document_name(leaf)
+            ensure_free(parent, title + "." + ext, record["id"])
+            record.update(title=title, extension=ext, folderId=parent, updatedAt=now)
+            _write_json_atomic("documents.json", docs)
+        return {"ok": True}
+    if command == "rm":
+        record = resolve(path)
+        if record is None:
+            raise CliError("cannot delete root")
+        deleted_folders = set()
+        if "name" in record:
+            deleted_folders.add(record["id"])
+            while True:
+                children = {f["id"] for f in live_folders if f.get("parentId") in deleted_folders}
+                if children <= deleted_folders:
+                    break
+                deleted_folders |= children
+            contained = [d for d in live_docs if d.get("folderId") in deleted_folders]
+            if (contained or len(deleted_folders) > 1) and payload.get("recursive") is not True:
+                raise CliError("folder is not empty; use rm -r")
+            removed_docs = contained
+        else:
+            removed_docs = [record]
+        for f in live_folders:
+            if f["id"] in deleted_folders:
+                f.update(updatedAt=now, deletedAt=now)
+        for d in removed_docs:
+            d.update(content="", updatedAt=now, deletedAt=now)
+        removed_ids = {d["id"] for d in removed_docs}
+        bookmarks = _read_json("bookmarks.json", [], strict=True)
+        if not isinstance(bookmarks, list) or not all(isinstance(b, dict) for b in bookmarks):
+            raise CliError("invalid bookmark data", 500)
+        for b in bookmarks:
+            if b.get("documentId") in removed_ids:
+                b.update(updatedAt=now, deletedAt=now)
+        _write_json_atomic("bookmarks.json", bookmarks)
+        _write_json_atomic("documents.json", docs)
+        _write_json_atomic("folders.json", folders)
+        return {"deletedFiles": len(removed_docs), "deletedFolders": len(deleted_folders)}
+    raise CliError("unknown command")
+
+
+TEXT_EXTENSIONS = {".md", ".markdown", ".txt", ".json", ".yaml", ".yml", ".html", ".htm",
+                   ".css", ".js", ".ts", ".py", ".dart", ".sh", ".sql", ".xml", ".csv",
+                   ".toml", ".ini", ".log", ".rs", ".go", ".java", ".kt", ".swift", ".c", ".cpp", ".h"}
+
+
 class Server(ThreadingHTTPServer):
     # ThreadingHTTPServer already inherits allow_reuse_address=True (SO_REUSEADDR,
     # from HTTPServer) and sets daemon_threads=True itself. What it does not set
     # is SO_REUSEPORT, and that is the one that lets a fresh process bind while
     # the previous one is still winding down its listening socket on a restart.
-    allow_reuse_port = True
+    allow_reuse_port = False
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "SepiaServer/1.1"
+    server_version = "SepiaServer/2.5"
+
+    def _authorized(self, admin=False):
+        supplied = self.headers.get("Authorization", "")
+        valid_token = bool(TOKEN) and hmac.compare_digest(supplied.encode("utf-8"), ("Bearer " + TOKEN).encode("utf-8"))
+        loopback = ipaddress.ip_address(self.client_address[0]).is_loopback
+        if TOKEN and not valid_token:
+            self._send_json(401, {"error": "authentication required"})
+            return False
+        if admin and not loopback and not valid_token:
+            self._send_json(403, {"error": "configure through SSH/localhost, or authenticate with SEPIA_TOKEN"})
+            return False
+        return True
+
+    def _json_body(self):
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            raise CliError("invalid content length")
+        if length < 0 or length > MAX_BODY_BYTES:
+            raise CliError("payload too large", 413)
+        try:
+            return json.loads(self.rfile.read(length).decode("utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            raise CliError("invalid json")
+
+    def do_POST(self):
+        route = urllib.parse.urlsplit(self.path).path
+        if route != "/api/cli":
+            self.send_error(404)
+            return
+        if not self._authorized():
+            return
+        if self.headers.get("Content-Type", "").split(";", 1)[0].strip() != "application/json":
+            self._send_json(415, {"error": "application/json required"})
+            return
+        try:
+            payload = self._json_body()
+            with DATA_LOCK:
+                if not server_config()["cliEnabled"]:
+                    raise CliError("CLI disabled; enable it in server settings or run: python3 main.py --cli on", 403)
+                result = cli_operation(payload)
+            self._send_json(200, result)
+        except CliError as error:
+            self._send_json(error.status, {"error": str(error)})
+
+
+    def setup(self):
+        super().setup()
+        self.connection.settimeout(30)
 
     def log_message(self, format, *args):  # noqa: A002
         pass
@@ -214,8 +480,8 @@ class Handler(BaseHTTPRequestHandler):
         if path in ("", "/", "."):
             path = "/index.html"
         path = path.lstrip("/")
-        full = os.path.normpath(os.path.join(WEB_DIR, path))
-        web_root = os.path.normpath(WEB_DIR)
+        full = os.path.realpath(os.path.join(WEB_DIR, path))
+        web_root = os.path.realpath(WEB_DIR)
         if not full.startswith(web_root + os.sep) and full != web_root:
             return None
         return full
@@ -277,6 +543,13 @@ class Handler(BaseHTTPRequestHandler):
         if route == "/healthz":
             self._send_json(200, health_payload())
             return
+        if route.startswith("/api/") and not self._authorized():
+            return
+        if route == "/api/server-config":
+            with DATA_LOCK:
+                config = server_config()
+            self._send_json(200, config)
+            return
         if route in API_FILES:
             filename, default = API_FILES[route]
             with DATA_LOCK:
@@ -287,6 +560,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_HEAD(self):
         route = urllib.parse.urlsplit(self.path).path
+        if route.startswith("/api/") and not self._authorized():
+            return
         if route == "/healthz" or route in API_FILES:
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -297,6 +572,19 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_PUT(self):
         route = urllib.parse.urlsplit(self.path).path
+        if not self._authorized(admin=route == "/api/server-config"):
+            return
+        if route == "/api/server-config":
+            try:
+                payload = self._json_body()
+                if not isinstance(payload, dict) or type(payload.get("cliEnabled")) is not bool:
+                    raise CliError("cliEnabled must be a boolean")
+                with DATA_LOCK:
+                    configure_cli(payload["cliEnabled"])
+                self._send_json(200, server_config())
+            except CliError as error:
+                self._send_json(error.status, {"error": str(error)})
+            return
         if route not in API_FILES:
             self.send_error(404, "Not Found")
             return
@@ -338,9 +626,17 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--cli", choices=("on", "off"), help="enable/disable terminal access and exit")
+    args = parser.parse_args()
+    if args.cli:
+        configure_cli(args.cli == "on")
+        print(json.dumps(server_config()))
+        return
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(WEB_DIR, exist_ok=True)
-    server = Server(("0.0.0.0", PORT), Handler)
+    server = Server((HOST, PORT), Handler)
+    server.timeout = 30
     print(f"Sepia server listening on :{PORT} (web={WEB_DIR}, data={DATA_DIR})")
 
     # Shut the listening socket down cleanly on the signal `pkill` sends, so a

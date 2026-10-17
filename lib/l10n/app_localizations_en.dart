@@ -81,7 +81,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Use the current app surfaces and text colors while reading.';
 
   @override
-  String get presets => 'Presets';
+  String get presets => 'Theme';
 
   @override
   String get presetsLight => 'Light';
@@ -1000,4 +1000,81 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get libraryLayout => 'Library layout';
+
+  @override
+  String get layoutStandard => 'Standard';
+
+  @override
+  String get layoutGrid => 'Compact grid';
+
+  @override
+  String get layoutList => 'Compact list';
+
+  @override
+  String get keepScreenOn => 'Keep screen on while reading';
+
+  @override
+  String get keepScreenOnHint =>
+      'Prevents automatic screen sleep while the reader is open.';
+
+  @override
+  String get customTheme => 'Custom';
+
+  @override
+  String get charcoalPreset => 'Charcoal';
+
+  @override
+  String get rosePreset => 'Soft rose';
+
+  @override
+  String get olivePreset => 'Olive';
+
+  @override
+  String get importFont => 'Import font (.ttf / .otf)';
+
+  @override
+  String get importFontHint =>
+      'Use fonts you have permission to use, such as Bookerly, Georgia or Michelangelus. Saved on this device only.';
+
+  @override
+  String get fontImportError => 'Could not load this font (5 MB limit).';
+
+  @override
+  String get copyDocument => 'Copy entire document';
+
+  @override
+  String get copiedDocument => 'Document copied';
+
+  @override
+  String get copyFailed => 'Could not copy. Try exporting the file.';
+
+  @override
+  String get cliSection => 'Terminal access';
+
+  @override
+  String get cliHint =>
+      'The CLI uses the sync server, with or without a web interface. On your computer: sepia --ssh --ssh-port 8022 -p 8888 192.168.2.5. Enable direct access through the server settings in the terminal.';
+
+  @override
+  String get serverAccessSettings => 'Configure server access';
+
+  @override
+  String get serverToken => 'Server token (optional)';
+
+  @override
+  String get cliEnabled => 'Allow CLI access';
+
+  @override
+  String get serverConfigHint =>
+      'This controls the CLI on the connected server. To change it over the network, configure SEPIA_TOKEN on the server and enter the same token here; through SSH/localhost it is optional.';
+
+  @override
+  String get serverConfigError =>
+      'Could not access server settings. Check the address, token and server version (2.5 required).';
+
+  @override
+  String get saveCustomTheme => 'Save as custom theme';
 }

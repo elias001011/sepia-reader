@@ -92,11 +92,11 @@ class LibraryDocument implements SyncableRecord {
     // guarantee hold wherever a tombstone comes from.
     'content': isDeleted ? '' : content,
     'extension': extension,
-    'createdAt': createdAt.toIso8601String(),
-    'updatedAt': updatedAt.toIso8601String(),
+    'createdAt': createdAt.toUtc().toIso8601String(),
+    'updatedAt': updatedAt.toUtc().toIso8601String(),
     'isFavorite': isFavorite,
     'folderId': folderId,
-    if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
+    if (deletedAt != null) 'deletedAt': deletedAt!.toUtc().toIso8601String(),
   };
 
   factory LibraryDocument.fromJson(Map<String, dynamic> json) =>

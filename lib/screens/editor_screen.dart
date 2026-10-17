@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../l10n/l10n.dart';
@@ -222,6 +223,7 @@ class _EditorScreenState extends State<EditorScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    unawaited(_updateWakeLock(resumed: state == AppLifecycleState.resumed));
     // dispose is not guaranteed when Android/iOS suspends or kills a process.
     // Flush the debounce while the app still has execution time.
     if (state != AppLifecycleState.resumed && _dirty.value) {
@@ -231,6 +233,7 @@ class _EditorScreenState extends State<EditorScreen>
 
   @override
   void dispose() {
+    unawaited(_updateWakeLock(resumed: false));
     _saveTimer?.cancel();
     _statsTimer?.cancel();
     _previewTimer?.cancel();
@@ -258,6 +261,7 @@ class _EditorScreenState extends State<EditorScreen>
   }
 
   void _refresh() {
+    unawaited(_updateWakeLock());
     if (mounted) setState(() {});
   }
 
@@ -683,6 +687,18 @@ class _EditorScreenState extends State<EditorScreen>
     }
   }
 
+  Future<void> _updateWakeLock({bool? resumed}) async {
+    final active = resumed ??
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+    try {
+      await WakelockPlus.toggle(
+        enable: active && _readingMode && widget.controller.settings.keepScreenOn,
+      );
+    } catch (error) {
+      debugPrint('sepia: screen wake lock unavailable: $error');
+    }
+  }
+
   void _enterReadingMode() {
     FocusScope.of(context).unfocus();
     // Reuse one source object for the whole reading session so the
@@ -690,6 +706,7 @@ class _EditorScreenState extends State<EditorScreen>
     _readerSourceSnapshot = _draft;
     _readerControls.value = true;
     setState(() => _readingMode = true);
+    unawaited(_updateWakeLock());
     _scheduleReaderControlsHide();
   }
 
@@ -1729,6 +1746,7 @@ class _EditorScreenState extends State<EditorScreen>
     _readerSourceSnapshot = null;
     _readerControls.value = true;
     setState(() => _readingMode = false);
+    unawaited(_updateWakeLock());
   }
 
   void _wrap(String before, String after, String placeholder) {

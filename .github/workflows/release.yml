@@ -34,7 +34,7 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.47.0"
+          flutter-version: "3.47.4"
           channel: stable
           cache: true
 
@@ -182,8 +182,9 @@ jobs:
           done
           tar -C build/web -czf "dist/sepia-${VERSION}-web.tar.gz" .
           cp server/main.py "dist/sepia-${VERSION}-server.py"
+          cp server/sepia.py "dist/sepia-${VERSION}-cli.py"
           cd dist
-          sha256sum sepia-*.apk "sepia-${VERSION}-web.tar.gz" "sepia-${VERSION}-server.py" > SHA256SUMS.txt
+          sha256sum sepia-*.apk "sepia-${VERSION}-web.tar.gz" "sepia-${VERSION}-server.py" "sepia-${VERSION}-cli.py" > SHA256SUMS.txt
           ls -lh
 
       - uses: actions/upload-artifact@v7
@@ -224,6 +225,7 @@ jobs:
             dist/sepia-*.apk
             dist/sepia-*-web.tar.gz
             dist/sepia-*-server.py
+            dist/sepia-*-cli.py
             dist/SHA256SUMS.txt
           )
           if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then

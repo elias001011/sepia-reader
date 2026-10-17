@@ -1,0 +1,20 @@
+{
+  "sources": {
+    "Charis": "https://github.com/silnrsi/font-charis/releases/tag/v7.000",
+    "Alegreya": "https://github.com/google/fonts/tree/main/ofl/alegreya"
+  },
+  "processing": {
+    "Charis": "Original unmodified static files, all four styles.",
+    "Alegreya": "Google Fonts variable faces instanced to 400 and 700, regular/italic, Latin and punctuation subsets."
+  },
+  "sha256": {
+    "assets/fonts/Alegreya-400-Italic.ttf": "496907e56dbf72b04983b5ea89efc6b4b75bb490aadcb924b80f6c45940079fd",
+    "assets/fonts/Charis-Regular.ttf": "c03738834bd3a43c3e4a59b11878bd6ede3ee505998242ae649ed1f9cd2edcf6",
+    "assets/fonts/Charis-Bold.ttf": "64e353674f294993fe979075e351afa5da367a8dd16a860e04eba103cb1cdb08",
+    "assets/fonts/Charis-BoldItalic.ttf": "d832bcf31000994b07ab8f73b69127d12e764d8c3c67b7c90e58f1d740291d00",
+    "assets/fonts/Alegreya-700-Italic.ttf": "3e3d7ddb4a3fafd62ebfa5f65a4b55c9db6ae4169a3748945b39982aee47530f",
+    "assets/fonts/Charis-Italic.ttf": "f6e3e822b125aca03337f15cdd094663efaa784b67b766b9370d9f1bf5c2cb2e",
+    "assets/fonts/Alegreya-400.ttf": "c35bf51447b233cf446c9e668ba3012279a11ef00af02f9f13cfadd709f2ee8a",
+    "assets/fonts/Alegreya-700.ttf": "f53385cb52d97f6e642eddd81719f9b8556bcbb051f3ce22fa78cedaf27bb1d6"
+  }
+}

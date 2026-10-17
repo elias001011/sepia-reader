@@ -10,6 +10,7 @@ import '../models/library_document.dart';
 import '../models/library_folder.dart';
 import '../models/syncable.dart';
 import '../services/document_kind.dart';
+import '../services/custom_fonts.dart';
 import '../services/storage_service.dart';
 import '../services/tts/voice_download_manager.dart';
 import '../services/update_checker.dart';
@@ -91,6 +92,7 @@ class AppController extends ChangeNotifier {
     // runApp(), leaving a release build on its black native launch surface
     // until they completed or timed out.
     _settings = await _storage.loadLocalSettings();
+    await CustomFonts.load();
     _folders.addAll(await _storage.loadLocalFolders());
     _documents.addAll(await _storage.loadLocalDocuments());
     _bookmarks.addAll(await _storage.loadLocalBookmarks());
@@ -628,6 +630,7 @@ class AppController extends ChangeNotifier {
       SyncConfig(
         enabled: stamped.syncEnabled,
         serverUrl: stamped.syncServerUrl,
+        token: stamped.syncToken,
       ),
     );
     await _storage.saveSettings(stamped);
@@ -635,8 +638,10 @@ class AppController extends ChangeNotifier {
   }
 
   /// Probes a server address on behalf of the settings screen.
-  Future<SyncTestResult> testSyncConnection(String serverUrl) =>
-      _storage.testConnection(serverUrl);
+  Future<SyncTestResult> testSyncConnection(
+    String serverUrl, {
+    String token = '',
+  }) => _storage.testConnection(serverUrl, token: token);
 
   /// Erases the server's copy of the library, using the sync settings that
   /// are still in force. Must be called *before* sync is turned off, and
@@ -645,6 +650,7 @@ class AppController extends ChangeNotifier {
     SyncConfig(
       enabled: _settings.syncEnabled,
       serverUrl: _settings.syncServerUrl,
+      token: _settings.syncToken,
     ),
   );
 

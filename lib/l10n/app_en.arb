@@ -22,7 +22,7 @@
   "readerSettingsDescription": "These settings apply to every document.",
   "followAppTheme": "Follow app theme",
   "followAppThemeDescription": "Use the current app surfaces and text colors while reading.",
-  "presets": "Presets",
+  "presets": "Theme",
   "presetsLight": "Light",
   "presetsDark": "Dark",
   "sepiaPreset": "Sépia",
@@ -568,5 +568,29 @@
         "type": "int"
       }
     }
-  }
+  },
+  "libraryLayout": "Library layout",
+  "layoutStandard": "Standard",
+  "layoutGrid": "Compact grid",
+  "layoutList": "Compact list",
+  "keepScreenOn": "Keep screen on while reading",
+  "keepScreenOnHint": "Prevents automatic screen sleep while the reader is open.",
+  "customTheme": "Custom",
+  "charcoalPreset": "Charcoal",
+  "rosePreset": "Soft rose",
+  "olivePreset": "Olive",
+  "importFont": "Import font (.ttf / .otf)",
+  "importFontHint": "Use fonts you have permission to use, such as Bookerly, Georgia or Michelangelus. Saved on this device only.",
+  "fontImportError": "Could not load this font (5 MB limit).",
+  "copyDocument": "Copy entire document",
+  "copiedDocument": "Document copied",
+  "copyFailed": "Could not copy. Try exporting the file.",
+  "cliSection": "Terminal access",
+  "cliHint": "The CLI uses the sync server, with or without a web interface. On your computer: sepia --ssh --ssh-port 8022 -p 8888 192.168.2.5. Enable direct access through the server settings in the terminal.",
+  "serverAccessSettings": "Configure server access",
+  "serverToken": "Server token (optional)",
+  "cliEnabled": "Allow CLI access",
+  "serverConfigHint": "This controls the CLI on the connected server. To change it over the network, configure SEPIA_TOKEN on the server and enter the same token here; through SSH/localhost it is optional.",
+  "serverConfigError": "Could not access server settings. Check the address, token and server version (2.5 required).",
+  "saveCustomTheme": "Save as custom theme"
 }

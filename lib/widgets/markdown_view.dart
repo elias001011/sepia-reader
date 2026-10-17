@@ -5,6 +5,7 @@ import 'package:markdown/markdown.dart' as md;
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../models/app_settings.dart';
+import 'reader_selection.dart';
 import '../models/library_document.dart';
 import '../services/document_kind.dart';
 
@@ -206,7 +207,6 @@ List<String> splitPlainTextChunks(String content) {
   return chunks.isEmpty ? [''] : chunks;
 }
 
-
 /// Matches a link reference definition line: `[label]: https://…`.
 final _linkDefinition = RegExp(r'^\s{0,3}\[([^\]^][^\]]*)\]:\s*\S+');
 
@@ -247,9 +247,16 @@ String _scanLinkDefinitions(String content) {
 }
 
 const _superscripts = {
-  '0': '\u2070', '1': '\u00b9', '2': '\u00b2', '3': '\u00b3',
-  '4': '\u2074', '5': '\u2075', '6': '\u2076', '7': '\u2077',
-  '8': '\u2078', '9': '\u2079',
+  '0': '\u2070',
+  '1': '\u00b9',
+  '2': '\u00b2',
+  '3': '\u00b3',
+  '4': '\u2074',
+  '5': '\u2075',
+  '6': '\u2076',
+  '7': '\u2077',
+  '8': '\u2078',
+  '9': '\u2079',
 };
 
 String _superscript(String label) {
@@ -418,7 +425,9 @@ class DocumentView extends StatelessWidget {
       tableCellsPadding: const EdgeInsets.all(10),
       blockSpacing: settings.readerFontSize * 0.55,
       horizontalRuleDecoration: BoxDecoration(
-        border: Border(top: BorderSide(color: readerText.withValues(alpha: .25))),
+        border: Border(
+          top: BorderSide(color: readerText.withValues(alpha: .25)),
+        ),
       ),
     );
     final syntaxHighlighter = SepiaSyntaxHighlighter(baseColor: readerText);
@@ -458,10 +467,12 @@ class DocumentView extends StatelessWidget {
             softLineBreak: true,
             syntaxHighlighter: syntaxHighlighter,
             styleSheet: markdownStyle,
-            builders: {'code': DiagramAwareCodeBuilder(
-              textColor: readerText,
-              fontSize: settings.readerFontSize,
-            )},
+            builders: {
+              'code': DiagramAwareCodeBuilder(
+                textColor: readerText,
+                fontSize: settings.readerFontSize,
+              ),
+            },
           ),
         );
       }
@@ -482,8 +493,9 @@ class DocumentView extends StatelessWidget {
 
     return ColoredBox(
       color: readerBackground,
-      child: SelectionArea(
-        child: Padding(
+      child: ReaderSelection(
+        source: document.content,
+        builder: (selecting) => Padding(
           padding: EdgeInsets.only(left: padding.left, right: padding.right),
           child: Center(
             child: ConstrainedBox(
@@ -504,9 +516,16 @@ class DocumentView extends StatelessWidget {
               child: ScrollablePositionedList.builder(
                 itemScrollController: itemScrollController,
                 itemPositionsListener: itemPositionsListener,
-                padding: EdgeInsets.only(top: padding.top, bottom: padding.bottom),
+                padding: EdgeInsets.only(
+                  top: padding.top,
+                  bottom: padding.bottom,
+                ),
                 itemCount: chunks.length,
-                itemBuilder: (context, index) => itemFor(index),
+                itemBuilder: (context, index) => SelectionBlock(
+                  key: ValueKey(index),
+                  selecting: selecting,
+                  child: itemFor(index),
+                ),
               ),
             ),
           ),
@@ -526,6 +545,8 @@ const readerFontChoices = <String>[
   'Newsreader',
   'Merriweather Sans',
   'Literata',
+  'Charis',
+  'Alegreya',
   'Lora',
   'Bitter',
   'Source Serif 4',
@@ -686,7 +707,6 @@ String? _detectMarkdownCodeLanguage(String source) {
   return null;
 }
 
-
 /// Monospace viewer for source code and structured data.
 ///
 /// Shares the chunked, index-addressable list the prose reader uses, so
@@ -715,8 +735,9 @@ class CodeViewer extends StatelessWidget {
 
     return ColoredBox(
       color: scheme.surface,
-      child: SelectionArea(
-        child: ScrollablePositionedList.builder(
+      child: ReaderSelection(
+        source: document.content,
+        builder: (selecting) => ScrollablePositionedList.builder(
           itemScrollController: itemScrollController,
           itemPositionsListener: itemPositionsListener,
           padding: EdgeInsets.fromLTRB(
@@ -733,31 +754,37 @@ class CodeViewer extends StatelessWidget {
               document.extension,
               scheme.onSurface,
             );
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (var i = 0; i < lines.length; i++)
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        width: gutterWidth,
-                        child: Text(
-                          '${firstLine + i}',
-                          textAlign: TextAlign.right,
-                          style: TextStyle(
-                            fontFamily: 'Roboto Mono',
-                            fontSize: 12.5,
-                            height: 1.6,
-                            color: scheme.onSurfaceVariant.withValues(alpha: .55),
+            return SelectionBlock(
+              key: ValueKey(index),
+              selecting: selecting,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (var i = 0; i < lines.length; i++)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          width: gutterWidth,
+                          child: Text(
+                            '${firstLine + i}',
+                            textAlign: TextAlign.right,
+                            style: TextStyle(
+                              fontFamily: 'Roboto Mono',
+                              fontSize: 12.5,
+                              height: 1.6,
+                              color: scheme.onSurfaceVariant.withValues(
+                                alpha: .55,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(child: Text.rich(lines[i])),
-                    ],
-                  ),
-              ],
+                        const SizedBox(width: 12),
+                        Expanded(child: Text.rich(lines[i])),
+                      ],
+                    ),
+                ],
+              ),
             );
           },
         ),
@@ -799,14 +826,24 @@ List<TextSpan> highlightedLines(
     final parts = piece.text.split('\n');
     for (var i = 0; i < parts.length; i++) {
       if (i > 0) {
-        lines.add(TextSpan(style: style.copyWith(color: baseColor), children: current));
+        lines.add(
+          TextSpan(
+            style: style.copyWith(color: baseColor),
+            children: current,
+          ),
+        );
         current = <TextSpan>[];
       }
       if (parts[i].isEmpty) continue;
       current.add(TextSpan(text: parts[i], style: piece.style));
     }
   }
-  lines.add(TextSpan(style: style.copyWith(color: baseColor), children: current));
+  lines.add(
+    TextSpan(
+      style: style.copyWith(color: baseColor),
+      children: current,
+    ),
+  );
   return lines;
 }
 
@@ -937,10 +974,7 @@ class FormulaBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final body = source
-        .trim()
-        .replaceAll(RegExp(r'^\$\$|\$\$$'), '')
-        .trim();
+    final body = source.trim().replaceAll(RegExp(r'^\$\$|\$\$$'), '').trim();
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),

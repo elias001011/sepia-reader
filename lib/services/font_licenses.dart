@@ -11,6 +11,8 @@ const _fontLicenses = {
   'Merriweather Sans': 'assets/fonts/licenses/MerriweatherSans-OFL.txt',
   'Lora': 'assets/fonts/licenses/Lora-OFL.txt',
   'Bitter': 'assets/fonts/licenses/Bitter-OFL.txt',
+  'Charis': 'assets/fonts/licenses/Charis-OFL.txt',
+  'Alegreya': 'assets/fonts/licenses/Alegreya-OFL.txt',
   'Literata': 'assets/fonts/licenses/Literata-OFL.txt',
   'Source Serif 4': 'assets/fonts/licenses/SourceSerif4-OFL.txt',
   'EB Garamond': 'assets/fonts/licenses/EBGaramond-OFL.txt',

@@ -11,8 +11,8 @@ A calm, local-first Markdown library, reader, and editor built with Flutter. Sé
 ### Reading
 - reading mode that locks editing, uses compact controls, and can hide them automatically;
 - Merriweather and the Sépia theme by default;
-- **thirteen bundled reading families** — Merriweather (the long-standing one), Merriweather (2017), Newsreader, Merriweather Sans, Literata, Lora, Bitter, Source Serif 4, EB Garamond, Atkinson Hyperlegible, Inter, Roboto Mono, and JetBrains Mono — each previewed in its own letters in the picker;
-- **thirteen reading palettes**, split into light (Paper, Parchment, Cream, Grey, Mint, Sky) and dark (Sépia, Artifact, Night, Ink, Solarized, Nord, AMOLED);
+- **fifteen bundled reading families** — Merriweather (the long-standing one), Merriweather (2017), Newsreader, Merriweather Sans, Literata, Lora, Bitter, Source Serif 4, EB Garamond, Atkinson Hyperlegible, Inter, Roboto Mono, JetBrains Mono, Charis, and Alegreya — each previewed in its own letters in the picker;
+- **sixteen reading palettes**, split into light (Paper, Parchment, Cream, Grey, Mint, Sky, Soft rose, Olive) and dark (Sépia, Artifact, Night, Ink, Solarized, Nord, AMOLED, Charcoal);
 - configurable font, size, line height, width, background, and text colour;
 - bookmarks anchored to the passage rather than to a scroll position — they do not drift when the document changes size;
 - full Markdown: headings, emphasis, strikethrough, lists, task lists, nested quotes, aligned tables, links (reference-style included), images, footnotes, and code blocks;
@@ -146,7 +146,7 @@ library is never touched by that choice.
 If Sépia will be hosted under a URL subpath, rebuild the web app with
 Flutter's matching `--base-href` option.
 
-The release archive bundles Flutter's rendering runtime, the thirteen reading families, and Noto emoji and symbol fallbacks. The running app depends on neither Google Fonts nor a public CDN. The `Lite` branch bundles the same fonts.
+The release archive bundles Flutter's rendering runtime, the fifteen reading families, and Noto emoji and symbol fallbacks. The running app depends on neither Google Fonts nor a public CDN. The `Lite` branch bundles the same fonts.
 
 ### Deploy to Netlify
 
@@ -166,7 +166,7 @@ Every Release ships **two** Android builds of the same app:
 | `arm64` APK size (per-ABI) | ~48 MB | ~25 MB |
 | On-device neural voice (Piper / Kokoro) | yes, via `sherpa_onnx` (~26 MB of native libs) | **no** — system voice only |
 | System voice (Android/browser) | yes | yes |
-| Fonts, themes and the 13 reading palettes | identical in both, **bundled** (offline) | ← |
+| Fonts, themes and the 16 reading palettes | identical in both, **bundled** (offline) | ← |
 | Editor, bookmarks, chapter navigation | yes | yes |
 | Sync with your own server | yes | yes |
 | New-version notice | points at the `sepia-*` APKs | points at the `sepia-lite-*` APKs |
@@ -187,6 +187,17 @@ The old `app` and `web` delivery branches were retired in v2.2.0 — the release
 workflow (`release.yml`) already builds the APKs, the web bundle and the server
 on every tag. Their last states live in the `archive/app` and `archive/web`
 tags.
+
+## Version 2.5
+
+Phone back navigation follows parent folders. The library offers standard,
+compact grid and compact list layouts. Reading adds selection retention,
+full-document copy, a screen wake option, compact light/dark theme selection,
+a saved custom palette, bundled Charis and Alegreya, and local font import.
+The optional Python [CLI](docs/CLI.md) manages the server library directly or
+through SSH; it works with both headless and web-enabled servers. The server
+also supports optional bearer-token authentication. Both full and Lite builds
+include the same improvements.
 
 ## Run locally
 
@@ -215,7 +226,7 @@ flutter build apk --release                   # universal, all of them
 For the trimmed variant, do the same from the `Lite` branch
 (`git switch Lite`). The release CI builds both on every tag.
 
-The web script bundles the Flutter runtime, the thirteen reading families, and the Noto fallbacks for emoji and symbols into `build/web` itself; the app depends on neither Google Fonts nor a CDN at runtime. The `Lite` branch bundles the same fonts.
+The web script bundles the Flutter runtime, the fifteen reading families, and the Noto fallbacks for emoji and symbols into `build/web` itself; the app depends on neither Google Fonts nor a CDN at runtime. The `Lite` branch bundles the same fonts.
 
 Neural voices run through `sherpa_onnx`, which ships native libraries for every Android architecture. That is what `--split-per-abi` is for: an `arm64-v8a` APK carries only the library its own device needs, while the universal one carries all of them. The voice models are **not** in the APK — the app downloads them on demand from its settings. The `Lite` branch does not include `sherpa_onnx`.
 
