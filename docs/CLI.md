@@ -30,8 +30,8 @@ python3 main.py --cli on
 ```
 
 Isso altera a configuração sem reiniciar o serviço. A interface 2.5 oferece o
-mesmo controle em **Configurações → Acesso pelo terminal → Configurar acesso no
-servidor**. O endereço e o token são os informados na seção de sincronização.
+mesmo controle, o interruptor **Permitir acesso pela CLI**, na seção de
+sincronização do servidor. O endereço e o token são os informados nessa seção.
 Sem token, alterações dessa opção pela API só são aceitas em localhost; para
 alterar pela rede configure `SEPIA_TOKEN` no serviço e informe o token no app.
 
