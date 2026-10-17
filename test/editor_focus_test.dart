@@ -63,9 +63,8 @@ void main() {
 
     await tester.tap(find.byTooltip('Ajustes de leitura'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Sépia'));
-    await tester.pumpAndSettle();
     final apply = find.widgetWithText(FilledButton, 'Aplicar na leitura');
+    expect(apply, findsOneWidget, reason: 'the reading settings sheet opened');
     await tester.dragUntilVisible(
       apply,
       find.byType(SingleChildScrollView).last,
@@ -75,6 +74,7 @@ void main() {
     await tester.tap(apply);
     await tester.pumpAndSettle();
 
+    expect(apply, findsNothing, reason: 'the sheet must close after applying');
     expect(
       appBarEditable(),
       findsNothing,

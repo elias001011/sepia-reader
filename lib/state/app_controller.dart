@@ -160,7 +160,7 @@ class AppController extends ChangeNotifier {
       folderId: folderId,
     );
     _documents.add(document);
-    await _persistDocuments();
+    await _storage.saveDocument(_documents, document);
     notifyListeners();
     return document;
   }
@@ -192,7 +192,7 @@ class AppController extends ChangeNotifier {
       title: cleanTitle,
       updatedAt: DateTime.now(),
     );
-    await _persistDocuments();
+    await _storage.saveDocument(_documents, _documents[index]);
     notifyListeners();
   }
 
@@ -227,7 +227,7 @@ class AppController extends ChangeNotifier {
       isFavorite: !_documents[index].isFavorite,
       updatedAt: DateTime.now(),
     );
-    await _persistDocuments();
+    await _storage.saveDocument(_documents, _documents[index]);
     notifyListeners();
   }
 
@@ -265,7 +265,7 @@ class AppController extends ChangeNotifier {
       moveToRoot: folderId == null,
       updatedAt: DateTime.now(),
     );
-    await _persistDocuments();
+    await _storage.saveDocument(_documents, _documents[index]);
     notifyListeners();
   }
 
