@@ -15,6 +15,7 @@ import '../state/app_controller.dart';
 import '../widgets/color_field.dart';
 import '../widgets/sheet_scaffold.dart';
 import 'voice_downloads_sheet.dart';
+import 'server_access_sheet.dart';
 
 class SettingsSheet extends StatefulWidget {
   const SettingsSheet({super.key, required this.controller});
@@ -131,6 +132,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
     });
     final result = await widget.controller.testSyncConnection(
       _serverUrlController.text,
+      token: _draft.syncToken,
     );
     if (!mounted) return;
     setState(() {
@@ -317,6 +319,29 @@ class _SettingsSheetState extends State<SettingsSheet> {
             ),
           ),
 
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(context.l10n.keepScreenOn),
+            subtitle: Text(context.l10n.keepScreenOnHint),
+            value: _draft.keepScreenOn,
+            onChanged: (value) =>
+                setState(() => _draft = _draft.copyWith(keepScreenOn: value)),
+          ),
+          const Divider(height: 32),
+          _sectionTitle(context, context.l10n.cliSection),
+          SelectableText(context.l10n.cliHint),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () => showDialog<void>(
+              context: context,
+              builder: (_) => ServerAccessSheet(
+                serverUrl: _serverUrlController.text.trim(),
+                token: _draft.syncToken,
+              ),
+            ),
+            icon: const Icon(Icons.terminal),
+            label: Text(context.l10n.serverAccessSettings),
+          ),
           const Divider(height: 32),
           _sectionTitle(context, context.l10n.ttsSection),
           SwitchListTile(
@@ -395,6 +420,17 @@ class _SettingsSheetState extends State<SettingsSheet> {
             onChanged: _onSyncToggled,
           ),
           const SizedBox(height: 8),
+          TextFormField(
+            initialValue: _draft.syncToken,
+            obscureText: true,
+            autocorrect: false,
+            enableSuggestions: false,
+            decoration: InputDecoration(labelText: context.l10n.serverToken),
+            onChanged: (value) => setState(
+              () => _draft = _draft.copyWith(syncToken: value.trim()),
+            ),
+          ),
+          const SizedBox(height: 12),
           TextField(
             controller: _serverUrlController,
             enabled: _draft.syncEnabled,

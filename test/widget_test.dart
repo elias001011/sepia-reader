@@ -207,7 +207,17 @@ void main() {
 
     await tester.pumpWidget(SepiaApp(controller: controller));
     await tester.pumpAndSettle();
-    await tester.tap(find.byType(PopupMenuButton<String>).first);
+    final card = find.ancestor(
+      of: find.text('Bem-vindo ao Sépia.md'),
+      matching: find.byType(Card),
+    );
+    await tester.ensureVisible(card);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find
+          .descendant(of: card, matching: find.byType(PopupMenuButton<String>))
+          .first,
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Renomear'));
     await tester.pumpAndSettle();

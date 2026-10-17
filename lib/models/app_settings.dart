@@ -12,12 +12,15 @@ class AppSettings {
     this.readerText = const Color(0xFFFFF8ED),
     this.readerFollowsTheme = false,
     this.autoHideReaderControls = false,
+    this.customReaderBackground = const Color(0xFF1E1E1E),
+    this.customReaderText = const Color(0xFFDAD7D0),
     this.readerFont = 'Merriweather',
     this.readerFontSize = 20,
     this.readerLineHeight = 1.75,
     this.readerWidth = 760,
     this.syncEnabled = false,
     this.syncServerUrl = '',
+    this.syncToken = '',
     this.ttsEnabled = true,
     this.ttsEngine = 'system',
     this.ttsVoiceId = '',
@@ -27,8 +30,12 @@ class AppSettings {
     this.uiScale = 1,
     this.checkForUpdates = true,
     this.sectionedEditing = true,
+    this.libraryLayout = 'standard',
+    this.keepScreenOn = false,
     this.settingsUpdatedAt,
   });
+  final String libraryLayout;
+  final bool keepScreenOn;
   final String localeCode;
   final ThemeMode themeMode;
   final Color seedColor;
@@ -39,6 +46,8 @@ class AppSettings {
   final Color readerText;
   final bool readerFollowsTheme;
   final bool autoHideReaderControls;
+  final Color customReaderBackground;
+  final Color customReaderText;
   final String readerFont;
   final double readerFontSize;
   final double readerLineHeight;
@@ -54,6 +63,7 @@ class AppSettings {
   /// Base URL of the sync server. Empty means "the origin this app was
   /// loaded from", which is the normal self-hosted setup.
   final String syncServerUrl;
+  final String syncToken;
 
   /// Whether reading mode offers to read the document out loud.
   ///
@@ -118,12 +128,15 @@ class AppSettings {
     Color? readerText,
     bool? readerFollowsTheme,
     bool? autoHideReaderControls,
+    Color? customReaderBackground,
+    Color? customReaderText,
     String? readerFont,
     double? readerFontSize,
     double? readerLineHeight,
     double? readerWidth,
     bool? syncEnabled,
     String? syncServerUrl,
+    String? syncToken,
     bool? ttsEnabled,
     String? ttsEngine,
     String? ttsVoiceId,
@@ -133,6 +146,8 @@ class AppSettings {
     double? uiScale,
     bool? checkForUpdates,
     bool? sectionedEditing,
+    String? libraryLayout,
+    bool? keepScreenOn,
     DateTime? settingsUpdatedAt,
   }) => AppSettings(
     localeCode: localeCode ?? this.localeCode,
@@ -146,12 +161,16 @@ class AppSettings {
     readerFollowsTheme: readerFollowsTheme ?? this.readerFollowsTheme,
     autoHideReaderControls:
         autoHideReaderControls ?? this.autoHideReaderControls,
+    customReaderBackground:
+        customReaderBackground ?? this.customReaderBackground,
+    customReaderText: customReaderText ?? this.customReaderText,
     readerFont: readerFont ?? this.readerFont,
     readerFontSize: readerFontSize ?? this.readerFontSize,
     readerLineHeight: readerLineHeight ?? this.readerLineHeight,
     readerWidth: readerWidth ?? this.readerWidth,
     syncEnabled: syncEnabled ?? this.syncEnabled,
     syncServerUrl: syncServerUrl ?? this.syncServerUrl,
+    syncToken: syncToken ?? this.syncToken,
     ttsEnabled: ttsEnabled ?? this.ttsEnabled,
     ttsEngine: ttsEngine ?? this.ttsEngine,
     ttsVoiceId: ttsVoiceId ?? this.ttsVoiceId,
@@ -161,10 +180,14 @@ class AppSettings {
     uiScale: uiScale ?? this.uiScale,
     checkForUpdates: checkForUpdates ?? this.checkForUpdates,
     sectionedEditing: sectionedEditing ?? this.sectionedEditing,
+    libraryLayout: libraryLayout ?? this.libraryLayout,
+    keepScreenOn: keepScreenOn ?? this.keepScreenOn,
     settingsUpdatedAt: settingsUpdatedAt ?? this.settingsUpdatedAt,
   );
 
   Map<String, dynamic> toJson() => {
+    'libraryLayout': libraryLayout,
+    'keepScreenOn': keepScreenOn,
     'localeCode': localeCode,
     'themeMode': themeMode.name,
     'seedColor': seedColor.toARGB32(),
@@ -175,12 +198,15 @@ class AppSettings {
     'readerText': readerText.toARGB32(),
     'readerFollowsTheme': readerFollowsTheme,
     'autoHideReaderControls': autoHideReaderControls,
+    'customReaderBackground': customReaderBackground.toARGB32(),
+    'customReaderText': customReaderText.toARGB32(),
     'readerFont': readerFont,
     'readerFontSize': readerFontSize,
     'readerLineHeight': readerLineHeight,
     'readerWidth': readerWidth,
     'syncEnabled': syncEnabled,
     'syncServerUrl': syncServerUrl,
+    'syncToken': syncToken,
     'ttsEnabled': ttsEnabled,
     'ttsEngine': ttsEngine,
     'ttsVoiceId': ttsVoiceId,
@@ -197,6 +223,8 @@ class AppSettings {
   factory AppSettings.fromJson(Map<String, dynamic> json) {
     final modeName = json['themeMode'] as String? ?? 'system';
     return AppSettings(
+      libraryLayout: json['libraryLayout'] as String? ?? 'standard',
+      keepScreenOn: json['keepScreenOn'] as bool? ?? false,
       localeCode: json['localeCode'] as String? ?? 'system',
       themeMode: ThemeMode.values.firstWhere(
         (mode) => mode.name == modeName,
@@ -210,12 +238,17 @@ class AppSettings {
       readerText: Color(json['readerText'] as int? ?? 0xFFFFF8ED),
       readerFollowsTheme: json['readerFollowsTheme'] as bool? ?? false,
       autoHideReaderControls: json['autoHideReaderControls'] as bool? ?? false,
+      customReaderBackground: Color(
+        json['customReaderBackground'] as int? ?? 0xFF1E1E1E,
+      ),
+      customReaderText: Color(json['customReaderText'] as int? ?? 0xFFDAD7D0),
       readerFont: json['readerFont'] as String? ?? 'Merriweather',
       readerFontSize: (json['readerFontSize'] as num? ?? 20).toDouble(),
       readerLineHeight: (json['readerLineHeight'] as num? ?? 1.75).toDouble(),
       readerWidth: (json['readerWidth'] as num? ?? 760).toDouble(),
       syncEnabled: json['syncEnabled'] as bool? ?? false,
       syncServerUrl: json['syncServerUrl'] as String? ?? '',
+      syncToken: json['syncToken'] as String? ?? '',
       ttsEnabled: json['ttsEnabled'] as bool? ?? true,
       ttsEngine: json['ttsEngine'] as String? ?? 'system',
       ttsVoiceId: json['ttsVoiceId'] as String? ?? '',

@@ -22,13 +22,19 @@ String _joinDocumentJsonRecords(List<String> records) =>
 /// (locking it out of ever syncing again) or silently repoint it at another
 /// host. The local copy is always authoritative.
 class SyncConfig {
-  const SyncConfig({this.enabled = false, this.serverUrl = ''});
+  const SyncConfig({
+    this.enabled = false,
+    this.serverUrl = '',
+    this.token = '',
+  });
   final bool enabled;
   final String serverUrl;
+  final String token;
 
   Map<String, dynamic> toJson() => {
     'syncEnabled': enabled,
     'syncServerUrl': serverUrl,
+    'syncToken': token,
   };
 
   /// Defaults to off: a freshly installed copy of an open-source, local-first
@@ -37,6 +43,7 @@ class SyncConfig {
   factory SyncConfig.fromJson(Map<String, dynamic> json) => SyncConfig(
     enabled: json['syncEnabled'] as bool? ?? false,
     serverUrl: json['syncServerUrl'] as String? ?? '',
+    token: json['syncToken'] as String? ?? '',
   );
 }
 
@@ -75,6 +82,7 @@ class StorageService {
   SyncConfig? _cachedSyncConfig;
   Future<void> _pendingPushes = Future.value();
   Future<void> _pendingDocumentWrites = Future.value();
+
   /// `true`/`false` once the server has given a definitive answer about merge
   /// writes; stays null while only transient failures (offline, server still
   /// waking) have been seen, so the next autosave probes again instead of
@@ -200,11 +208,17 @@ class StorageService {
     return Uri.tryParse('$normalized$path');
   }
 
+  Map<String, String> _authHeaders(SyncConfig config) => {
+    if (config.token.isNotEmpty) 'Authorization': 'Bearer ${config.token}',
+  };
+
   Future<dynamic> _fetchJson(String path) async {
     final uri = _resolve(path, await loadSyncConfig());
     if (uri == null) return null;
     try {
-      final response = await _client.get(uri).timeout(_networkTimeout);
+      final response = await _client
+          .get(uri, headers: _authHeaders(await loadSyncConfig()))
+          .timeout(_networkTimeout);
       if (response.statusCode != 200) return null;
       final decoded = jsonDecode(utf8.decode(response.bodyBytes));
       _serverResponses++;
@@ -234,7 +248,14 @@ class StorageService {
       final uri = _resolve(path, await loadSyncConfig());
       if (uri == null) return;
       final response = await _client
-          .put(uri, headers: _mergeHeaders, body: jsonEncode(body))
+          .put(
+            uri,
+            headers: {
+              ..._mergeHeaders,
+              ..._authHeaders(await loadSyncConfig()),
+            },
+            body: jsonEncode(body),
+          )
           .timeout(_networkTimeout);
       if (response.statusCode != 200) {
         debugPrint('sepia: PUT $path returned ${response.statusCode}');
@@ -254,8 +275,15 @@ class StorageService {
   /// Explicitly probes a server address, regardless of whether syncing is
   /// currently enabled, so the settings screen can tell the user what is
   /// actually wrong instead of failing silently.
-  Future<SyncTestResult> testConnection(String serverUrl) async {
-    final config = SyncConfig(enabled: true, serverUrl: serverUrl);
+  Future<SyncTestResult> testConnection(
+    String serverUrl, {
+    String token = '',
+  }) async {
+    final config = SyncConfig(
+      enabled: true,
+      serverUrl: serverUrl,
+      token: token,
+    );
     final healthUri = _resolve('/healthz', config);
     if (healthUri == null) {
       return (
@@ -274,6 +302,21 @@ class StorageService {
       if (health.statusCode == 200) {
         final decoded = jsonDecode(utf8.decode(health.bodyBytes));
         if (decoded is Map && decoded['ok'] == true) {
+          if (decoded['authentication'] == true) {
+            final authorized = await _client
+                .head(
+                  _resolve('/api/documents', config)!,
+                  headers: _authHeaders(config),
+                )
+                .timeout(_probeTimeout);
+            if (authorized.statusCode != 200) {
+              return (
+                ok: false,
+                documentCount: null,
+                error: 'HTTP ${authorized.statusCode}',
+              );
+            }
+          }
           return (ok: true, documentCount: null, error: null);
         }
         return (ok: false, documentCount: null, error: 'Resposta inesperada');
@@ -290,7 +333,9 @@ class StorageService {
       }
 
       final documentsUri = _resolve('/api/documents', config)!;
-      final response = await _client.get(documentsUri).timeout(_networkTimeout);
+      final response = await _client
+          .get(documentsUri, headers: _authHeaders(config))
+          .timeout(_networkTimeout);
       if (response.statusCode != 200) {
         return (
           ok: false,
@@ -419,6 +464,7 @@ class StorageService {
     return settings.copyWith(
       syncEnabled: config.enabled,
       syncServerUrl: config.serverUrl,
+      syncToken: config.token,
     );
   }
 
@@ -454,7 +500,8 @@ class StorageService {
         _isNewer(resolved.settingsUpdatedAt, remote.settingsUpdatedAt)) {
       final remoteJson = Map<String, dynamic>.from(resolved.toJson())
         ..remove('syncEnabled')
-        ..remove('syncServerUrl');
+        ..remove('syncServerUrl')
+        ..remove('syncToken');
       unawaited(_pushJson('/api/settings', remoteJson));
     }
     return _withLocalSyncConfig(resolved);
@@ -504,9 +551,7 @@ class StorageService {
   List<LibraryFolder> _decodeFolders(List<dynamic> raw) => raw
       .map((item) {
         try {
-          return LibraryFolder.fromJson(
-            Map<String, dynamic>.from(item as Map),
-          );
+          return LibraryFolder.fromJson(Map<String, dynamic>.from(item as Map));
         } catch (error) {
           debugPrint('sepia: skipped malformed folder: $error');
           return null;
@@ -599,10 +644,7 @@ class StorageService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_documentsKey, encoded);
     });
-    _pendingDocumentWrites = write.then<void>(
-      (_) {},
-      onError: (_, _) {},
-    );
+    _pendingDocumentWrites = write.then<void>((_) {}, onError: (_, _) {});
     return write;
   }
 
@@ -615,10 +657,7 @@ class StorageService {
     });
     // A failed write is still returned to its caller, but it must not poison
     // later saves queued by the editor.
-    _pendingDocumentWrites = write.then<void>(
-      (_) {},
-      onError: (_, _) {},
-    );
+    _pendingDocumentWrites = write.then<void>((_) {}, onError: (_, _) {});
     return write;
   }
 
@@ -690,7 +729,8 @@ class StorageService {
     // matches the local-authoritative contract enforced while loading.
     final remoteJson = Map<String, dynamic>.from(json)
       ..remove('syncEnabled')
-      ..remove('syncServerUrl');
+      ..remove('syncServerUrl')
+      ..remove('syncToken');
     unawaited(_pushJson('/api/settings', remoteJson));
   }
 
@@ -762,7 +802,10 @@ class StorageService {
         final response = await _client
             .put(
               uri,
-              headers: const {'Content-Type': 'application/json'},
+              headers: {
+                'Content-Type': 'application/json',
+                ..._authHeaders(config),
+              },
               body: jsonEncode(body),
             )
             .timeout(_networkTimeout);

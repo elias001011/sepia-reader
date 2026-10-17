@@ -58,9 +58,9 @@ class ReadingBookmark implements SyncableRecord {
     'chunkIndex': chunkIndex,
     'alignment': alignment,
     'excerpt': excerpt,
-    'createdAt': createdAt.toIso8601String(),
-    'updatedAt': updatedAt.toIso8601String(),
-    if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
+    'createdAt': createdAt.toUtc().toIso8601String(),
+    'updatedAt': updatedAt.toUtc().toIso8601String(),
+    if (deletedAt != null) 'deletedAt': deletedAt!.toUtc().toIso8601String(),
   };
 
   /// Throws if [json] is missing `chunkIndex` — notably, bookmarks written

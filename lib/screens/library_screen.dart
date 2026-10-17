@@ -102,6 +102,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   void _refresh() {
+    if (_currentFolderId != null &&
+        widget.controller.folderById(_currentFolderId!) == null) {
+      _currentFolderId = null;
+    }
     if (_query.trim().isNotEmpty) {
       final signature = _corpusSignature(widget.controller.documents);
       if (signature != _searchedCorpusSignature) {
@@ -130,7 +134,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  void _onSearchChanged(String value) => _scheduleSearch(value);
+  void _onSearchChanged(String value) {
+    _searchGeneration++;
+    _scheduleSearch(value);
+  }
 
   Future<void> _runSearch(String value) async {
     if (!mounted) return;
@@ -266,16 +273,16 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final allFolders = widget.controller.folders;
     final documents = searching
         ? allDocuments
-            .where((document) => _searchResultIds.contains(document.id))
-            .toList(growable: false)
+              .where((document) => _searchResultIds.contains(document.id))
+              .toList(growable: false)
         : allDocuments
-            .where((document) => document.folderId == _currentFolderId)
-            .toList(growable: false);
+              .where((document) => document.folderId == _currentFolderId)
+              .toList(growable: false);
     final folders = searching
         ? const <LibraryFolder>[]
         : allFolders
-            .where((folder) => folder.parentId == _currentFolderId)
-            .toList(growable: false);
+              .where((folder) => folder.parentId == _currentFolderId)
+              .toList(growable: false);
     // `folderById` is still needed while searching, to print each result's
     // folder path. The two count maps are only read by _FolderCard, which is
     // never built during a search — so skip that whole walk of every document
@@ -287,16 +294,22 @@ class _LibraryScreenState extends State<LibraryScreen> {
       for (final folder in allFolders) {
         final parentId = folder.parentId;
         if (parentId != null) {
-          childFolderCounts.update(parentId, (count) => count + 1,
-              ifAbsent: () => 1);
+          childFolderCounts.update(
+            parentId,
+            (count) => count + 1,
+            ifAbsent: () => 1,
+          );
         }
       }
       for (final document in allDocuments) {
         var folderId = document.folderId;
         final seen = <String>{};
         while (folderId != null && seen.add(folderId)) {
-          folderDocumentCounts.update(folderId, (count) => count + 1,
-              ifAbsent: () => 1);
+          folderDocumentCounts.update(
+            folderId,
+            (count) => count + 1,
+            ifAbsent: () => 1,
+          );
           folderId = folderById[folderId]?.parentId;
         }
       }
@@ -308,138 +321,190 @@ class _LibraryScreenState extends State<LibraryScreen> {
         ? _headerHeight
         : MediaQuery.paddingOf(context).top + 72;
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            // The floating header handles the top inset itself; SafeArea keeps
-            // the library clear of the gesture bar and any side cutout, the
-            // way `body: SafeArea(...)` used to before this was pinned.
-            // removeTop then zeroes the status-bar inset for descendants, so a
-            // nested scroll view (the card grid) does not re-add it as a gap —
-            // that regressed the moment the body-level SafeArea went away.
-            child: MediaQuery.removePadding(
-              context: context,
-              removeTop: true,
-              child: SafeArea(
-              top: false,
-              child: RefreshIndicator(
-                // The spinner drops in below the floating header, not under it.
-                edgeOffset: headerSpace,
-                onRefresh: _forceSync,
-                child: CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                slivers: [
-                  // Reserve the room the pinned header floats in; the library
-                  // scrolls under it.
-                  SliverToBoxAdapter(
-                    child: SizedBox(height: headerSpace + 8),
-                  ),
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-                    sliver: SliverToBoxAdapter(
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 1180),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _hero(context),
-                              const SizedBox(height: 22),
-                              _breadcrumbs(context),
-                              const SizedBox(height: 22),
-                              _sectionHeader(
-                                context,
-                                documentCount: documents.length,
-                                folderCount: folders.length,
-                              ),
-                              const SizedBox(height: 16),
-                              if (_searchRunning)
-                                const LinearProgressIndicator()
-                              else if (documents.isEmpty && folders.isEmpty)
-                                _emptyState(context)
-                            ],
-                          ),
-                        ),
+    return PopScope(
+      canPop:
+          _currentFolderId == null &&
+          !_selecting &&
+          _query.isEmpty &&
+          !_searchRunning,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (_selecting) {
+          _clearSelection();
+        } else if (_query.isNotEmpty || _searchRunning) {
+          _clearSearch();
+        } else if (_currentFolderId != null) {
+          _enterFolder(
+            widget.controller.folderById(_currentFolderId!)?.parentId,
+          );
+        }
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            Positioned.fill(
+              // The floating header handles the top inset itself; SafeArea keeps
+              // the library clear of the gesture bar and any side cutout, the
+              // way `body: SafeArea(...)` used to before this was pinned.
+              // removeTop then zeroes the status-bar inset for descendants, so a
+              // nested scroll view (the card grid) does not re-add it as a gap —
+              // that regressed the moment the body-level SafeArea went away.
+              child: MediaQuery.removePadding(
+                context: context,
+                removeTop: true,
+                child: SafeArea(
+                  top: false,
+                  child: RefreshIndicator(
+                    // The spinner drops in below the floating header, not under it.
+                    edgeOffset: headerSpace,
+                    onRefresh: _forceSync,
+                    child: CustomScrollView(
+                      key: PageStorageKey(
+                        'library-$_currentFolderId-${widget.controller.settings.libraryLayout}',
                       ),
-                    ),
-                  ),
-                  if (documents.isNotEmpty || folders.isNotEmpty)
-                    SliverLayoutBuilder(
-                      builder: (context, constraints) {
-                        final side = constraints.crossAxisExtent > 1220
-                            ? (constraints.crossAxisExtent - 1180) / 2
-                            : 20.0;
-                        final contentWidth = constraints.crossAxisExtent - side * 2;
-                        final columns = contentWidth >= 980
-                            ? 3
-                            : contentWidth >= 620 ? 2 : 1;
-                        return SliverPadding(
-                          padding: EdgeInsets.fromLTRB(side, 0, side, 48),
-                          sliver: SliverGrid(
-                            gridDelegate:
-                                SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: columns,
-                                  mainAxisExtent: 238,
-                                  crossAxisSpacing: 16,
-                                  mainAxisSpacing: 16,
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      slivers: [
+                        // Reserve the room the pinned header floats in; the library
+                        // scrolls under it.
+                        SliverToBoxAdapter(
+                          child: SizedBox(height: headerSpace + 8),
+                        ),
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                          sliver: SliverToBoxAdapter(
+                            child: Center(
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 1180,
                                 ),
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) => _libraryCard(
-                                index: index,
-                                folders: folders,
-                                documents: documents,
-                                searching: searching,
-                                folderById: folderById,
-                                folderDocumentCounts: folderDocumentCounts,
-                                childFolderCounts: childFolderCounts,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (widget
+                                            .controller
+                                            .settings
+                                            .libraryLayout ==
+                                        'standard') ...[
+                                      _hero(context),
+                                      const SizedBox(height: 22),
+                                    ] else ...[
+                                      _searchField(context),
+                                      const SizedBox(height: 16),
+                                    ],
+                                    _breadcrumbs(context),
+                                    const SizedBox(height: 22),
+                                    _sectionHeader(
+                                      context,
+                                      documentCount: documents.length,
+                                      folderCount: folders.length,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    if (_searchRunning)
+                                      const LinearProgressIndicator()
+                                    else if (documents.isEmpty &&
+                                        folders.isEmpty)
+                                      _emptyState(context),
+                                  ],
+                                ),
                               ),
-                              childCount: folders.length + documents.length,
                             ),
                           ),
-                        );
-                      },
-                    )
-                  else
-                    const SliverToBoxAdapter(child: SizedBox(height: 48)),
-                ],
+                        ),
+                        if (documents.isNotEmpty || folders.isNotEmpty)
+                          SliverLayoutBuilder(
+                            builder: (context, constraints) {
+                              final side = constraints.crossAxisExtent > 1220
+                                  ? (constraints.crossAxisExtent - 1180) / 2
+                                  : 20.0;
+                              final contentWidth =
+                                  constraints.crossAxisExtent - side * 2;
+                              final layout =
+                                  widget.controller.settings.libraryLayout;
+                              final columns = layout == 'list'
+                                  ? 1
+                                  : layout == 'grid'
+                                  ? (contentWidth / 180).floor().clamp(2, 8)
+                                  : contentWidth >= 980
+                                  ? 3
+                                  : contentWidth >= 620
+                                  ? 2
+                                  : 1;
+                              return SliverPadding(
+                                padding: EdgeInsets.fromLTRB(side, 0, side, 48),
+                                sliver: SliverGrid(
+                                  gridDelegate:
+                                      SliverGridDelegateWithFixedCrossAxisCount(
+                                        crossAxisCount: columns,
+                                        mainAxisExtent: layout == 'list'
+                                            ? 76
+                                            : layout == 'grid'
+                                            ? 96 +
+                                                  MediaQuery.textScalerOf(
+                                                    context,
+                                                  ).scale(28)
+                                            : 238,
+                                        crossAxisSpacing: 16,
+                                        mainAxisSpacing: 16,
+                                      ),
+                                  delegate: SliverChildBuilderDelegate(
+                                    (context, index) => _libraryCard(
+                                      index: index,
+                                      folders: folders,
+                                      documents: documents,
+                                      searching: searching,
+                                      folderById: folderById,
+                                      folderDocumentCounts:
+                                          folderDocumentCounts,
+                                      childFolderCounts: childFolderCounts,
+                                    ),
+                                    childCount:
+                                        folders.length + documents.length,
+                                  ),
+                                ),
+                              );
+                            },
+                          )
+                        else
+                          const SliverToBoxAdapter(child: SizedBox(height: 48)),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
+            // Pinned above the library, floating over it. The bar you act on
+            // stays put and the content slides under it; only the cards below
+            // scroll away. `_MeasureSize` feeds the real height back so the
+            // spacer sliver above matches whatever is showing right now
+            // (top bar vs selection bar, with or without a notice).
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: _MeasureSize(
+                onChange: (size) {
+                  // Fires from a post-frame callback: the State may already be
+                  // gone (hot reload, the home widget being swapped out).
+                  if (!mounted) return;
+                  if ((size.height - _headerHeight).abs() > 0.5) {
+                    setState(() => _headerHeight = size.height);
+                  }
+                },
+                child: _floatingHeader(context),
+              ),
             ),
-            ),
-          ),
-          // Pinned above the library, floating over it. The bar you act on
-          // stays put and the content slides under it; only the cards below
-          // scroll away. `_MeasureSize` feeds the real height back so the
-          // spacer sliver above matches whatever is showing right now
-          // (top bar vs selection bar, with or without a notice).
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: _MeasureSize(
-              onChange: (size) {
-                // Fires from a post-frame callback: the State may already be
-                // gone (hot reload, the home widget being swapped out).
-                if (!mounted) return;
-                if ((size.height - _headerHeight).abs() > 0.5) {
-                  setState(() => _headerHeight = size.height);
-                }
-              },
-              child: _floatingHeader(context),
-            ),
-          ),
-          if (_isDraggingFiles) _dropOverlay(context),
-        ],
+            if (_isDraggingFiles) _dropOverlay(context),
+          ],
+        ),
+        floatingActionButton:
+            MediaQuery.sizeOf(context).width < 620 && !_selecting
+            ? FloatingActionButton.extended(
+                onPressed: _showLibraryActions,
+                icon: const Icon(Icons.add_rounded),
+                label: Text(context.l10n.newLabel),
+              )
+            : null,
       ),
-      floatingActionButton:
-          MediaQuery.sizeOf(context).width < 620 && !_selecting
-          ? FloatingActionButton.extended(
-              onPressed: _showLibraryActions,
-              icon: const Icon(Icons.add_rounded),
-              label: Text(context.l10n.newLabel),
-            )
-          : null,
     );
   }
 
@@ -454,6 +519,23 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }) {
     if (index < folders.length) {
       final folder = folders[index];
+      if (widget.controller.settings.libraryLayout != 'standard') {
+        return _compactEntry(
+          title: folder.name,
+          subtitle: context.l10n.fileCount(
+            folderDocumentCounts[folder.id] ?? 0,
+          ),
+          icon: Icons.folder_rounded,
+          selected: _selectedFolderIds.contains(folder.id),
+          onOpen: () => _enterFolder(folder.id),
+          onSelect: () => _toggleSelectFolder(folder.id),
+          actions: {
+            context.l10n.rename: () => _renameFolder(folder),
+            context.l10n.moveTo: () => _moveFolder(folder),
+            context.l10n.delete: () => _deleteFolder(folder),
+          },
+        );
+      }
       return _FolderCard(
         folder: folder,
         documentCount: folderDocumentCounts[folder.id] ?? 0,
@@ -468,6 +550,28 @@ class _LibraryScreenState extends State<LibraryScreen> {
       );
     }
     final document = documents[index - folders.length];
+    if (widget.controller.settings.libraryLayout != 'standard') {
+      return _compactEntry(
+        title: '${document.title}.${document.extension}',
+        subtitle: searching
+            ? _folderPathNames(document.folderId, folderById)
+            : document.extension.toUpperCase(),
+        icon: document.isFavorite
+            ? Icons.star_rounded
+            : Icons.description_outlined,
+        selected: _selectedDocIds.contains(document.id),
+        onOpen: () => _open(document),
+        onSelect: () => _toggleSelectDoc(document.id),
+        actions: {
+          document.isFavorite ? context.l10n.unfavorite : context.l10n.favorite:
+              () => widget.controller.toggleFavorite(document.id),
+          context.l10n.rename: () => _renameDocument(document),
+          context.l10n.moveTo: () => _moveDocument(document),
+          context.l10n.exportLabel: () => _export(document),
+          context.l10n.delete: () => _confirmDelete(document),
+        },
+      );
+    }
     return _DocumentCard(
       document: document,
       folderPath: searching
@@ -482,6 +586,83 @@ class _LibraryScreenState extends State<LibraryScreen> {
       onMove: () => _moveDocument(document),
       onExport: () => _export(document),
       onDelete: () => _confirmDelete(document),
+    );
+  }
+
+  Widget _compactEntry({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool selected,
+    required VoidCallback onOpen,
+    required VoidCallback onSelect,
+    required Map<String, VoidCallback> actions,
+  }) {
+    final grid = widget.controller.settings.libraryLayout == 'grid';
+    final scheme = Theme.of(context).colorScheme;
+    final menu = PopupMenuButton<String>(
+      onSelected: (value) => actions[value]?.call(),
+      itemBuilder: (_) => [
+        for (final label in actions.keys)
+          PopupMenuItem(value: label, child: Text(label)),
+      ],
+    );
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      color: selected ? scheme.secondaryContainer : null,
+      child: InkWell(
+        onTap: _selecting ? onSelect : onOpen,
+        onLongPress: onSelect,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          child: grid
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(selected ? Icons.check_circle : icon),
+                        const Spacer(),
+                        menu,
+                      ],
+                    ),
+                    Text(title, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Icon(selected ? Icons.check_circle : icon),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            subtitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.labelSmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                    menu,
+                  ],
+                ),
+        ),
+      ),
     );
   }
 
@@ -587,44 +768,44 @@ class _LibraryScreenState extends State<LibraryScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _selecting ? _selectionBar(context) : _topBar(context),
-            Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1180),
-                child: VoiceDownloadBanner(
-                  downloads: widget.controller.voiceDownloads,
-                ),
-              ),
-            ),
-            if (_update case final update?)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                child: Center(
+                Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 1180),
-                    child: UpdateCard(
-                      update: update,
-                      onDismiss: () => setState(() => _update = null),
+                    child: VoiceDownloadBanner(
+                      downloads: widget.controller.voiceDownloads,
                     ),
                   ),
                 ),
-              ),
-            if (_isImportingFolder || _isImportingFiles)
-              Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1180),
-                  child: Padding(
+                if (_update case final update?)
+                  Padding(
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: const LinearProgressIndicator(),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 1180),
+                        child: UpdateCard(
+                          update: update,
+                          onDismiss: () => setState(() => _update = null),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
+                if (_isImportingFolder || _isImportingFiles)
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1180),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: const LinearProgressIndicator(),
+                        ),
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -650,84 +831,101 @@ class _LibraryScreenState extends State<LibraryScreen> {
               ),
             ),
             child: Row(
-            children: [
-              SizedBox(
-                width: 42,
-                height: 42,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(13),
-                  child: Image.asset(
-                    'assets/sepia_icon.png',
-                    fit: BoxFit.cover,
+              children: [
+                SizedBox(
+                  width: 42,
+                  height: 42,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(13),
+                    child: Image.asset(
+                      'assets/sepia_icon.png',
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Sépia',
-                style: Theme.of(context).textTheme.titleLarge
-                    ?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const Spacer(),
-              IconButton(
-                // Labelled "Aparência" with a tune icon, this was the only
-                // door to theme, language, syncing and reading aloud — and
-                // it read as a door to none of them but the first.
-                tooltip: context.l10n.appearance,
-                onPressed: _openSettings,
-                icon: const Icon(Icons.settings_rounded),
-              ),
-              if (MediaQuery.sizeOf(context).width >= 620) ...[
-                const SizedBox(width: 8),
-                MenuAnchor(
-                  builder: (context, menu, _) => OutlinedButton.icon(
-                    onPressed: menu.open,
-                    icon: const Icon(Icons.upload_file_rounded),
-                    label: Text(context.l10n.importLabel),
-                  ),
-                  menuChildren: [
-                    MenuItemButton(
-                      onPressed: _importFiles,
-                      leadingIcon: const Icon(Icons.description_outlined),
-                      child: Text(context.l10n.importFiles),
+                const SizedBox(width: 12),
+                Text(
+                  'Sépia',
+                  style: Theme.of(context).textTheme.titleLarge
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const Spacer(),
+                IconButton(
+                  // Labelled "Aparência" with a tune icon, this was the only
+                  // door to theme, language, syncing and reading aloud — and
+                  // it read as a door to none of them but the first.
+                  tooltip: context.l10n.appearance,
+                  onPressed: _openSettings,
+                  icon: const Icon(Icons.settings_rounded),
+                ),
+                if (MediaQuery.sizeOf(context).width >= 620) ...[
+                  const SizedBox(width: 8),
+                  MenuAnchor(
+                    builder: (context, menu, _) => OutlinedButton.icon(
+                      onPressed: menu.open,
+                      icon: const Icon(Icons.upload_file_rounded),
+                      label: Text(context.l10n.importLabel),
                     ),
-                    MenuItemButton(
-                      onPressed: _importFolder,
-                      leadingIcon: const Icon(
-                        Icons.drive_folder_upload_outlined,
+                    menuChildren: [
+                      MenuItemButton(
+                        onPressed: _importFiles,
+                        leadingIcon: const Icon(Icons.description_outlined),
+                        child: Text(context.l10n.importFiles),
                       ),
-                      child: Text(context.l10n.importFolder),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 8),
-                MenuAnchor(
-                  builder: (context, menu, _) => FilledButton.icon(
-                    onPressed: menu.open,
-                    icon: const Icon(Icons.add_rounded),
-                    label: Text(context.l10n.newLabel),
+                      MenuItemButton(
+                        onPressed: _importFolder,
+                        leadingIcon: const Icon(
+                          Icons.drive_folder_upload_outlined,
+                        ),
+                        child: Text(context.l10n.importFolder),
+                      ),
+                    ],
                   ),
-                  menuChildren: [
-                    MenuItemButton(
-                      onPressed: _createDocument,
-                      leadingIcon: const Icon(Icons.note_add_outlined),
-                      child: Text(context.l10n.newDocument),
+                  const SizedBox(width: 8),
+                  MenuAnchor(
+                    builder: (context, menu, _) => FilledButton.icon(
+                      onPressed: menu.open,
+                      icon: const Icon(Icons.add_rounded),
+                      label: Text(context.l10n.newLabel),
                     ),
-                    MenuItemButton(
-                      onPressed: _createFolder,
-                      leadingIcon: const Icon(Icons.create_new_folder_outlined),
-                      child: Text(context.l10n.newFolder),
-                    ),
-                  ],
-                ),
+                    menuChildren: [
+                      MenuItemButton(
+                        onPressed: _createDocument,
+                        leadingIcon: const Icon(Icons.note_add_outlined),
+                        child: Text(context.l10n.newDocument),
+                      ),
+                      MenuItemButton(
+                        onPressed: _createFolder,
+                        leadingIcon: const Icon(
+                          Icons.create_new_folder_outlined,
+                        ),
+                        child: Text(context.l10n.newFolder),
+                      ),
+                    ],
+                  ),
+                ],
               ],
-            ],
-          ),
+            ),
           ),
         ),
       ),
     );
   }
+
+  Widget _searchField(BuildContext context) => TextField(
+    controller: _searchController,
+    onChanged: _onSearchChanged,
+    decoration: InputDecoration(
+      hintText: context.l10n.searchHint,
+      prefixIcon: const Icon(Icons.search_rounded),
+      suffixIcon: _query.isEmpty
+          ? null
+          : IconButton(
+              onPressed: _clearSearch,
+              icon: const Icon(Icons.close_rounded),
+            ),
+    ),
+  );
 
   Widget _hero(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -762,20 +960,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
               ),
             ],
           );
-          final search = TextField(
-            controller: _searchController,
-            onChanged: _onSearchChanged,
-            decoration: InputDecoration(
-              hintText: context.l10n.searchHint,
-              prefixIcon: const Icon(Icons.search_rounded),
-              suffixIcon: _query.isEmpty
-                  ? null
-                  : IconButton(
-                      onPressed: _clearSearch,
-                      icon: const Icon(Icons.close_rounded),
-                    ),
-            ),
-          );
+          final search = _searchField(context);
           if (compact) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -848,6 +1033,25 @@ class _LibraryScreenState extends State<LibraryScreen> {
         style: Theme.of(context).textTheme.headlineSmall
             ?.copyWith(fontWeight: FontWeight.w700),
       ),
+      PopupMenuButton<String>(
+        tooltip: context.l10n.libraryLayout,
+        icon: Icon(switch (widget.controller.settings.libraryLayout) {
+          'grid' => Icons.grid_view_rounded,
+          'list' => Icons.view_list_rounded,
+          _ => Icons.view_agenda_outlined,
+        }),
+        onSelected: (value) => widget.controller.updateSettings(
+          widget.controller.settings.copyWith(libraryLayout: value),
+        ),
+        itemBuilder: (_) => [
+          PopupMenuItem(
+            value: 'standard',
+            child: Text(context.l10n.layoutStandard),
+          ),
+          PopupMenuItem(value: 'grid', child: Text(context.l10n.layoutGrid)),
+          PopupMenuItem(value: 'list', child: Text(context.l10n.layoutList)),
+        ],
+      ),
       Chip(label: Text(context.l10n.fileCount(documentCount))),
       if (_query.isEmpty)
         Chip(label: Text(context.l10n.folderCount(folderCount))),
@@ -895,7 +1099,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
     // document answers it outright; otherwise ask each picked folder in turn
     // and stop at the first that holds something — cheaper than expanding the
     // whole selection into a document list on every selection toggle.
-    final hasDocuments = _selectedDocIds.isNotEmpty ||
+    final hasDocuments =
+        _selectedDocIds.isNotEmpty ||
         _selectedFolderIds.any(
           (id) => widget.controller.folderDocumentCount(id) > 0,
         );
@@ -915,38 +1120,38 @@ class _LibraryScreenState extends State<LibraryScreen> {
               border: Border.all(color: scheme.primary.withValues(alpha: .45)),
             ),
             child: Row(
-            children: [
-              IconButton(
-                tooltip: context.l10n.clearSelection,
-                onPressed: _clearSelection,
-                icon: const Icon(Icons.close_rounded),
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  context.l10n.selectionCount(count),
-                  style: Theme.of(context).textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w700),
-                ),
-              ),
-              IconButton(
-                tooltip: context.l10n.moveTo,
-                onPressed: _moveSelection,
-                icon: const Icon(Icons.drive_file_move_outline),
-              ),
-              if (hasDocuments)
+              children: [
                 IconButton(
-                  tooltip: context.l10n.exportLabel,
-                  onPressed: _exportSelection,
-                  icon: const Icon(Icons.download_rounded),
+                  tooltip: context.l10n.clearSelection,
+                  onPressed: _clearSelection,
+                  icon: const Icon(Icons.close_rounded),
                 ),
-              IconButton(
-                tooltip: context.l10n.delete,
-                onPressed: _deleteSelection,
-                icon: const Icon(Icons.delete_outline_rounded),
-              ),
-            ],
-          ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    context.l10n.selectionCount(count),
+                    style: Theme.of(context).textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                IconButton(
+                  tooltip: context.l10n.moveTo,
+                  onPressed: _moveSelection,
+                  icon: const Icon(Icons.drive_file_move_outline),
+                ),
+                if (hasDocuments)
+                  IconButton(
+                    tooltip: context.l10n.exportLabel,
+                    onPressed: _exportSelection,
+                    icon: const Icon(Icons.download_rounded),
+                  ),
+                IconButton(
+                  tooltip: context.l10n.delete,
+                  onPressed: _deleteSelection,
+                  icon: const Icon(Icons.delete_outline_rounded),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -979,8 +1184,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 trailing: currentFolderId != null && currentFolderId.id == null
                     ? const Icon(Icons.check_rounded)
                     : null,
-                onTap: () =>
-                    Navigator.pop(dialogContext, (folderId: null)),
+                onTap: () => Navigator.pop(dialogContext, (folderId: null)),
               ),
               for (final folder in widget.controller.folders)
                 if (!blockedFolderIds.contains(folder.id))
@@ -1115,9 +1319,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final message = exported == 0 && failed > 0
         ? context.l10n.exportSelectionFailed
         : context.l10n.exportedCount(exported);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _showLibraryActions({bool importOnly = false}) async {
@@ -1472,7 +1675,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
       final selected = <DroppedDocumentFile>[];
       var skipped = 0;
       for (final file in files) {
-        if (await file.length() > maxImportedFileBytes ||
+        if ((await file.length() ?? maxImportedFileBytes + 1) >
+                maxImportedFileBytes ||
             !isSupportedDocumentPath(file.name)) {
           skipped++;
           continue;
@@ -1676,115 +1880,116 @@ class _FolderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Card(
-    clipBehavior: Clip.antiAlias,
-    color: selected ? scheme.secondaryContainer : null,
-    shape: selected
-        ? RoundedRectangleBorder(
-            side: BorderSide(color: scheme.primary, width: 2),
-            borderRadius: BorderRadius.circular(12),
-          )
-        : null,
-    child: InkWell(
-      onTap: selecting ? onToggleSelect : onOpen,
-      onLongPress: onToggleSelect,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: scheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      color: selected ? scheme.secondaryContainer : null,
+      shape: selected
+          ? RoundedRectangleBorder(
+              side: BorderSide(color: scheme.primary, width: 2),
+              borderRadius: BorderRadius.circular(12),
+            )
+          : null,
+      child: InkWell(
+        onTap: selecting ? onToggleSelect : onOpen,
+        onLongPress: onToggleSelect,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: scheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Icon(
+                      selected ? Icons.check_rounded : Icons.folder_rounded,
+                      size: 30,
+                      color: scheme.onPrimaryContainer,
+                    ),
                   ),
-                  child: Icon(
-                    selected ? Icons.check_rounded : Icons.folder_rounded,
-                    size: 30,
-                    color: scheme.onPrimaryContainer,
-                  ),
-                ),
-                const Spacer(),
-                if (!selecting)
-                  PopupMenuButton<String>(
-                    onSelected: (value) {
-                      if (value == 'rename') onRename();
-                      if (value == 'move') onMove();
-                      if (value == 'delete') onDelete();
-                    },
-                    itemBuilder: (_) => [
-                      PopupMenuItem(
-                        value: 'rename',
-                        child: Row(
-                          children: [
-                            const Icon(Icons.edit_outlined),
-                            const SizedBox(width: 12),
-                            Text(context.l10n.rename),
-                          ],
+                  const Spacer(),
+                  if (!selecting)
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'rename') onRename();
+                        if (value == 'move') onMove();
+                        if (value == 'delete') onDelete();
+                      },
+                      itemBuilder: (_) => [
+                        PopupMenuItem(
+                          value: 'rename',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.edit_outlined),
+                              const SizedBox(width: 12),
+                              Text(context.l10n.rename),
+                            ],
+                          ),
                         ),
-                      ),
-                      PopupMenuItem(
-                        value: 'move',
-                        child: Row(
-                          children: [
-                            const Icon(Icons.drive_file_move_outline),
-                            const SizedBox(width: 12),
-                            Text(context.l10n.moveTo),
-                          ],
+                        PopupMenuItem(
+                          value: 'move',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.drive_file_move_outline),
+                              const SizedBox(width: 12),
+                              Text(context.l10n.moveTo),
+                            ],
+                          ),
                         ),
-                      ),
-                      PopupMenuItem(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            const Icon(Icons.delete_outline_rounded),
-                            const SizedBox(width: 12),
-                            Text(context.l10n.delete),
-                          ],
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.delete_outline_rounded),
+                              const SizedBox(width: 12),
+                              Text(context.l10n.delete),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Text(
-              folder.name,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w700, height: 1.15),
-            ),
-            const Spacer(),
-            Text(
-              context.l10n.folderContents(documentCount, childFolderCount),
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ],
+                    ),
+                ],
               ),
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Icon(
-                  Icons.arrow_forward_rounded,
-                  size: 18,
-                  color: Theme.of(context).colorScheme.primary,
+              const SizedBox(height: 20),
+              Text(
+                folder.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w700, height: 1.15),
+              ),
+              const Spacer(),
+              Text(
+                context.l10n.folderContents(documentCount, childFolderCount),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
-                const SizedBox(width: 6),
-                Text(
-                  context.l10n.openFolder,
-                  style: Theme.of(context).textTheme.labelLarge
-                      ?.copyWith(color: Theme.of(context).colorScheme.primary),
-                ),
-              ],
-            ),
-          ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 18,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    context.l10n.openFolder,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
-    ),
     );
   }
 }
@@ -1869,68 +2074,70 @@ class _DocumentCard extends StatelessWidget {
                       color: selected ? scheme.primary : scheme.outline,
                     )
                   else ...[
-                  IconButton(
-                    tooltip: document.isFavorite
-                        ? context.l10n.unfavorite
-                        : context.l10n.favorite,
-                    onPressed: onFavorite,
-                    icon: Icon(
-                      document.isFavorite
-                          ? Icons.star_rounded
-                          : Icons.star_border_rounded,
-                      color: document.isFavorite ? Colors.amber.shade700 : null,
+                    IconButton(
+                      tooltip: document.isFavorite
+                          ? context.l10n.unfavorite
+                          : context.l10n.favorite,
+                      onPressed: onFavorite,
+                      icon: Icon(
+                        document.isFavorite
+                            ? Icons.star_rounded
+                            : Icons.star_border_rounded,
+                        color: document.isFavorite
+                            ? Colors.amber.shade700
+                            : null,
+                      ),
                     ),
-                  ),
-                  PopupMenuButton<String>(
-                    onSelected: (value) {
-                      if (value == 'rename') onRename();
-                      if (value == 'move') onMove();
-                      if (value == 'export') onExport();
-                      if (value == 'delete') onDelete();
-                    },
-                    itemBuilder: (_) => [
-                      PopupMenuItem(
-                        value: 'rename',
-                        child: Row(
-                          children: [
-                            const Icon(Icons.edit_outlined),
-                            const SizedBox(width: 12),
-                            Text(context.l10n.rename),
-                          ],
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'rename') onRename();
+                        if (value == 'move') onMove();
+                        if (value == 'export') onExport();
+                        if (value == 'delete') onDelete();
+                      },
+                      itemBuilder: (_) => [
+                        PopupMenuItem(
+                          value: 'rename',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.edit_outlined),
+                              const SizedBox(width: 12),
+                              Text(context.l10n.rename),
+                            ],
+                          ),
                         ),
-                      ),
-                      PopupMenuItem(
-                        value: 'move',
-                        child: Row(
-                          children: [
-                            const Icon(Icons.drive_file_move_outline),
-                            const SizedBox(width: 12),
-                            Text(context.l10n.moveTo),
-                          ],
+                        PopupMenuItem(
+                          value: 'move',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.drive_file_move_outline),
+                              const SizedBox(width: 12),
+                              Text(context.l10n.moveTo),
+                            ],
+                          ),
                         ),
-                      ),
-                      PopupMenuItem(
-                        value: 'export',
-                        child: Row(
-                          children: [
-                            const Icon(Icons.download_rounded),
-                            const SizedBox(width: 12),
-                            Text(context.l10n.exportLabel),
-                          ],
+                        PopupMenuItem(
+                          value: 'export',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.download_rounded),
+                              const SizedBox(width: 12),
+                              Text(context.l10n.exportLabel),
+                            ],
+                          ),
                         ),
-                      ),
-                      PopupMenuItem(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            const Icon(Icons.delete_outline_rounded),
-                            const SizedBox(width: 12),
-                            Text(context.l10n.delete),
-                          ],
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.delete_outline_rounded),
+                              const SizedBox(width: 12),
+                              Text(context.l10n.delete),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
                   ],
                 ],
               ),

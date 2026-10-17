@@ -233,7 +233,7 @@ abstract class AppLocalizations {
   /// No description provided for @presets.
   ///
   /// In en, this message translates to:
-  /// **'Presets'**
+  /// **'Theme'**
   String get presets;
 
   /// No description provided for @presetsLight.
@@ -1645,6 +1645,150 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =0{Nothing to export.} =1{1 file exported.} other{{count} files exported.}}'**
   String exportedCount(int count);
+
+  /// No description provided for @libraryLayout.
+  ///
+  /// In en, this message translates to:
+  /// **'Library layout'**
+  String get libraryLayout;
+
+  /// No description provided for @layoutStandard.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard'**
+  String get layoutStandard;
+
+  /// No description provided for @layoutGrid.
+  ///
+  /// In en, this message translates to:
+  /// **'Compact grid'**
+  String get layoutGrid;
+
+  /// No description provided for @layoutList.
+  ///
+  /// In en, this message translates to:
+  /// **'Compact list'**
+  String get layoutList;
+
+  /// No description provided for @keepScreenOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep screen on while reading'**
+  String get keepScreenOn;
+
+  /// No description provided for @keepScreenOnHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Prevents automatic screen sleep while the reader is open.'**
+  String get keepScreenOnHint;
+
+  /// No description provided for @customTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get customTheme;
+
+  /// No description provided for @charcoalPreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Charcoal'**
+  String get charcoalPreset;
+
+  /// No description provided for @rosePreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Soft rose'**
+  String get rosePreset;
+
+  /// No description provided for @olivePreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Olive'**
+  String get olivePreset;
+
+  /// No description provided for @importFont.
+  ///
+  /// In en, this message translates to:
+  /// **'Import font (.ttf / .otf)'**
+  String get importFont;
+
+  /// No description provided for @importFontHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Use fonts you have permission to use, such as Bookerly, Georgia or Michelangelus. Saved on this device only.'**
+  String get importFontHint;
+
+  /// No description provided for @fontImportError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load this font (5 MB limit).'**
+  String get fontImportError;
+
+  /// No description provided for @copyDocument.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy entire document'**
+  String get copyDocument;
+
+  /// No description provided for @copiedDocument.
+  ///
+  /// In en, this message translates to:
+  /// **'Document copied'**
+  String get copiedDocument;
+
+  /// No description provided for @copyFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not copy. Try exporting the file.'**
+  String get copyFailed;
+
+  /// No description provided for @cliSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Terminal access'**
+  String get cliSection;
+
+  /// No description provided for @cliHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The CLI uses the sync server, with or without a web interface. On your computer: sepia --ssh --ssh-port 8022 -p 8888 192.168.2.5. Enable direct access through the server settings in the terminal.'**
+  String get cliHint;
+
+  /// No description provided for @serverAccessSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure server access'**
+  String get serverAccessSettings;
+
+  /// No description provided for @serverToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Server token (optional)'**
+  String get serverToken;
+
+  /// No description provided for @cliEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow CLI access'**
+  String get cliEnabled;
+
+  /// No description provided for @serverConfigHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This controls the CLI on the connected server. To change it over the network, configure SEPIA_TOKEN on the server and enter the same token here; through SSH/localhost it is optional.'**
+  String get serverConfigHint;
+
+  /// No description provided for @serverConfigError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not access server settings. Check the address, token and server version (2.5 required).'**
+  String get serverConfigError;
+
+  /// No description provided for @saveCustomTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Save as custom theme'**
+  String get saveCustomTheme;
 }
 
 class _AppLocalizationsDelegate

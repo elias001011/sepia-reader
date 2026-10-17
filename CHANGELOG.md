@@ -4,6 +4,20 @@ As notas de cada Release publicada no GitHub são geradas a partir dos commits.
 Este arquivo resume o que muda para quem usa o app, e mantém uma seção para o
 que já está em `main` mas ainda não foi lançado.
 
+
+## 2.5.0 — 2026-10-17
+
+- Corrige o gesto de voltar em pastas e subpastas; seleção e busca são canceladas antes da navegação.
+- Adiciona layouts de biblioteca padrão, grade e lista compactas, com preferência persistente e sem prévias nos modos compactos.
+- Preserva blocos de leitura durante seleções longas e adiciona cópia integral sem expandir o documento virtualizado.
+- Compacta temas em uma lista com filtro claro/escuro; acrescenta Carvão, Rosa suave, Oliva e uma paleta personalizada salva.
+- Inclui Charis e Alegreya offline, suas licenças e importação local de fontes TTF/OTF.
+- Adiciona a opção de manter a tela ligada apenas durante a leitura e enquanto o app está ativo.
+- Entrega CLI Python independente, com conexão direta/SSH, pastas, upload, download, edição com proteção contra conflitos, movimentação e exclusão sincronizada.
+- Adiciona configuração opcional da CLI no servidor e token de autenticação para os clientes.
+- Corrige a corrida entre consultas de busca e grava timestamps de documentos, pastas e marcadores em UTC.
+- Atualiza dependências compatíveis, migra para File Picker 13 e valida com Flutter 3.47.4.
+
 ## Não lançado
 
 ## 2.2.8 — 2026-08-31

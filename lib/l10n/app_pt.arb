@@ -22,7 +22,7 @@
   "readerSettingsDescription": "Os ajustes são usados em todos os documentos.",
   "followAppTheme": "Seguir tema do app",
   "followAppThemeDescription": "Usa as superfícies e cores de texto atuais do app durante a leitura.",
-  "presets": "Presets",
+  "presets": "Tema",
   "presetsLight": "Claros",
   "presetsDark": "Escuros",
   "sepiaPreset": "Sépia",
@@ -568,5 +568,29 @@
         "type": "int"
       }
     }
-  }
+  },
+  "libraryLayout": "Layout da biblioteca",
+  "layoutStandard": "Padrão",
+  "layoutGrid": "Grade compacta",
+  "layoutList": "Lista compacta",
+  "keepScreenOn": "Manter a tela ligada durante a leitura",
+  "keepScreenOnHint": "Impede o bloqueio automático enquanto o leitor estiver aberto.",
+  "customTheme": "Personalizado",
+  "charcoalPreset": "Carvão",
+  "rosePreset": "Rosa suave",
+  "olivePreset": "Oliva",
+  "importFont": "Importar fonte (.ttf / .otf)",
+  "importFontHint": "Use fontes que você tem direito de usar, como Bookerly, Georgia ou Michelangelus. Salvas só neste aparelho.",
+  "fontImportError": "Não foi possível carregar essa fonte (limite de 5 MB).",
+  "copyDocument": "Copiar documento inteiro",
+  "copiedDocument": "Documento copiado",
+  "copyFailed": "Não foi possível copiar. Tente exportar o arquivo.",
+  "cliSection": "Acesso pelo terminal",
+  "cliHint": "A CLI usa o servidor de sincronização e funciona com ou sem interface web. No computador: sepia --ssh --ssh-port 8022 -p 8888 192.168.2.5. A ativação do acesso direto é feita nas configurações do servidor, pelo terminal.",
+  "serverAccessSettings": "Configurar acesso no servidor",
+  "serverToken": "Token do servidor (opcional)",
+  "cliEnabled": "Permitir acesso pela CLI",
+  "serverConfigHint": "Esta opção controla a CLI no servidor conectado. Para alterar pela rede, configure SEPIA_TOKEN no servidor e informe o mesmo token aqui; por SSH/localhost ele é opcional.",
+  "serverConfigError": "Não foi possível acessar as configurações. Verifique o endereço, o token e a versão 2.5 do servidor.",
+  "saveCustomTheme": "Salvar como tema personalizado"
 }
