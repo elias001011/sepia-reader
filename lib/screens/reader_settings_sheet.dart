@@ -133,7 +133,7 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
           _themeList(context),
           ExpansionTile(
             tilePadding: EdgeInsets.zero,
-            title: Text(context.l10n.customTheme),
+            title: Text(context.l10n.editMyColors),
             children: [
               ColorField(
                 label: context.l10n.readerBackground,

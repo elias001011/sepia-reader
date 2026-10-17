@@ -81,6 +81,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
   /// header's contents change (top bar ⇄ selection bar, a notice appearing).
   double _headerHeight = 0;
 
+  /// Scroll position of the library, kept across folder changes. Entering a
+  /// folder starts at its top; going back up restores where that folder was.
+  final _libraryScroll = ScrollController(keepScrollOffset: false);
+  final Map<String?, double> _scrollByFolder = {};
+
   @override
   void initState() {
     super.initState();
@@ -98,6 +103,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     _documentDropBinding.dispose();
     _searchDebounce?.cancel();
     _searchController.dispose();
+    _libraryScroll.dispose();
     super.dispose();
   }
 
@@ -359,8 +365,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     edgeOffset: headerSpace,
                     onRefresh: _forceSync,
                     child: CustomScrollView(
+                      controller: _libraryScroll,
                       key: PageStorageKey(
-                        'library-$_currentFolderId-${widget.controller.settings.libraryLayout}',
+                        'library-${widget.controller.settings.libraryLayout}',
                       ),
                       physics: const AlwaysScrollableScrollPhysics(),
                       slivers: [
@@ -526,6 +533,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             folderDocumentCounts[folder.id] ?? 0,
           ),
           icon: Icons.folder_rounded,
+          iconColor: Theme.of(context).colorScheme.primary,
           selected: _selectedFolderIds.contains(folder.id),
           onOpen: () => _enterFolder(folder.id),
           onSelect: () => _toggleSelectFolder(folder.id),
@@ -593,6 +601,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     required String title,
     required String subtitle,
     required IconData icon,
+    Color? iconColor,
     required bool selected,
     required VoidCallback onOpen,
     required VoidCallback onSelect,
@@ -621,7 +630,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(selected ? Icons.check_circle : icon),
+                        Icon(
+                          selected ? Icons.check_circle : icon,
+                          color: iconColor,
+                        ),
                         const Spacer(),
                         menu,
                       ],
@@ -637,7 +649,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 )
               : Row(
                   children: [
-                    Icon(selected ? Icons.check_circle : icon),
+                    Icon(
+                      selected ? Icons.check_circle : icon,
+                      color: iconColor,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -1063,6 +1078,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
     _searchGeneration++;
     _searchController.clear();
     _searchedCorpusSignature = null;
+    final from = _currentFolderId;
+    if (_libraryScroll.hasClients) {
+      // Going up to an ancestor returns to where it was left; going down
+      // always starts at the top of the folder being opened.
+      final returning = from != null && _isAncestorFolder(folderId, from);
+      _scrollByFolder[from] = _libraryScroll.position.pixels;
+      _libraryScroll.jumpTo(returning ? (_scrollByFolder[folderId] ?? 0) : 0);
+    }
     setState(() {
       _currentFolderId = folderId;
       _query = '';
@@ -1071,6 +1094,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
       _selectedDocIds.clear();
       _selectedFolderIds.clear();
     });
+  }
+
+  /// Whether [ancestorId] (null is the root) sits above [folderId] in the tree.
+  bool _isAncestorFolder(String? ancestorId, String folderId) {
+    final seen = <String>{};
+    var parent = widget.controller.folderById(folderId)?.parentId;
+    while (true) {
+      if (parent == ancestorId) return true;
+      if (parent == null || !seen.add(parent)) return false;
+      parent = widget.controller.folderById(parent)?.parentId;
+    }
   }
 
   void _clearSelection() => setState(() {

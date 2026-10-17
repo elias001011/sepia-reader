@@ -1688,6 +1688,12 @@ abstract class AppLocalizations {
   /// **'Custom'**
   String get customTheme;
 
+  /// No description provided for @editMyColors.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit my colors'**
+  String get editMyColors;
+
   /// No description provided for @charcoalPreset.
   ///
   /// In en, this message translates to:

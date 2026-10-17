@@ -141,7 +141,7 @@ void main() {
     ); // only the app header, outside the menu
     await tester.tap(find.text('Papel'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Personalizado').first);
+    await tester.tap(find.text('Editar minhas cores').first);
     await tester.pumpAndSettle();
     tester
         .widget<ColorField>(find.byType(ColorField).first)

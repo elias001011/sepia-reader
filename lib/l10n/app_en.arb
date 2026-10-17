@@ -576,6 +576,7 @@
   "keepScreenOn": "Keep screen on while reading",
   "keepScreenOnHint": "Prevents automatic screen sleep while the reader is open.",
   "customTheme": "Custom",
+  "editMyColors": "Edit my colors",
   "charcoalPreset": "Charcoal",
   "rosePreset": "Soft rose",
   "olivePreset": "Olive",

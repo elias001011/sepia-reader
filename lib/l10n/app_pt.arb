@@ -576,6 +576,7 @@
   "keepScreenOn": "Manter a tela ligada durante a leitura",
   "keepScreenOnHint": "Impede o bloqueio automático enquanto o leitor estiver aberto.",
   "customTheme": "Personalizado",
+  "editMyColors": "Editar minhas cores",
   "charcoalPreset": "Carvão",
   "rosePreset": "Rosa suave",
   "olivePreset": "Oliva",

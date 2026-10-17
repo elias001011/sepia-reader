@@ -1024,6 +1024,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get customTheme => 'Custom';
 
   @override
+  String get editMyColors => 'Edit my colors';
+
+  @override
   String get charcoalPreset => 'Charcoal';
 
   @override
