@@ -1056,24 +1056,10 @@ class AppLocalizationsPt extends AppLocalizations {
   String get copyFailed => 'Não foi possível copiar. Tente exportar o arquivo.';
 
   @override
-  String get cliSection => 'Acesso pelo terminal';
-
-  @override
-  String get cliHint =>
-      'A CLI usa o servidor de sincronização e funciona com ou sem interface web. No computador: sepia --ssh --ssh-port 8022 -p 8888 192.168.2.5. A ativação do acesso direto é feita nas configurações do servidor, pelo terminal.';
-
-  @override
-  String get serverAccessSettings => 'Configurar acesso no servidor';
-
-  @override
   String get serverToken => 'Token do servidor (opcional)';
 
   @override
   String get cliEnabled => 'Permitir acesso pela CLI';
-
-  @override
-  String get serverConfigHint =>
-      'Esta opção controla a CLI no servidor conectado. Para alterar pela rede, configure SEPIA_TOKEN no servidor e informe o mesmo token aqui; por SSH/localhost ele é opcional.';
 
   @override
   String get serverConfigError =>

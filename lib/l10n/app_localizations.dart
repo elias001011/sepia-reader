@@ -1748,24 +1748,6 @@ abstract class AppLocalizations {
   /// **'Could not copy. Try exporting the file.'**
   String get copyFailed;
 
-  /// No description provided for @cliSection.
-  ///
-  /// In en, this message translates to:
-  /// **'Terminal access'**
-  String get cliSection;
-
-  /// No description provided for @cliHint.
-  ///
-  /// In en, this message translates to:
-  /// **'The CLI uses the sync server, with or without a web interface. On your computer: sepia --ssh --ssh-port 8022 -p 8888 192.168.2.5. Enable direct access through the server settings in the terminal.'**
-  String get cliHint;
-
-  /// No description provided for @serverAccessSettings.
-  ///
-  /// In en, this message translates to:
-  /// **'Configure server access'**
-  String get serverAccessSettings;
-
   /// No description provided for @serverToken.
   ///
   /// In en, this message translates to:
@@ -1777,12 +1759,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Allow CLI access'**
   String get cliEnabled;
-
-  /// No description provided for @serverConfigHint.
-  ///
-  /// In en, this message translates to:
-  /// **'This controls the CLI on the connected server. To change it over the network, configure SEPIA_TOKEN on the server and enter the same token here; through SSH/localhost it is optional.'**
-  String get serverConfigHint;
 
   /// No description provided for @serverConfigError.
   ///

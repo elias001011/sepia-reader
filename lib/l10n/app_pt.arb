@@ -586,12 +586,8 @@
   "copyDocument": "Copiar documento inteiro",
   "copiedDocument": "Documento copiado",
   "copyFailed": "Não foi possível copiar. Tente exportar o arquivo.",
-  "cliSection": "Acesso pelo terminal",
-  "cliHint": "A CLI usa o servidor de sincronização e funciona com ou sem interface web. No computador: sepia --ssh --ssh-port 8022 -p 8888 192.168.2.5. A ativação do acesso direto é feita nas configurações do servidor, pelo terminal.",
-  "serverAccessSettings": "Configurar acesso no servidor",
   "serverToken": "Token do servidor (opcional)",
   "cliEnabled": "Permitir acesso pela CLI",
-  "serverConfigHint": "Esta opção controla a CLI no servidor conectado. Para alterar pela rede, configure SEPIA_TOKEN no servidor e informe o mesmo token aqui; por SSH/localhost ele é opcional.",
   "serverConfigError": "Não foi possível acessar as configurações. Verifique o endereço, o token e a versão 2.5 do servidor.",
   "saveCustomTheme": "Salvar como tema personalizado"
 }

@@ -5,20 +5,23 @@ import 'package:http/http.dart' as http;
 
 import '../l10n/l10n.dart';
 
-class ServerAccessSheet extends StatefulWidget {
-  const ServerAccessSheet({
+/// The "allow CLI access" switch shown in the server section of the settings.
+/// It reads and writes the server's `cliEnabled` flag. The URL and token are
+/// read at each request, so the server that gets the change is the one typed.
+class CliAccessSwitch extends StatefulWidget {
+  const CliAccessSwitch({
     super.key,
     required this.serverUrl,
     required this.token,
   });
-  final String serverUrl;
-  final String token;
+  final String Function() serverUrl;
+  final String Function() token;
 
   @override
-  State<ServerAccessSheet> createState() => _ServerAccessSheetState();
+  State<CliAccessSwitch> createState() => _CliAccessSwitchState();
 }
 
-class _ServerAccessSheetState extends State<ServerAccessSheet> {
+class _CliAccessSwitchState extends State<CliAccessSwitch> {
   bool? _enabled;
   bool _busy = false;
   bool _failed = false;
@@ -42,7 +45,7 @@ class _ServerAccessSheetState extends State<ServerAccessSheet> {
       _failed = false;
     });
     try {
-      var base = widget.serverUrl.trim();
+      var base = widget.serverUrl().trim();
       if (base.isEmpty) {
         base = Uri.base.origin;
       } else if (!base.contains('://')) {
@@ -51,9 +54,10 @@ class _ServerAccessSheetState extends State<ServerAccessSheet> {
       final uri = Uri.parse(
         '${base.replaceFirst(RegExp(r'/+$'), '')}/api/server-config',
       );
+      final token = widget.token();
       final headers = {
         'Content-Type': 'application/json',
-        if (widget.token.isNotEmpty) 'Authorization': 'Bearer ${widget.token}',
+        if (token.isNotEmpty) 'Authorization': 'Bearer $token',
       };
       final response =
           await (enabled == null
@@ -76,40 +80,32 @@ class _ServerAccessSheetState extends State<ServerAccessSheet> {
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: Text(context.l10n.cliSection),
-    content: SizedBox(
-      width: 420,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(context.l10n.serverConfigHint),
-          if (_busy) const LinearProgressIndicator(),
-          if (_enabled != null)
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(context.l10n.cliEnabled),
-              value: _enabled!,
-              onChanged: _busy ? null : _request,
-            ),
-          if (_failed)
-            Text(
-              context.l10n.serverConfigError,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
-        ],
-      ),
-    ),
-    actions: [
-      if (_failed)
-        TextButton(
-          onPressed: _busy ? null : _request,
-          child: const Icon(Icons.refresh),
+  Widget build(BuildContext context) => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      if (_busy) const LinearProgressIndicator(),
+      if (_enabled != null)
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(context.l10n.cliEnabled),
+          value: _enabled!,
+          onChanged: _busy ? null : _request,
         ),
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: Text(context.l10n.cancel),
-      ),
+      if (_failed)
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                context.l10n.serverConfigError,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
+            IconButton(
+              onPressed: _busy ? null : _request,
+              icon: const Icon(Icons.refresh),
+            ),
+          ],
+        ),
     ],
   );
 }
