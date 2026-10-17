@@ -1024,6 +1024,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get customTheme => 'Custom';
 
   @override
+  String get editMyColors => 'Edit my colors';
+
+  @override
   String get charcoalPreset => 'Charcoal';
 
   @override
@@ -1052,24 +1055,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get copyFailed => 'Could not copy. Try exporting the file.';
 
   @override
-  String get cliSection => 'Terminal access';
-
-  @override
-  String get cliHint =>
-      'The CLI uses the sync server, with or without a web interface. On your computer: sepia --ssh --ssh-port 8022 -p 8888 192.168.2.5. Enable direct access through the server settings in the terminal.';
-
-  @override
-  String get serverAccessSettings => 'Configure server access';
-
-  @override
   String get serverToken => 'Server token (optional)';
 
   @override
   String get cliEnabled => 'Allow CLI access';
-
-  @override
-  String get serverConfigHint =>
-      'This controls the CLI on the connected server. To change it over the network, configure SEPIA_TOKEN on the server and enter the same token here; through SSH/localhost it is optional.';
 
   @override
   String get serverConfigError =>

@@ -16,7 +16,7 @@ import '../state/app_controller.dart';
 import '../widgets/color_field.dart';
 import '../widgets/sheet_scaffold.dart';
 import 'voice_downloads_sheet.dart';
-import 'server_access_sheet.dart';
+import 'cli_access_switch.dart';
 
 class SettingsSheet extends StatefulWidget {
   const SettingsSheet({super.key, required this.controller});
@@ -329,21 +329,6 @@ class _SettingsSheetState extends State<SettingsSheet> {
                 setState(() => _draft = _draft.copyWith(keepScreenOn: value)),
           ),
           const Divider(height: 32),
-          _sectionTitle(context, context.l10n.cliSection),
-          SelectableText(context.l10n.cliHint),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: () => showDialog<void>(
-              context: context,
-              builder: (_) => ServerAccessSheet(
-                serverUrl: _serverUrlController.text.trim(),
-                token: _draft.syncToken,
-              ),
-            ),
-            icon: const Icon(Icons.terminal),
-            label: Text(context.l10n.serverAccessSettings),
-          ),
-          const Divider(height: 32),
           _sectionTitle(context, context.l10n.ttsSection),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
@@ -475,6 +460,10 @@ class _SettingsSheetState extends State<SettingsSheet> {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
+          ),
+          CliAccessSwitch(
+            serverUrl: () => _serverUrlController.text.trim(),
+            token: () => _draft.syncToken,
           ),
 
           const Divider(height: 32),

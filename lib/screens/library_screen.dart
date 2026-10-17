@@ -81,6 +81,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
   /// header's contents change (top bar ⇄ selection bar, a notice appearing).
   double _headerHeight = 0;
 
+  /// Scroll position of the library, kept across folder changes. Entering a
+  /// folder starts at its top; going back up restores where that folder was.
+  final _libraryScroll = ScrollController(keepScrollOffset: false);
+  final Map<String?, double> _scrollByFolder = {};
+  final _gridAnchorKey = GlobalKey();
+
   @override
   void initState() {
     super.initState();
@@ -98,6 +104,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     _documentDropBinding.dispose();
     _searchDebounce?.cancel();
     _searchController.dispose();
+    _libraryScroll.dispose();
     super.dispose();
   }
 
@@ -359,8 +366,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     edgeOffset: headerSpace,
                     onRefresh: _forceSync,
                     child: CustomScrollView(
+                      controller: _libraryScroll,
                       key: PageStorageKey(
-                        'library-$_currentFolderId-${widget.controller.settings.libraryLayout}',
+                        'library-${widget.controller.settings.libraryLayout}',
                       ),
                       physics: const AlwaysScrollableScrollPhysics(),
                       slivers: [
@@ -410,39 +418,31 @@ class _LibraryScreenState extends State<LibraryScreen> {
                             ),
                           ),
                         ),
+                        // Marks where the grid starts, so the section chips can
+                        // scroll to the folders or the files.
+                        SliverToBoxAdapter(
+                          key: _gridAnchorKey,
+                          child: const SizedBox.shrink(),
+                        ),
                         if (documents.isNotEmpty || folders.isNotEmpty)
                           SliverLayoutBuilder(
                             builder: (context, constraints) {
-                              final side = constraints.crossAxisExtent > 1220
-                                  ? (constraints.crossAxisExtent - 1180) / 2
-                                  : 20.0;
-                              final contentWidth =
-                                  constraints.crossAxisExtent - side * 2;
-                              final layout =
-                                  widget.controller.settings.libraryLayout;
-                              final columns = layout == 'list'
-                                  ? 1
-                                  : layout == 'grid'
-                                  ? (contentWidth / 180).floor().clamp(2, 8)
-                                  : contentWidth >= 980
-                                  ? 3
-                                  : contentWidth >= 620
-                                  ? 2
-                                  : 1;
+                              final grid = _libraryGridMetrics(
+                                context,
+                                constraints.crossAxisExtent,
+                              );
                               return SliverPadding(
-                                padding: EdgeInsets.fromLTRB(side, 0, side, 48),
+                                padding: EdgeInsets.fromLTRB(
+                                  grid.side,
+                                  0,
+                                  grid.side,
+                                  48,
+                                ),
                                 sliver: SliverGrid(
                                   gridDelegate:
                                       SliverGridDelegateWithFixedCrossAxisCount(
-                                        crossAxisCount: columns,
-                                        mainAxisExtent: layout == 'list'
-                                            ? 76
-                                            : layout == 'grid'
-                                            ? 96 +
-                                                  MediaQuery.textScalerOf(
-                                                    context,
-                                                  ).scale(28)
-                                            : 238,
+                                        crossAxisCount: grid.columns,
+                                        mainAxisExtent: grid.mainAxisExtent,
                                         crossAxisSpacing: 16,
                                         mainAxisSpacing: 16,
                                       ),
@@ -526,6 +526,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             folderDocumentCounts[folder.id] ?? 0,
           ),
           icon: Icons.folder_rounded,
+          iconColor: Theme.of(context).colorScheme.primary,
           selected: _selectedFolderIds.contains(folder.id),
           onOpen: () => _enterFolder(folder.id),
           onSelect: () => _toggleSelectFolder(folder.id),
@@ -593,6 +594,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     required String title,
     required String subtitle,
     required IconData icon,
+    Color? iconColor,
     required bool selected,
     required VoidCallback onOpen,
     required VoidCallback onSelect,
@@ -621,7 +623,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(selected ? Icons.check_circle : icon),
+                        Icon(
+                          selected ? Icons.check_circle : icon,
+                          color: iconColor,
+                        ),
                         const Spacer(),
                         menu,
                       ],
@@ -637,7 +642,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 )
               : Row(
                   children: [
-                    Icon(selected ? Icons.check_circle : icon),
+                    Icon(
+                      selected ? Icons.check_circle : icon,
+                      color: iconColor,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -1052,9 +1060,27 @@ class _LibraryScreenState extends State<LibraryScreen> {
           PopupMenuItem(value: 'list', child: Text(context.l10n.layoutList)),
         ],
       ),
-      Chip(label: Text(context.l10n.fileCount(documentCount))),
-      if (_query.isEmpty)
-        Chip(label: Text(context.l10n.folderCount(folderCount))),
+      // One row that scrolls sideways when it does not fit, like the breadcrumbs.
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            ActionChip(
+              label: Text(context.l10n.fileCount(documentCount)),
+              onPressed: () =>
+                  _scrollToSection(files: true, folderCount: folderCount),
+            ),
+            if (_query.isEmpty) ...[
+              const SizedBox(width: 8),
+              ActionChip(
+                label: Text(context.l10n.folderCount(folderCount)),
+                onPressed: () =>
+                    _scrollToSection(files: false, folderCount: folderCount),
+              ),
+            ],
+          ],
+        ),
+      ),
     ],
   );
 
@@ -1063,6 +1089,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
     _searchGeneration++;
     _searchController.clear();
     _searchedCorpusSignature = null;
+    final from = _currentFolderId;
+    if (_libraryScroll.hasClients) {
+      // Going up to an ancestor returns to where it was left; going down
+      // always starts at the top of the folder being opened.
+      final returning = from != null && _isAncestorFolder(folderId, from);
+      _scrollByFolder[from] = _libraryScroll.position.pixels;
+      _libraryScroll.jumpTo(returning ? (_scrollByFolder[folderId] ?? 0) : 0);
+    }
     setState(() {
       _currentFolderId = folderId;
       _query = '';
@@ -1071,6 +1105,75 @@ class _LibraryScreenState extends State<LibraryScreen> {
       _selectedDocIds.clear();
       _selectedFolderIds.clear();
     });
+  }
+
+  /// Side gutter, column count and card height of the library grid for a
+  /// viewport of [width]. The grid and [_scrollToSection] both use it.
+  ({double side, int columns, double mainAxisExtent}) _libraryGridMetrics(
+    BuildContext context,
+    double width,
+  ) {
+    final side = width > 1220 ? (width - 1180) / 2 : 20.0;
+    final contentWidth = width - side * 2;
+    final layout = widget.controller.settings.libraryLayout;
+    final columns = layout == 'list'
+        ? 1
+        : layout == 'grid'
+        ? (contentWidth / 180).floor().clamp(2, 8)
+        : contentWidth >= 980
+        ? 3
+        : contentWidth >= 620
+        ? 2
+        : 1;
+    final mainAxisExtent = layout == 'list'
+        ? 76.0
+        : layout == 'grid'
+        ? 96 + MediaQuery.textScalerOf(context).scale(28)
+        : 238.0;
+    return (side: side, columns: columns, mainAxisExtent: mainAxisExtent);
+  }
+
+  /// Scrolls to the folders (first in the grid) or to the files after them.
+  void _scrollToSection({required bool files, required int folderCount}) {
+    final anchor = _gridAnchorKey.currentContext?.findRenderObject();
+    if (anchor is! RenderSliver || !_libraryScroll.hasClients) return;
+    final gridTop = RenderAbstractViewport.of(anchor)
+        .getOffsetToReveal(anchor, 0)
+        .offset;
+    final grid = _libraryGridMetrics(
+      context,
+      anchor.constraints.crossAxisExtent,
+    );
+    final rows = (folderCount / grid.columns).ceil();
+    final sectionTop = files
+        ? gridTop + rows * (grid.mainAxisExtent + 16)
+        : gridTop;
+    // Leave room for the floating header, as the spacer above the grid does.
+    final headerSpace = _headerHeight > 0
+        ? _headerHeight
+        : MediaQuery.paddingOf(context).top + 72;
+    final target = (sectionTop - headerSpace - 8).clamp(
+      0.0,
+      _libraryScroll.position.maxScrollExtent,
+    );
+    unawaited(
+      _libraryScroll.animateTo(
+        target,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+      ),
+    );
+  }
+
+  /// Whether [ancestorId] (null is the root) sits above [folderId] in the tree.
+  bool _isAncestorFolder(String? ancestorId, String folderId) {
+    final seen = <String>{};
+    var parent = widget.controller.folderById(folderId)?.parentId;
+    while (true) {
+      if (parent == ancestorId) return true;
+      if (parent == null || !seen.add(parent)) return false;
+      parent = widget.controller.folderById(parent)?.parentId;
+    }
   }
 
   void _clearSelection() => setState(() {
