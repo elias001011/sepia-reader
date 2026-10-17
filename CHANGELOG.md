@@ -5,6 +5,15 @@ Este arquivo resume o que muda para quem usa o app, e mantém uma seção para o
 que já está em `main` mas ainda não foi lançado.
 
 
+## 2.5.2 — 2026-10-17
+
+- Mostra o ícone das pastas nos layouts de grade e lista compactos na cor de destaque, como no layout padrão.
+- Ao entrar numa pasta, a lista começa no topo; ao voltar para a pasta de cima, a posição em que você estava é mantida.
+- A seleção de tema mostra "Personalizado" uma vez só; o bloco de cores passa a se chamar "Editar minhas cores".
+- O interruptor de acesso pela CLI foi para a seção de sincronização do servidor, sem o texto explicativo e sem o IP de exemplo.
+- Os contadores "arquivos" e "pastas" no topo da biblioteca levam à lista correspondente.
+- Os dois contadores ficam lado a lado, na mesma linha, com rolagem horizontal quando não cabem.
+
 ## 2.5.0 — 2026-10-17
 
 - Corrige o gesto de voltar em pastas e subpastas; seleção e busca são canceladas antes da navegação.
