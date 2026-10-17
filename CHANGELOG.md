@@ -5,6 +5,11 @@ Este arquivo resume o que muda para quem usa o app, e mantém uma seção para o
 que já está em `main` mas ainda não foi lançado.
 
 
+## 2.5.1 — 2026-10-17
+
+- Corrige a tela "Não foi possível abrir os dados locais" na abertura do app, que afetava a 2.5.0. O plugin de preferências volta à versão usada na 2.2.8.
+- Registra no log o erro real quando a inicialização falha, para diagnóstico.
+
 ## 2.5.0 — 2026-10-17
 
 - Corrige o gesto de voltar em pastas e subpastas; seleção e busca são canceladas antes da navegação.
