@@ -23,7 +23,19 @@ class SepiaBootstrap extends StatefulWidget {
 }
 
 class _SepiaBootstrapState extends State<SepiaBootstrap> {
-  late final Future<void> _initialization = widget.controller.initialize();
+  late final Future<void> _initialization = _initialize();
+
+  /// Runs the controller's start-up and reports a failure to the log before
+  /// rethrowing, so the "could not open local data" screen leaves a trace
+  /// (error and stack) in logcat for the next investigation.
+  Future<void> _initialize() async {
+    try {
+      await widget.controller.initialize();
+    } catch (error, stackTrace) {
+      debugPrint('sepia: startup failed: $error\n$stackTrace');
+      rethrow;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
