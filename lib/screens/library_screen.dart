@@ -84,7 +84,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
   /// Scroll position of the library, kept across folder changes. Entering a
   /// folder starts at its top; going back up restores where that folder was.
   final _libraryScroll = ScrollController(keepScrollOffset: false);
-  final Map<String?, double> _scrollByFolder = {};
   final _gridAnchorKey = GlobalKey();
 
   @override
@@ -1089,14 +1088,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
     _searchGeneration++;
     _searchController.clear();
     _searchedCorpusSignature = null;
-    final from = _currentFolderId;
-    if (_libraryScroll.hasClients) {
-      // Going up to an ancestor returns to where it was left; going down
-      // always starts at the top of the folder being opened.
-      final returning = from != null && _isAncestorFolder(folderId, from);
-      _scrollByFolder[from] = _libraryScroll.position.pixels;
-      _libraryScroll.jumpTo(returning ? (_scrollByFolder[folderId] ?? 0) : 0);
-    }
     setState(() {
       _currentFolderId = folderId;
       _query = '';
@@ -1163,17 +1154,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
         curve: Curves.easeOutCubic,
       ),
     );
-  }
-
-  /// Whether [ancestorId] (null is the root) sits above [folderId] in the tree.
-  bool _isAncestorFolder(String? ancestorId, String folderId) {
-    final seen = <String>{};
-    var parent = widget.controller.folderById(folderId)?.parentId;
-    while (true) {
-      if (parent == ancestorId) return true;
-      if (parent == null || !seen.add(parent)) return false;
-      parent = widget.controller.folderById(parent)?.parentId;
-    }
   }
 
   void _clearSelection() => setState(() {
