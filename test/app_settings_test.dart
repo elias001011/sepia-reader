@@ -39,13 +39,13 @@ void main() {
   test('preserva as preferências de sincronização', () {
     const settings = AppSettings(
       syncEnabled: false,
-      syncServerUrl: 'http://192.168.2.5:8888',
+      syncServerUrl: 'http://sepia.example:8888',
     );
 
     final restored = AppSettings.fromJson(settings.toJson());
 
     expect(restored.syncEnabled, isFalse);
-    expect(restored.syncServerUrl, 'http://192.168.2.5:8888');
+    expect(restored.syncServerUrl, 'http://sepia.example:8888');
   });
 
   test('sincronização vem desligada por padrão', () {
@@ -75,10 +75,10 @@ void main() {
     // chave está presente no payload salvo desses aparelhos.
     final restored = AppSettings.fromJson(const {
       'syncEnabled': true,
-      'syncServerUrl': 'http://192.168.2.5:8888',
+      'syncServerUrl': 'http://sepia.example:8888',
     });
 
     expect(restored.syncEnabled, isTrue);
-    expect(restored.syncServerUrl, 'http://192.168.2.5:8888');
+    expect(restored.syncServerUrl, 'http://sepia.example:8888');
   });
 }

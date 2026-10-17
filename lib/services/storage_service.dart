@@ -194,7 +194,7 @@ class StorageService {
     if (!config.enabled) return null;
     var base = config.serverUrl.trim();
     if (base.isEmpty) return kIsWeb ? Uri.base.resolve(path) : null;
-    // People type addresses like "192.168.2.5:8888", without a scheme.
+    // People type addresses like "sepia.example:8888", without a scheme.
     // Uri.tryParse rejects that outright — a leading digit isn't a valid
     // scheme character, so it can't tell "host:port" from "scheme:path" and
     // just gives up, returning null — which surfaced as "invalid URL" for a

@@ -40,19 +40,22 @@ usual de sincronização continua funcionando quando a CLI é desligada.
 
 ## Conectar
 
+Os endereços e usuários abaixo são fictícios. Substitua `sepia.example`,
+o usuário e as portas pelos valores da sua instalação.
+
 Diretamente na rede local, usando a porta do Sépia:
 
 ```bash
-sepia -p 8888 192.168.2.5
+sepia -p 8888 sepia.example
 ```
 
 Por SSH, usando o mesmo login, chave ou senha que você já usa para acessar o
 servidor (a porta SSH e a porta do Sépia são diferentes):
 
 ```bash
-sepia --ssh --ssh-port 8022 -p 8888 192.168.2.5
+sepia --ssh --ssh-port 22 -p 8888 sepia.example
 # Ou, com usuário explícito:
-sepia --ssh --ssh-port 8022 -p 8888 usuario@192.168.2.5
+sepia --ssh --ssh-port 22 -p 8888 usuario@sepia.example
 ```
 
 A CLI abre e fecha o túnel automaticamente. Não precisa abrir SSH primeiro nem
@@ -87,11 +90,11 @@ atual da CLI; `/` é a raiz da biblioteca. O destino de `mv` é o caminho comple
 incluindo o nome final do arquivo ou pasta.
 
 ```bash
-sepia -p 8888 192.168.2.5 ls
-sepia -p 8888 192.168.2.5 mkdir '/Livros'
-sepia -p 8888 192.168.2.5 upload ./texto.md '/Livros/texto.md'
-sepia -p 8888 192.168.2.5 download '/Livros/texto.md' ./texto-exportado.md
-sepia --json -p 8888 192.168.2.5 tree
+sepia -p 8888 sepia.example ls
+sepia -p 8888 sepia.example mkdir '/Livros'
+sepia -p 8888 sepia.example upload ./texto.md '/Livros/texto.md'
+sepia -p 8888 sepia.example download '/Livros/texto.md' ./texto-exportado.md
+sepia --json -p 8888 sepia.example tree
 ```
 
 `download` não sobrescreve arquivos locais. `upload` não sobrescreve documentos

@@ -15,7 +15,7 @@ Revisão em 17/10/2026, sobre a base 2.2.8, incluindo as versões completa e Lit
   são liberados ao limpá-la. A ação de copiar o documento inteiro usa a fonte
   completa, sem construir centenas de parágrafos. A hipótese é compatível com
   o relato da tela branca; o gesto exato do aparelho original ainda depende
-  do teste de Elias na nova versão.
+  do teste em dispositivo físico na nova versão.
 - Documentos, pastas e marcadores gravavam datas locais sem fuso. Os novos
   registros usam UTC explícito para ordenar edições do app e da CLI.
 - A CLI trabalha dentro do bloqueio da biblioteca, valida nomes e destinos,
@@ -44,7 +44,7 @@ Flutter 3.47.4, a versão validada localmente.
 Os resultados finais e a revisão Git exata são registrados no relatório de
 implantação do servidor. A publicação exige análise estática e todos os testes
 nas duas branches, além dos testes Python, builds Android das duas variantes e
-build web offline. O servidor instalado permanece headless, preservando seu
-diretório de dados e modo de acesso; a atualização inclui backup anterior.
+build web offline. Atualizações de instalações existentes devem preservar o
+diretório de dados e o modo de operação, com backup anterior à troca dos arquivos.
 Esta revisão cobre funcionamento e os caminhos alterados; não é uma auditoria
 completa de segurança nem garante ausência de outros defeitos.
