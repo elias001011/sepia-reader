@@ -69,6 +69,16 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
 
+# shared_preferences_android 2.5.0 moved to Pigeon JNI, which looks up the
+# plugin's own Kotlin classes by name at runtime (JClass.forName) and ships no
+# consumer R8/ProGuard rules. In release builds (R8 is on by default in
+# Flutter) those classes are renamed or removed, so the first storage call
+# throws and the app stops on the "could not open local data" screen. Stay on
+# the last pre-JNI release (the one 2.2.8 shipped with) until upstream ships
+# keep rules or we add our own and verify them on a device.
+dependency_overrides:
+  shared_preferences_android: 2.4.27
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
