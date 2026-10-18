@@ -263,6 +263,154 @@ void main() {
     expect(engine.primed, contains('Segunda frase do um.'));
   });
 
+  test('stop during preparation never starts late speech', () async {
+    final engine = DeferredPrepareEngine();
+    final controller = TtsPlaybackController(engine: engine);
+    final start = controller.start(
+      document: fic(),
+      section: sectionsOf(fic()).first,
+      voiceId: null,
+      rate: 1,
+      pitch: 1,
+    );
+    await Future<void>.delayed(Duration.zero);
+    expect(controller.state, TtsPlaybackState.preparing);
+    final stop = controller.stop();
+    engine.ready.complete();
+    await Future.wait([start, stop]);
+    expect(engine.spoken, isEmpty);
+    expect(controller.state, TtsPlaybackState.idle);
+    controller.dispose();
+  });
+
+  test(
+    'rapid skip and pause keep the final navigation and stay silent',
+    () async {
+      final engine = FakeEngine();
+      final controller = TtsPlaybackController(engine: engine);
+      await controller.start(
+        document: fic(),
+        section: sectionsOf(fic()).first,
+        voiceId: null,
+        rate: 1,
+        pitch: 1,
+      );
+      final spoken = engine.spoken.length;
+      await Future.wait([
+        controller.skip(1),
+        controller.skip(1),
+        controller.pause(),
+      ]);
+      expect(controller.pieceIndex, 2);
+      expect(controller.state, TtsPlaybackState.paused);
+      expect(engine.spoken.length, spoken);
+      await controller.resume();
+      expect(engine.spoken.last, 'Segunda frase do um.');
+      controller.dispose();
+    },
+  );
+
+  test('rate/pitch changes keep position and paused state', () async {
+    final engine = FakeEngine();
+    final controller = TtsPlaybackController(engine: engine);
+    await controller.start(
+      document: fic(),
+      section: sectionsOf(fic()).first,
+      voiceId: null,
+      rate: 1,
+      pitch: 1,
+    );
+    await controller.skip(1);
+    await controller.pause();
+    final spoken = engine.spoken.length;
+    await controller.reconfigure(voiceId: 'other', rate: 1.6, pitch: .8);
+    expect(controller.pieceIndex, 1);
+    expect(controller.state, TtsPlaybackState.paused);
+    expect(engine.spoken.length, spoken);
+    expect(engine.configured.last.rate, 1.6);
+    expect(engine.configured.last.pitch, .8);
+    await controller.resume();
+    expect(engine.spoken.last, 'Primeira frase do um.');
+    await controller.reconfigure(rate: 1.2, pitch: 1);
+    expect(controller.isPlaying, isTrue);
+    expect(engine.spoken.last, 'Primeira frase do um.');
+    expect(controller.pieceIndex, 1);
+    controller.dispose();
+  });
+
+  test('late preparation cannot override a newer chapter', () async {
+    final engine = DeferredPrepareEngine();
+    final controller = TtsPlaybackController(engine: engine);
+    final old = controller.start(
+      document: fic(),
+      section: sectionsOf(fic()).first,
+      voiceId: null,
+      rate: 1,
+      pitch: 1,
+    );
+    await Future<void>.delayed(Duration.zero);
+    final fresh = controller.start(
+      document: fic(),
+      section: sectionsOf(fic()).last,
+      voiceId: null,
+      rate: 1.5,
+      pitch: 1,
+    );
+    engine.ready.complete();
+    await Future.wait([old, fresh]);
+    expect(engine.spoken, ['Capítulo dois']);
+    expect(engine.configured.single.rate, 1.5);
+    controller.dispose();
+  });
+
+  test('reference definitions in other chunks are never spoken', () async {
+    final engine = FakeEngine();
+    final document = fic().copyWith(
+      content: 'Veja [o texto][ref].\n\n---\n\n[ref]: https://example.org\n\nEspere... Sim…',
+    );
+    final controller = TtsPlaybackController(engine: engine);
+    await controller.start(
+      document: document,
+      section: sectionsOf(document).first,
+      voiceId: null,
+      rate: 1,
+      pitch: 1,
+    );
+    for (var i = 0; i < 10 && controller.isActive; i++) {
+      await engine.finishUtterance();
+    }
+    expect(engine.spoken, ['Veja o texto.', 'Espere. Sim.']);
+    controller.dispose();
+  });
+
+  test(
+    'large Markdown queue is built off the UI isolate and keeps anchors',
+    () async {
+      final engine = FakeEngine();
+      final controller = TtsPlaybackController(engine: engine);
+      final document = fic().copyWith(
+        content: List.generate(
+          1000,
+          (i) => 'Parágrafo $i com **ênfase**, ação e café.',
+        ).join('\n\n'),
+      );
+      await controller.start(
+        document: document,
+        section: sectionsOf(document).first,
+        voiceId: null,
+        rate: 1,
+        pitch: 1,
+      );
+      expect(controller.pieceCount, 1000);
+      expect(controller.currentChunkIndex, 0);
+      expect(engine.spoken.single, 'Parágrafo 0 com ênfase, ação e café.');
+      await controller.skip(999);
+      expect(controller.currentChunkIndex, 999);
+      expect(engine.spoken.last, 'Parágrafo 999 com ênfase, ação e café.');
+      controller.dispose();
+    },
+  );
+
   test('um motor que não sobe reporta erro em vez de ficar mudo', () async {
     final controller = TtsPlaybackController(engine: BrokenEngine());
     final sections = sectionsOf(fic());
@@ -491,4 +639,10 @@ class BrokenEngine extends TtsEngine {
   Future<void> stop() async {}
   @override
   Future<void> release() async {}
+}
+
+class DeferredPrepareEngine extends FakeEngine {
+  final ready = Completer<void>();
+  @override
+  Future<void> prepare() => ready.future;
 }

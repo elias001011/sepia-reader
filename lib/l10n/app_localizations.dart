@@ -1115,7 +1115,7 @@ abstract class AppLocalizations {
   /// No description provided for @ttsEngineNeuralDescription.
   ///
   /// In en, this message translates to:
-  /// **'Far more natural. Runs offline on the device itself, with no API and without sending your text anywhere — but a voice has to be downloaded first.'**
+  /// **'Voices that run offline on the device, without sending text to a server. A voice download is required; performance depends on the model and device.'**
   String get ttsEngineNeuralDescription;
 
   /// No description provided for @ttsVoice.
@@ -1415,19 +1415,19 @@ abstract class AppLocalizations {
   /// No description provided for @ttsTierBest.
   ///
   /// In en, this message translates to:
-  /// **'Best'**
+  /// **'Multilingual'**
   String get ttsTierBest;
 
   /// No description provided for @ttsTierLightHint.
   ///
   /// In en, this message translates to:
-  /// **'Piper · runs well on any device'**
+  /// **'Piper · smaller models with lower memory use'**
   String get ttsTierLightHint;
 
   /// No description provided for @ttsTierBestHint.
   ///
   /// In en, this message translates to:
-  /// **'Kokoro · one model with many voices and languages, more natural, but wants plenty of space and memory'**
+  /// **'Kokoro · one model with several voices and languages; needs more space and memory'**
   String get ttsTierBestHint;
 
   /// No description provided for @ttsFellBackToSystem.
@@ -1783,6 +1783,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Remove imported font'**
   String get removeImportedFont;
+
+  /// No description provided for @ttsSpeechSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Speech settings'**
+  String get ttsSpeechSettings;
+
+  /// No description provided for @ttsSpeechSettingsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Applying restarts the current passage with the new settings. Paused playback stays paused.'**
+  String get ttsSpeechSettingsHint;
+
+  /// No description provided for @ttsNeuralPitchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Neural voice pitch is set by the model. You can adjust the speed.'**
+  String get ttsNeuralPitchHint;
+
+  /// No description provided for @ttsSpeechTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice & pace'**
+  String get ttsSpeechTitle;
 }
 
 class _AppLocalizationsDelegate

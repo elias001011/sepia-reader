@@ -1,3 +1,5 @@
+import 'package:markdown/markdown.dart' as md;
+
 import '../models/library_document.dart';
 import '../widgets/markdown_view.dart';
 
@@ -106,200 +108,168 @@ List<DocumentSection> sectionsOf(LibraryDocument document) {
 bool hasChapters(List<DocumentSection> sections) =>
     sections.any((section) => section.level > 0);
 
-/// A code fence, capturing the whole run of markers.
-///
-/// Capturing only three characters made a four-backtick fence indexed as a
-/// three-backtick one, so an inner ```` ``` ```` — the ordinary way to show a
-/// code block inside a code block — closed the outer fence.
-final _fencedCode = RegExp(r'^(`{3,}|~{3,})');
-final _imagePattern = RegExp(r'!\[([^\]]*)\]\([^)]*\)');
-final _linkPattern = RegExp(r'\[([^\]]+)\]\([^)]*\)');
-final _emphasis = RegExp(r'(\*{1,3}|_{1,3})(\S(?:.*?\S)?)\1');
-final _inlineCode = RegExp(r'`([^`]+)`');
-final _htmlTag = RegExp(r'<[^>]+>');
-final _leadingMarker = RegExp(r'^\s*(#{1,6}\s+|[-*+]\s+|\d+[.)]\s+)');
-final _quoteMarker = RegExp(r'^\s*(>\s?)+');
-final _tableRow = RegExp(r'^\s*\|.*\|\s*$');
-final _tableDivider = RegExp(r'^\s*\|[\s:|-]+\|\s*$');
-final _taskMarker = RegExp(r'^\s*\[[ xX]\]\s+');
-final _strikethrough = RegExp(r'~~(.+?)~~');
-final _footnoteRef = RegExp(r'\[\^([^\]]+)\]');
-final _footnoteDef = RegExp(r'^\s{0,3}\[\^[^\]]+\]:\s*');
-final _linkDef = RegExp(r'^\s{0,3}\[[^\]^][^\]]*\]:\s*\S+\s*$');
-final _mathFence = RegExp(r'^\s*\$\$\s*$');
-/// The `====` / `----` rule under a setext heading. It carries no words, and
-/// read aloud it is a stream of "equals equals equals".
-final _setextUnderline = RegExp(r'^\s{0,3}(=+|-{2,})\s*$');
-final _horizontalRule = RegExp(r'^\s*([-*_])(\s*\1){2,}\s*$');
-
-/// Turns markdown source into something worth reading out loud.
-///
-/// A speech engine given raw markdown says "hash hash Capítulo um" or spells
-/// out a URL, so the syntax has to go before the text does. Fenced code
-/// blocks are dropped entirely rather than read character by character;
-/// alt text is kept, because that is exactly the text meant to stand in for
-/// an image someone cannot see.
-String speakableText(String markdown) {
-  final lines = markdown.split('\n');
-  final output = <String>[];
-  var inFence = false;
-  String? fenceMarker;
-  var fenceWasQuoted = false;
-  var inMath = false;
-  for (final rawLine in lines) {
-    if (inFence) {
-      // Only a fence written the way this block was opened can close it.
-      // Quote-stripping every line while inside an unquoted fence let a
-      // line like "> ```dart" — ordinary content in a markdown tutorial —
-      // close the block early and leak the rest of the code into the
-      // spoken text.
-      final candidate = fenceWasQuoted
-          ? rawLine.replaceFirst(_quoteMarker, '')
-          : rawLine;
-      final closing = _fencedCode.firstMatch(candidate.trimLeft());
-      // A fence closes only on a run of the same character at least as long
-      // as the one that opened it — anything shorter is content.
-      if (closing != null &&
-          closing.group(1)![0] == fenceMarker![0] &&
-          closing.group(1)!.length >= fenceMarker.length) {
-        inFence = false;
-        fenceMarker = null;
-      }
-      continue;
-    }
-    // Outside a fence the quote marker comes off at every level: a fenced
-    // block inside a blockquote is still a fenced block, and a `>>` line
-    // kept its second marker and was read aloud.
-    final line = rawLine.replaceFirst(_quoteMarker, '');
-    final opening = _fencedCode.firstMatch(line.trimLeft());
-    if (opening != null) {
-      inFence = true;
-      fenceMarker = opening.group(1);
-      fenceWasQuoted = line.length != rawLine.length;
-      continue;
-    }
-    // A display equation read aloud is a stream of backslashes and braces.
-    if (_mathFence.hasMatch(line)) {
-      inMath = !inMath;
-      continue;
-    }
-    if (inMath) continue;
-    // A link reference definition is machinery, not prose.
-    if (_linkDef.hasMatch(line)) continue;
-    if (_horizontalRule.hasMatch(line) || _setextUnderline.hasMatch(line)) {
-      output.add('');
-      continue;
-    }
-    // A table read literally becomes "pipe left columns pipe right columns
-    // pipe, dash dash dash…". The alignment row carries no words at all, so
-    // it goes; the rest becomes the cells, separated by pauses.
-    if (_tableDivider.hasMatch(line)) continue;
-    if (_tableRow.hasMatch(line)) {
-      // Split on unescaped pipes only: `\|` is a literal pipe inside a
-      // cell, and splitting there cut the cell in half and left the
-      // backslash behind to be read out.
-      final cells = line
-          .trim()
-          .split(RegExp(r'(?<!\\)\|'))
-          .map((cell) => _stripInlineMarkdown(cell).trim())
-          .where((cell) => cell.isNotEmpty)
-          .toList();
-      if (cells.isNotEmpty) {
-        output.add("${cells.join(', ')}.");
-      }
-      continue;
-    }
-    var text = line;
-    // The footnote's marker goes; the note itself is content and stays.
-    text = text.replaceFirst(_footnoteDef, '');
-    text = text.replaceFirst(_leadingMarker, '');
-    // "[x] Set up the editor" must not be read as "bracket x bracket".
-    text = text.replaceFirst(_taskMarker, '');
-    text = _stripInlineMarkdown(text);
-    output.add(text.trim());
+/// Extracts prose with the same Markdown grammar as the reader. In
+/// particular, reference links, nested emphasis, tables without outer pipes,
+/// code blocks and entities cannot be handled reliably by stripping markers.
+String speakableText(String markdown, {String linkDefinitions = ''}) {
+  var source = markdown
+      .replaceAll(RegExp(r'<!--.*?-->', dotAll: true), '')
+      .replaceAll(
+        RegExp(
+          r'<(script|style|noscript)\b[^>]*>.*?</\1\s*>',
+          caseSensitive: false,
+          dotAll: true,
+        ),
+        '',
+      )
+      .replaceAll(RegExp(r'^\s*\$\$[\s\S]*?\$\$\s*$', multiLine: true), '')
+      .replaceAll(RegExp(r'^\s{0,3}\[\^[^\]]+\]:\s*', multiLine: true), '')
+      .replaceAll(RegExp(r'\[\^[^\]]+\]'), '');
+  source += linkDefinitions;
+  final parser = md.Document(
+    extensionSet: md.ExtensionSet.gitHubWeb,
+    encodeHtml: false,
+  );
+  final voice = _SpeechVisitor();
+  for (final node in parser.parse(source)) {
+    node.accept(voice);
   }
-  return output
-      .join('\n')
-      .replaceAll(RegExp(r'\n{3,}'), '\n\n')
-      .trim();
+  return voice.text;
 }
-
-/// Placeholder for a backslash-escaped character while the markdown syntax
-/// around it is stripped, so `\*` survives as a literal asterisk instead of
-/// being read as emphasis — or worse, half-eaten into a stray backslash.
-const _escapeSentinel = '\u0000';
 
 String _stripInlineMarkdown(String input) {
-  final escaped = <String>[];
-  var text = input.replaceAllMapped(
-    RegExp(r'\\([\\`*_{}\[\]()#+\-.!~|<>])'),
-    (match) {
-      escaped.add(match.group(1)!);
-      return '$_escapeSentinel${escaped.length - 1}$_escapeSentinel';
-    },
-  );
-  text = text.replaceAllMapped(_strikethrough, (m) => m.group(1) ?? '');
-  text = text.replaceAll(_footnoteRef, '');
-  text = text.replaceAllMapped(_imagePattern, (m) => m.group(1) ?? '');
-  text = text.replaceAllMapped(_linkPattern, (m) => m.group(1) ?? '');
-  text = text.replaceAllMapped(_inlineCode, (m) => m.group(1) ?? '');
-  // Emphasis can nest (`***bold italic***`), so peel it until it stops
-  // changing instead of assuming a single pass is enough.
-  for (var i = 0; i < 3; i++) {
-    final peeled = text.replaceAllMapped(_emphasis, (m) => m.group(2) ?? '');
-    if (peeled == text) break;
-    text = peeled;
+  final voice = _SpeechVisitor();
+  for (final node in md.Document(encodeHtml: false).parseInline(input)) {
+    node.accept(voice);
   }
-  text = text.replaceAll(_htmlTag, '');
-  for (var i = 0; i < escaped.length; i++) {
-    text = text.replaceAll('$_escapeSentinel$i$_escapeSentinel', escaped[i]);
-  }
-  return text;
+  return voice.text;
 }
 
-/// Breaks a section's text into utterances short enough for a speech engine
-/// to start quickly and for playback to resume near where it stopped.
-///
-/// Handing a whole chapter to the engine in one call means a long silence
-/// before the first word, no way to track progress, and a resume that can
-/// only start from the top. Sentence-sized pieces make all three work, and
-/// they are also the natural unit to pre-render for a neural engine later.
-List<String> utterancesFor(String text) {
-  final result = <String>[];
-  for (final paragraph in text.split(RegExp(r'\n\s*\n'))) {
-    final trimmed = paragraph.replaceAll('\n', ' ').trim();
-    if (trimmed.isEmpty) continue;
-    if (trimmed.length <= 240) {
-      result.add(trimmed);
-      continue;
+class _SpeechVisitor implements md.NodeVisitor {
+  final _output = StringBuffer();
+  bool _firstCell = true;
+  static const _blocks = {
+    'p',
+    'li',
+    'blockquote',
+    'h1',
+    'h2',
+    'h3',
+    'h4',
+    'h5',
+    'h6',
+  };
+
+  String get text => _output
+      .toString()
+      .replaceAll(RegExp(r'[ \t]+'), ' ')
+      .replaceAll(RegExp(r' *\n *'), '\n')
+      .replaceAll(RegExp(r'\n{3,}'), '\n\n')
+      .trim();
+
+  @override
+  bool visitElementBefore(md.Element element) {
+    if (element.tag == 'pre' || element.tag == 'hr') {
+      _output.write('\n\n');
+      return false;
     }
-    // Split after sentence-ending punctuation followed by a space, keeping
-    // the punctuation with the sentence it ends.
-    final sentences = trimmed.split(RegExp(r'(?<=[.!?…])\s+'));
-    final buffer = StringBuffer();
-    for (final sentence in sentences) {
-      if (buffer.isNotEmpty && buffer.length + sentence.length > 240) {
-        result.add(buffer.toString().trim());
-        buffer.clear();
-      }
-      if (sentence.length > 240) {
-        // A single sentence longer than the budget: fall back to commas, and
-        // failing that let it through whole rather than cutting mid-word.
-        if (buffer.isNotEmpty) {
-          result.add(buffer.toString().trim());
-          buffer.clear();
-        }
-        for (final clause in sentence.split(RegExp(r'(?<=[,;:])\s+'))) {
-          result.add(clause.trim());
-        }
-        continue;
-      }
-      buffer.write(buffer.isEmpty ? sentence : ' $sentence');
+    if (element.tag == 'input') return false;
+    if (element.tag == 'tr') _firstCell = true;
+    if (element.tag == 'td' || element.tag == 'th') {
+      if (!_firstCell) _output.write(', ');
+      _firstCell = false;
     }
-    if (buffer.isNotEmpty) result.add(buffer.toString().trim());
+    if (element.tag == 'img') {
+      _output.write(element.attributes['alt'] ?? '');
+      return false;
+    }
+    if (element.tag == 'br') _output.write('\n');
+    return true;
   }
-  return result.where((item) => item.isNotEmpty).toList(growable: false);
+
+  @override
+  void visitElementAfter(md.Element element) {
+    if (_blocks.contains(element.tag)) _output.write('\n\n');
+    if (element.tag == 'tr') _output.write('\n\n');
+  }
+
+  @override
+  void visitText(md.Text text) {
+    // Raw HTML is a text node in Markdown's AST. Tags carry no spoken words.
+    _output.write(text.text.replaceAll(RegExp(r'<[^>]+>'), ''));
+  }
 }
+
+/// Common typographic punctuation is normalized once for every backend,
+/// including Lite's system voice. Never remove accents or meaningful symbols
+/// from prose; only decoration-only lines and invisible layout characters go.
+String normalizeSpeechText(String text) => text
+    .replaceAll(
+      RegExp(r'^[ \t]*[-_*═─━=•·. …]{3,}[ \t]*$', multiLine: true),
+      '',
+    )
+    .replaceAll(RegExp('[\u00ad\u200b\ufeff]'), '')
+    .replaceAll(RegExp('[\u00a0\u202f]'), ' ')
+    // A hesitation followed by a lowercase continuation is a pause inside
+    // the sentence ('Eu… sim', 'O… o nosso'), not a one-letter sentence that
+    // a phonemizer may spell out. Sentence endings keep a full stop.
+    .replaceAll(RegExp(r'(?:\.{2,}|…+)(?=\s+\p{Ll})', unicode: true), ',')
+    .replaceAll(RegExp(r'\.{2,}|…+'), '.')
+    .replaceAll(RegExp(r'[—–]'), ', ')
+    .replaceAll(RegExp(r'^[ \t]*,[ \t]+', multiLine: true), '')
+    .replaceAllMapped(RegExp(r'([.!?;:,])[ \t]*,[ \t]*'), (m) => '${m[1]} ')
+    .replaceAll(RegExp(r'[ \t]+(?=[,.;:!?])'), '')
+    .replaceAll(RegExp(r'[ \t]+'), ' ')
+    .trim();
+
+/// Bounded utterances keep synthesis, cancellation and resume responsive even
+/// for a long unpunctuated paragraph. Split on sentence/clause boundaries when
+/// possible, otherwise on whitespace, never inside a word or surrogate pair.
+List<String> utterancesFor(String text) {
+  const limit = 240;
+  final result = <String>[];
+  for (final paragraph in normalizeSpeechText(text).split(RegExp(r'\n\s*\n'))) {
+    final rest = paragraph.replaceAll(RegExp(r'\s+'), ' ').trim();
+    var start = 0;
+    while (rest.length - start > limit) {
+      final window = rest.substring(start, start + limit + 1);
+      var cut = -1;
+      for (final match in RegExp(
+        r'[.!?;:]["”’»)]?\s+|,\s+',
+      ).allMatches(window)) {
+        final end = match.end - 1;
+        final before = window.substring(0, end).trimRight();
+        // Keep abbreviations and initials with the following word.
+        if (RegExp(
+          r'(?:\b(?:Dr|Dra|Sr|Sra|Prof|Profa|Mr|Mrs|Ms|St|etc)|\b[A-ZÀ-Ý])\.$',
+          caseSensitive: false,
+        ).hasMatch(before)) {
+          continue;
+        }
+        if (end >= 60) cut = end;
+      }
+      if (cut >= 0) {
+        cut += start;
+      } else {
+        cut = rest.lastIndexOf(' ', start + limit);
+      }
+      if (cut <= start) cut = rest.indexOf(' ', start + limit);
+      if (cut < 0) break; // one exceptionally long token: never cut its word
+      final piece = rest.substring(start, cut).trim();
+      if (_hasWords(piece)) result.add(piece);
+      start = cut;
+      while (start < rest.length && rest[start] == ' ') {
+        start++;
+      }
+    }
+    final tail = rest.substring(start);
+    if (_hasWords(tail)) result.add(tail);
+  }
+  return result;
+}
+
+bool _hasWords(String text) =>
+    RegExp(r'[\p{L}\p{N}]', unicode: true).hasMatch(text);
 
 /// A slice of a document that can be edited on its own, addressed by
 /// character offsets into the full content.
@@ -337,7 +307,10 @@ const int _windowTarget = 8000;
 /// chapters the author already thinks in. Falls back to blank-line-aligned
 /// windows of roughly [_windowTarget] characters when there are no headings
 /// — never cutting mid-paragraph, so an edit never straddles a boundary.
-List<EditableSection> editableSectionsOf(String content, {String? fallbackTitle}) {
+List<EditableSection> editableSectionsOf(
+  String content, {
+  String? fallbackTitle,
+}) {
   if (content.isEmpty) {
     return [EditableSection(title: fallbackTitle ?? '1', start: 0, end: 0)];
   }
@@ -386,11 +359,7 @@ List<EditableSection> editableSectionsOf(String content, {String? fallbackTitle}
   while (start < content.length) {
     if (content.length - start <= _windowTarget + _windowTarget ~/ 2) {
       sections.add(
-        EditableSection(
-          title: '$index',
-          start: start,
-          end: content.length,
-        ),
+        EditableSection(title: '$index', start: start, end: content.length),
       );
       break;
     }

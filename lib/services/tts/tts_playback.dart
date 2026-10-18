@@ -43,6 +43,28 @@ class TtsPlaybackController extends ChangeNotifier {
   /// Guards the playback loop so a rapid stop/start cannot leave two loops
   /// racing to advance the same index.
   int _generation = 0;
+  bool _disposed = false;
+  Future<void> _transition = Future.value();
+
+  Future<void> _serialize(Future<void> Function() action) {
+    final result = _transition.then((_) => action());
+    _transition = result.catchError((Object _) {});
+    return result;
+  }
+
+  Future<void> _interruptEngine() => _serialize(() async {
+    try {
+      await _engine.stop();
+    } catch (error) {
+      debugPrint('sepia: engine stop failed: $error');
+    }
+  });
+
+  void _notify() {
+    if (!_disposed) notifyListeners();
+  }
+
+  bool get supportsPitch => _engine.supportsPitch;
 
   TtsPlaybackState get state => _state;
   bool get isActive => _state != TtsPlaybackState.idle;
@@ -63,9 +85,13 @@ class TtsPlaybackController extends ChangeNotifier {
   /// Swaps the backend (the user picked a different engine in settings).
   Future<void> useEngine(TtsEngine engine) async {
     if (identical(engine, _engine)) return;
-    await stop();
-    await _engine.release();
-    _engine = engine;
+    final stopped = stop();
+    final swapped = _serialize(() async {
+      await _engine.release();
+      _engine = engine;
+    });
+    await stopped;
+    await swapped;
   }
 
   /// Builds the queue for [section] of [document] and starts speaking.
@@ -76,44 +102,63 @@ class TtsPlaybackController extends ChangeNotifier {
     required double rate,
     required double pitch,
   }) async {
-    await stop();
+    final stopped = stop();
+    final generation = _generation;
+    await stopped;
+    if (generation != _generation || _disposed) return;
     _error = null;
     _state = TtsPlaybackState.preparing;
     _documentId = document.id;
     _sectionTitle = section.level == 0 ? null : section.title;
-    _pieces = _buildPieces(document, section);
     _index = 0;
-    notifyListeners();
-
-    if (_pieces.isEmpty) {
-      _state = TtsPlaybackState.idle;
-      notifyListeners();
-      return;
-    }
+    _notify();
     try {
-      await _engine.prepare();
-      await _engine.configure(voiceId: voiceId, rate: rate, pitch: pitch);
+      final request = (document: document, section: section);
+      final pieces = !kIsWeb && document.content.length >= 32000
+          ? await compute(_buildPieces, request)
+          : await _buildPieces(request);
+      if (generation != _generation) return;
+      _pieces = pieces;
+
+      if (_pieces.isEmpty) {
+        _state = TtsPlaybackState.idle;
+        _notify();
+        return;
+      }
+      await _serialize(() async {
+        if (generation != _generation) return;
+        await _engine.prepare();
+        if (generation != _generation) return;
+        await _engine.configure(voiceId: voiceId, rate: rate, pitch: pitch);
+      });
     } catch (error) {
+      if (generation != _generation) return;
       _error = '$error';
       _state = TtsPlaybackState.idle;
-      notifyListeners();
+      _notify();
       return;
     }
+    if (generation != _generation) return;
     _state = TtsPlaybackState.playing;
-    notifyListeners();
-    unawaited(_run(++_generation));
+    _notify();
+    unawaited(_run(generation));
   }
 
-  static List<SpokenPiece> _buildPieces(
-    LibraryDocument document,
-    DocumentSection section,
-  ) {
+  static Future<List<SpokenPiece>> _buildPieces(
+    ({LibraryDocument document, DocumentSection section}) request,
+  ) async {
+    final document = request.document;
+    final section = request.section;
     final chunks = chunksForDocument(document);
     final pieces = <SpokenPiece>[];
+    final definitions = document.isMarkdown
+        ? collectLinkDefinitions(document.content)
+        : '';
     final end = section.endChunk.clamp(0, chunks.length);
     for (var i = section.startChunk.clamp(0, chunks.length); i < end; i++) {
+      if (kIsWeb && i % 20 == 0) await Future<void>.delayed(Duration.zero);
       final spoken = document.isMarkdown
-          ? speakableText(chunks[i])
+          ? speakableText(chunks[i], linkDefinitions: definitions)
           : chunks[i].trim();
       for (final utterance in utterancesFor(spoken)) {
         pieces.add(SpokenPiece(chunkIndex: i, text: utterance));
@@ -127,15 +172,11 @@ class TtsPlaybackController extends ChangeNotifier {
         _state == TtsPlaybackState.playing &&
         _index < _pieces.length) {
       final piece = _pieces[_index];
-      // Ask the engine to work ahead on the next sentence while this one is
-      // still playing. A neural backend has to synthesise before it can play,
-      // so without this there is a gap before every single sentence; engines
-      // that speak directly ignore it.
-      if (_index + 1 < _pieces.length) {
-        unawaited(_engine.prime(_pieces[_index + 1].text));
-      }
       try {
-        await _engine.speak(piece.text);
+        await _engine.speakWithLookAhead(
+          piece.text,
+          _index + 1 < _pieces.length ? _pieces[_index + 1].text : null,
+        );
       } catch (error) {
         // An interruption — pause, skip, stop, a new chapter — can make the
         // engine reject the utterance in flight. That is not a failure, and a
@@ -149,7 +190,7 @@ class TtsPlaybackController extends ChangeNotifier {
         // showing a dead pause button.
         _error = '$error';
         await stop();
-        notifyListeners();
+        _notify();
         return;
       }
       // A stop or pause landed while this utterance was in flight: leave the
@@ -158,7 +199,7 @@ class TtsPlaybackController extends ChangeNotifier {
         return;
       }
       _index++;
-      notifyListeners();
+      _notify();
     }
     if (generation != _generation) return;
     if (_index >= _pieces.length) await stop();
@@ -168,28 +209,52 @@ class TtsPlaybackController extends ChangeNotifier {
     if (_state != TtsPlaybackState.playing) return;
     _state = TtsPlaybackState.paused;
     _generation++;
-    notifyListeners();
-    await _engine.stop();
+    _notify();
+    await _interruptEngine();
   }
 
   Future<void> resume() async {
     if (_state != TtsPlaybackState.paused) return;
+    final generation = ++_generation;
     _state = TtsPlaybackState.playing;
-    notifyListeners();
-    unawaited(_run(++_generation));
+    _notify();
+    await _transition;
+    if (generation == _generation) unawaited(_run(generation));
   }
 
   Future<void> skip(int delta) async {
     if (_pieces.isEmpty) return;
-    final wasPlaying = _state == TtsPlaybackState.playing;
-    _generation++;
-    await _engine.stop();
+    final generation = ++_generation;
     _index = (_index + delta).clamp(0, _pieces.length - 1);
-    notifyListeners();
-    if (wasPlaying) {
-      _state = TtsPlaybackState.playing;
-      unawaited(_run(++_generation));
+    _notify();
+    await _interruptEngine();
+    if (generation == _generation && isPlaying) unawaited(_run(generation));
+  }
+
+  /// Apply controls without losing the reading position or unpausing a
+  /// paused session. The interrupted utterance restarts with the new values.
+  Future<void> reconfigure({
+    String? voiceId,
+    required double rate,
+    required double pitch,
+  }) async {
+    if (!isActive) return;
+    final generation = ++_generation;
+    await _interruptEngine();
+    if (generation != _generation) return;
+    try {
+      await _serialize(() async {
+        if (generation != _generation) return;
+        await _engine.configure(voiceId: voiceId, rate: rate, pitch: pitch);
+      });
+      if (generation != _generation) return;
+      if (isPlaying) unawaited(_run(generation));
+    } catch (error) {
+      if (generation != _generation) return;
+      _error = '$error';
+      await stop();
     }
+    _notify();
   }
 
   /// Jumps playback to whichever utterance starts [chunkIndex].
@@ -209,28 +274,25 @@ class TtsPlaybackController extends ChangeNotifier {
     _pieces = const [];
     _documentId = null;
     _sectionTitle = null;
-    if (wasActive) notifyListeners();
-    // The player state is already reset; a backend that throws on the way
-    // down must not turn a stop into an unhandled async error.
-    try {
-      await _engine.stop();
-    } catch (error) {
-      debugPrint('sepia: engine stop failed: $error');
-    }
+    if (wasActive) _notify();
+    await _interruptEngine();
   }
 
   /// Stops and hands back whatever the engine was holding. The reader calls
   /// this on the way out so an idle document is not keeping a speech backend
   /// (and, for a neural engine, its model) alive in memory.
   Future<void> release() async {
-    await stop();
-    await _engine.release();
+    final stopped = stop();
+    final released = _serialize(() => _engine.release());
+    await stopped;
+    await released;
   }
 
   @override
   void dispose() {
     _generation++;
-    unawaited(_engine.release());
+    _disposed = true;
+    unawaited(_serialize(() => _engine.release()));
     super.dispose();
   }
 }

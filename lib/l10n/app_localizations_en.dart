@@ -649,7 +649,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ttsEngineNeuralDescription =>
-      'Far more natural. Runs offline on the device itself, with no API and without sending your text anywhere — but a voice has to be downloaded first.';
+      'Voices that run offline on the device, without sending text to a server. A voice download is required; performance depends on the model and device.';
 
   @override
   String get ttsVoice => 'Voice';
@@ -830,14 +830,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ttsTierLight => 'Light';
 
   @override
-  String get ttsTierBest => 'Best';
+  String get ttsTierBest => 'Multilingual';
 
   @override
-  String get ttsTierLightHint => 'Piper · runs well on any device';
+  String get ttsTierLightHint => 'Piper · smaller models with lower memory use';
 
   @override
   String get ttsTierBestHint =>
-      'Kokoro · one model with many voices and languages, more natural, but wants plenty of space and memory';
+      'Kokoro · one model with several voices and languages; needs more space and memory';
 
   @override
   String get ttsFellBackToSystem =>
@@ -1084,4 +1084,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get removeImportedFont => 'Remove imported font';
+
+  @override
+  String get ttsSpeechSettings => 'Speech settings';
+
+  @override
+  String get ttsSpeechSettingsHint =>
+      'Applying restarts the current passage with the new settings. Paused playback stays paused.';
+
+  @override
+  String get ttsNeuralPitchHint =>
+      'Neural voice pitch is set by the model. You can adjust the speed.';
+
+  @override
+  String get ttsSpeechTitle => 'Voice & pace';
 }

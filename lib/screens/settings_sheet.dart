@@ -15,7 +15,7 @@ import '../services/update_checker.dart';
 import '../state/app_controller.dart';
 import '../widgets/color_field.dart';
 import '../widgets/sheet_scaffold.dart';
-import '../widgets/settings_slider.dart';
+import '../widgets/speech_controls.dart';
 import 'voice_downloads_sheet.dart';
 import 'cli_access_switch.dart';
 
@@ -370,27 +370,16 @@ class _SettingsSheetState extends State<SettingsSheet> {
             else
               _voicePicker(context),
             const SizedBox(height: 8),
-            SettingsSlider(
-              label: context.l10n.ttsRate,
-              value: _draft.ttsRate,
-              min: 0.5,
-              max: 2,
-              divisions: 15,
-              onChanged: (value) =>
+            SpeechControls(
+              rate: _draft.ttsRate,
+              pitch: _draft.ttsPitch,
+              supportsPitch: !_usingNeural,
+              onRateChanged: (value) =>
                   setState(() => _draft = _draft.copyWith(ttsRate: value)),
+              onPitchChanged: (value) =>
+                  setState(() => _draft = _draft.copyWith(ttsPitch: value)),
             ),
-            // Pitch is a platform-voice control: a neural model renders its
-            // voice as trained, so the slider there would do nothing.
             if (!_usingNeural) ...[
-              SettingsSlider(
-                label: context.l10n.ttsPitch,
-                value: _draft.ttsPitch,
-                min: 0.5,
-                max: 2,
-                divisions: 15,
-                onChanged: (value) =>
-                    setState(() => _draft = _draft.copyWith(ttsPitch: value)),
-              ),
               const SizedBox(height: 6),
               OutlinedButton.icon(
                 onPressed: _previewVoice,

@@ -328,7 +328,7 @@
   "ttsEngineSystem": "System voice",
   "ttsEngineSystemDescription": "Ultra light: uses the voice Android or your browser already has. Nothing to download, no storage used, works offline.",
   "ttsEngineNeural": "On-device neural voice",
-  "ttsEngineNeuralDescription": "Far more natural. Runs offline on the device itself, with no API and without sending your text anywhere — but a voice has to be downloaded first.",
+  "ttsEngineNeuralDescription": "Voices that run offline on the device, without sending text to a server. A voice download is required; performance depends on the model and device.",
   "ttsVoice": "Voice",
   "ttsVoiceAuto": "Choose automatically",
   "ttsRate": "Speed",
@@ -447,9 +447,9 @@
   "ttsVoiceHeavy": "Large model: needs plenty of space and memory. On a weaker phone, prefer the Piper voices.",
   "ttsNoNeuralVoice": "No neural voice installed yet.",
   "ttsTierLight": "Light",
-  "ttsTierBest": "Best",
-  "ttsTierLightHint": "Piper · runs well on any device",
-  "ttsTierBestHint": "Kokoro · one model with many voices and languages, more natural, but wants plenty of space and memory",
+  "ttsTierBest": "Multilingual",
+  "ttsTierLightHint": "Piper · smaller models with lower memory use",
+  "ttsTierBestHint": "Kokoro · one model with several voices and languages; needs more space and memory",
   "ttsFellBackToSystem": "The neural voice could not be used right now; reading with the system voice.",
   "ttsVoiceQueued": "Queued…",
   "ttsVoiceCount": "{count, plural, =1{1 voice} other{{count} voices}}",
@@ -591,5 +591,9 @@
   "serverConfigError": "Could not access server settings. Check the address, token and server version (2.5 required).",
   "saveCustomTheme": "Save as custom theme",
   "serverAccessRefresh": "Check terminal access",
-  "removeImportedFont": "Remove imported font"
+  "removeImportedFont": "Remove imported font",
+  "ttsSpeechSettings": "Speech settings",
+  "ttsSpeechSettingsHint": "Applying restarts the current passage with the new settings. Paused playback stays paused.",
+  "ttsNeuralPitchHint": "Neural voice pitch is set by the model. You can adjust the speed.",
+  "ttsSpeechTitle": "Voice & pace"
 }

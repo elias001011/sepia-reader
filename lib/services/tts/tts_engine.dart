@@ -15,14 +15,8 @@ class TtsVoice {
 
 /// A speech backend.
 ///
-/// Deliberately narrow, and deliberately not the `flutter_tts` API: the
-/// system voice is the engine that ships today, but a locally-run neural
-/// model (Kokoro on sherpa-onnx) is the one actually wanted, and it has a
-/// very different shape — it synthesises audio it then has to play, and it
-/// holds hundreds of megabytes while it is loaded. Everything above this
-/// interface (the player, the chapter picker, the reader) is written once
-/// against these six methods so adding that engine is a new file rather
-/// than a rewrite.
+/// Shared by the platform voice (including Lite) and optional local neural
+/// models. Synthesis and audio ownership stay inside the selected backend.
 abstract class TtsEngine {
   /// Human-readable name of the backend, for the settings screen.
   String get label;
@@ -49,6 +43,19 @@ abstract class TtsEngine {
   /// Speaks [text], completing when the utterance has finished playing (or
   /// was interrupted by [stop]).
   Future<void> speak(String text);
+
+  /// Neural engines override this to give the current synthesis priority,
+  /// starting look-ahead only after its audio is ready to play.
+  Future<void> speakWithLookAhead(String text, String? nextText) async {
+    final current = speak(text);
+    if (nextText != null) unawaitedPrime(nextText);
+    await current;
+  }
+
+  void unawaitedPrime(String text) {
+    // A speculative failure must never abort current playback.
+    prime(text).catchError((Object _) {});
+  }
 
   /// Optional hint that [text] is likely to be spoken next.
   ///
