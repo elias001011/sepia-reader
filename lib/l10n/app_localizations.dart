@@ -521,7 +521,7 @@ abstract class AppLocalizations {
   /// No description provided for @folderContents.
   ///
   /// In en, this message translates to:
-  /// **'{files} files · {folders} folders'**
+  /// **'{files, plural, =1{1 file} other{{files} files}} · {folders, plural, =1{1 folder} other{{folders} folders}}'**
   String folderContents(int files, int folders);
 
   /// No description provided for @folderImported.
@@ -1771,6 +1771,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Save as custom theme'**
   String get saveCustomTheme;
+
+  /// No description provided for @serverAccessRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Check terminal access'**
+  String get serverAccessRefresh;
+
+  /// No description provided for @removeImportedFont.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove imported font'**
+  String get removeImportedFont;
 }
 
 class _AppLocalizationsDelegate

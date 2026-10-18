@@ -103,3 +103,17 @@ servidor: se outra pessoa ou aparelho editou o texto, a CLI recusa a gravação 
 preserva a sua edição em um arquivo temporário de recuperação. O caminho é
 informado no terminal. Exclusões usam os mesmos tombstones do app, para que
 se propaguem na próxima sincronização. Em scripts, `rm` exige `--yes`.
+
+### Compatibilidade de datas anteriores à 2.5
+
+Clientes antigos gravavam horários locais sem indicar fuso. O servidor 2.5.5
+converte as datas da API para UTC. Por padrão, interpreta horários sem fuso no
+fuso local do servidor. Se os clientes antigos usavam outro fuso, configure
+`SEPIA_LEGACY_TIMEZONE` com o identificador IANA correspondente (por exemplo,
+`Europe/Lisbon`) ou um deslocamento fixo (`+01:00`, `-03:00`) antes de iniciar o servidor. Use o fuso em que esses registros
+foram criados; registros que já incluem `Z` ou um deslocamento não são alterados.
+Em instalações sem a base de fusos do sistema, instale o pacote Python `tzdata`
+para usar um identificador IANA explícito.
+
+A CLI e o app recusam redirecionamentos da API. Configure o endereço final do
+servidor, incluindo o esquema correto (`http://` ou `https://`).

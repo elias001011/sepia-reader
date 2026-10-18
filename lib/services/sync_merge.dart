@@ -50,3 +50,22 @@ List<T> purgeExpiredTombstones<T extends SyncableRecord>(
 /// The records a user should actually see: everything that is not a tombstone.
 List<T> live<T extends SyncableRecord>(Iterable<T> records) =>
     records.where((record) => !record.isDeleted).toList(growable: false);
+
+/// Compare revisions, without JSON-encoding document bodies or depending on order.
+bool sameRecordVersions<T extends SyncableRecord>(
+  Iterable<T> a,
+  Iterable<T> b,
+) {
+  final left = {for (final record in a) record.id: record};
+  var count = 0;
+  for (final record in b) {
+    count++;
+    final previous = left[record.id];
+    if (previous == null ||
+        previous.updatedAt.compareTo(record.updatedAt) != 0 ||
+        previous.deletedAt?.toUtc() != record.deletedAt?.toUtc()) {
+      return false;
+    }
+  }
+  return left.length == count;
+}

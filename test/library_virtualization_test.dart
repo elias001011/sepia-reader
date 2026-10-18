@@ -43,13 +43,14 @@ void main() {
       ),
     });
     final controller = AppController(updateChecker: offlineUpdateChecker());
-    await controller.initialize();
+    await tester.runAsync(controller.initialize);
 
     await tester.pumpWidget(SepiaApp(controller: controller));
     await tester.pumpAndSettle();
 
     final builtTitles = find.byWidgetPredicate(
-      (widget) => widget is Text &&
+      (widget) =>
+          widget is Text &&
           widget.data != null &&
           widget.data!.startsWith('Documento ') &&
           widget.data!.endsWith('.md'),
@@ -126,7 +127,7 @@ void main() {
       ),
     });
     final controller = AppController(updateChecker: offlineUpdateChecker());
-    await controller.initialize();
+    await tester.runAsync(controller.initialize);
 
     await tester.pumpWidget(SepiaApp(controller: controller));
     await tester.pumpAndSettle();
@@ -157,9 +158,9 @@ class _LibraryController extends AppController {
   _LibraryController({
     required List<LibraryDocument> documents,
     required List<LibraryFolder> folders,
-  })  : documentsValue = documents,
-        foldersValue = folders,
-        super(updateChecker: offlineUpdateChecker());
+  }) : documentsValue = documents,
+       foldersValue = folders,
+       super(updateChecker: offlineUpdateChecker());
 
   final List<LibraryDocument> documentsValue;
   final List<LibraryFolder> foldersValue;
@@ -191,6 +192,6 @@ class _WordCountTrapDocument extends LibraryDocument {
 
   @override
   int get wordCount => throw StateError(
-        'a construção do cartão não pode varrer o documento inteiro',
-      );
+    'a construção do cartão não pode varrer o documento inteiro',
+  );
 }

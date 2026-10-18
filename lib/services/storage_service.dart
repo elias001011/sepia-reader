@@ -11,6 +11,8 @@ import '../models/library_document.dart';
 import '../models/library_folder.dart';
 import '../models/syncable.dart';
 import 'sync_merge.dart';
+import 'server_connection.dart';
+import 'json_work.dart';
 
 String _joinDocumentJsonRecords(List<String> records) =>
     '[${records.join(',')}]';
@@ -88,6 +90,7 @@ class StorageService {
   /// waking) have been seen, so the next autosave probes again instead of
   /// falling back to full-collection uploads for the rest of the session.
   bool? _mergeWriteCapability;
+  int _connectionGeneration = 0;
 
   /// Counts GETs that actually came back from the server. [forcePull] resets
   /// it so a user-triggered sync can report whether the server was reached
@@ -140,6 +143,7 @@ class StorageService {
   Future<void> saveSyncConfig(SyncConfig config) async {
     _cachedSyncConfig = config;
     _mergeWriteCapability = null;
+    _connectionGeneration++;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_syncConfigKey, jsonEncode(config.toJson()));
   }
@@ -163,7 +167,16 @@ class StorageService {
   /// already visible.
   Future<List<LibraryDocument>> loadLocalDocuments() async {
     final prefs = await SharedPreferences.getInstance();
-    return _decodeListRaw(prefs.getString(_documentsKey), _decodeDocuments);
+    final raw = prefs.getString(_documentsKey);
+    if (raw == null) return [];
+    try {
+      return _decodeList(
+        (await decodeStoredJson(raw)) as List<dynamic>,
+        _decodeDocuments,
+      );
+    } catch (_) {
+      return [];
+    }
   }
 
   Future<List<LibraryFolder>> loadLocalFolders() async {
@@ -190,37 +203,26 @@ class StorageService {
   /// has a meaning on the web. In an installed app `Uri.base` is a file
   /// location, not an origin, so an empty address there would produce a
   /// request that can never succeed — treat it as "not configured" instead.
-  Uri? _resolve(String path, SyncConfig config) {
-    if (!config.enabled) return null;
-    var base = config.serverUrl.trim();
-    if (base.isEmpty) return kIsWeb ? Uri.base.resolve(path) : null;
-    // People type addresses like "sepia.example:8888", without a scheme.
-    // Uri.tryParse rejects that outright — a leading digit isn't a valid
-    // scheme character, so it can't tell "host:port" from "scheme:path" and
-    // just gives up, returning null — which surfaced as "invalid URL" for a
-    // perfectly reachable address. Assume http:// when none is given.
-    if (!RegExp(r'^[a-zA-Z][a-zA-Z0-9+.-]*://').hasMatch(base)) {
-      base = 'http://$base';
-    }
-    final normalized = base.endsWith('/')
-        ? base.substring(0, base.length - 1)
-        : base;
-    return Uri.tryParse('$normalized$path');
-  }
+  Uri? _resolve(String path, SyncConfig config) =>
+      serverUri(config.serverUrl, path, enabled: config.enabled);
 
   Map<String, String> _authHeaders(SyncConfig config) => {
     if (config.token.isNotEmpty) 'Authorization': 'Bearer ${config.token}',
   };
 
   Future<dynamic> _fetchJson(String path) async {
-    final uri = _resolve(path, await loadSyncConfig());
+    final config = await loadSyncConfig();
+    final uri = _resolve(path, config);
     if (uri == null) return null;
     try {
-      final response = await _client
-          .get(uri, headers: _authHeaders(await loadSyncConfig()))
-          .timeout(_networkTimeout);
+      final response = await serverRequest(
+        _client,
+        'GET',
+        uri,
+        headers: _authHeaders(config),
+      ).timeout(_networkTimeout);
       if (response.statusCode != 200) return null;
-      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      final decoded = await decodeStoredJson(utf8.decode(response.bodyBytes));
       _serverResponses++;
       await _markSynced();
       return decoded;
@@ -243,20 +245,18 @@ class StorageService {
     return queued;
   }
 
-  Future<void> _sendJson(String path, Object body) async {
+  Future<void> _sendJson(String path, Object body, {SyncConfig? config}) async {
     try {
-      final uri = _resolve(path, await loadSyncConfig());
+      config ??= await loadSyncConfig();
+      final uri = _resolve(path, config);
       if (uri == null) return;
-      final response = await _client
-          .put(
-            uri,
-            headers: {
-              ..._mergeHeaders,
-              ..._authHeaders(await loadSyncConfig()),
-            },
-            body: jsonEncode(body),
-          )
-          .timeout(_networkTimeout);
+      final response = await serverRequest(
+        _client,
+        'PUT',
+        uri,
+        headers: {..._mergeHeaders, ..._authHeaders(config)},
+        body: await encodeStoredJson(body),
+      ).timeout(_networkTimeout);
       if (response.statusCode != 200) {
         debugPrint('sepia: PUT $path returned ${response.statusCode}');
       } else {
@@ -298,17 +298,21 @@ class StorageService {
       // Current servers expose a tiny liveness response. The old probe fetched
       // the entire document collection merely to prove the server existed —
       // 2.4 MB in a real library — and routinely hit the six-second timeout.
-      final health = await _client.get(healthUri).timeout(_probeTimeout);
+      final health = await serverRequest(
+        _client,
+        'GET',
+        healthUri,
+      ).timeout(_probeTimeout);
       if (health.statusCode == 200) {
         final decoded = jsonDecode(utf8.decode(health.bodyBytes));
         if (decoded is Map && decoded['ok'] == true) {
           if (decoded['authentication'] == true) {
-            final authorized = await _client
-                .head(
-                  _resolve('/api/documents', config)!,
-                  headers: _authHeaders(config),
-                )
-                .timeout(_probeTimeout);
+            final authorized = await serverRequest(
+              _client,
+              'HEAD',
+              _resolve('/api/documents', config)!,
+              headers: _authHeaders(config),
+            ).timeout(_probeTimeout);
             if (authorized.statusCode != 200) {
               return (
                 ok: false,
@@ -333,9 +337,12 @@ class StorageService {
       }
 
       final documentsUri = _resolve('/api/documents', config)!;
-      final response = await _client
-          .get(documentsUri, headers: _authHeaders(config))
-          .timeout(_networkTimeout);
+      final response = await serverRequest(
+        _client,
+        'GET',
+        documentsUri,
+        headers: _authHeaders(config),
+      ).timeout(_networkTimeout);
       if (response.statusCode != 200) {
         return (
           ok: false,
@@ -343,7 +350,7 @@ class StorageService {
           error: 'HTTP ${response.statusCode}',
         );
       }
-      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      final decoded = await decodeStoredJson(utf8.decode(response.bodyBytes));
       if (decoded is! List) {
         return (ok: false, documentCount: null, error: 'Resposta inesperada');
       }
@@ -383,33 +390,41 @@ class StorageService {
     final remoteRaw = await _fetchJson(path);
     final remote = remoteRaw is List ? _decodeList(remoteRaw, decode) : null;
 
-    // Re-read after the network wait. A user can edit while background sync
-    // is in flight; using the snapshot from before the GET would overwrite
-    // that edit in local persistence when the response arrived.
-    if (key == _documentsKey) await _pendingDocumentWrites;
-    final local = _decodeListRaw(prefs.getString(key), decode);
-
-    final merged = purgeExpiredTombstones(
-      remote == null ? local : mergeById(local, remote),
-    );
-    final encoded = merged.map(encode).toList();
-    final encodedJson = jsonEncode(encoded);
-    if (key == _documentsKey) {
-      await _writeDocumentsLocally(encodedJson);
-    } else {
-      await prefs.setString(key, encodedJson);
+    Future<List<T>> reconcile() async {
+      // Re-read inside the write queue: a large encode can yield while an
+      // autosave arrives. Both operations must keep their issue order.
+      final raw = prefs.getString(key);
+      List<T> local;
+      try {
+        local = raw == null
+            ? []
+            : _decodeList(await decodeStoredJson(raw) as List<dynamic>, decode);
+      } catch (_) {
+        local = [];
+      }
+      final merged = purgeExpiredTombstones(
+        remote == null ? local : mergeById(local, remote),
+      );
+      final localChanged = !sameRecordVersions(local, merged);
+      final remoteChanged =
+          remoteRaw is List &&
+          (remote == null ||
+              remote.length != remoteRaw.length ||
+              !sameRecordVersions(remote, merged));
+      if (localChanged || remoteChanged) {
+        final encoded = merged.map(encode).toList(growable: false);
+        if (localChanged) {
+          await prefs.setString(key, await encodeStoredJson(encoded));
+        }
+        if (remoteChanged) unawaited(_pushJson(path, encoded));
+      }
+      return merged;
     }
 
-    // Only write back when the server's copy actually differs, so a start-up
-    // that changed nothing does not cost a needless upload.
-    if (remoteRaw is List && jsonEncode(remoteRaw) != jsonEncode(encoded)) {
-      // The pull is complete once the merged local copy is durable. Publishing
-      // that merge stays in the serialized outgoing queue, but a slow PUT
-      // must not keep pull-to-refresh (or background startup sync) waiting for
-      // another full network timeout per collection.
-      unawaited(_pushJson(path, encoded));
-    }
-    return merged;
+    if (key != _documentsKey) return reconcile();
+    final operation = _pendingDocumentWrites.then((_) => reconcile());
+    _pendingDocumentWrites = operation.then<void>((_) {}, onError: (_, _) {});
+    return operation;
   }
 
   List<T> _decodeListRaw<T>(
@@ -594,11 +609,10 @@ class StorageService {
   }
 
   Future<void> saveDocuments(List<LibraryDocument> documents) async {
-    // Encode before the first await: AppController owns a mutable list, and a
+    // Snapshot before the first await: AppController owns a mutable list, and a
     // later edit must not leak into this older snapshot while prefs loads.
     final snapshot = List<LibraryDocument>.of(documents);
-    final records = _encodeDocumentRecords(snapshot);
-    await _writeDocumentRecordsLocally(records);
+    await _writeDocumentSnapshot(snapshot);
     unawaited(
       _pushJson(
         '/api/documents',
@@ -615,25 +629,24 @@ class StorageService {
     LibraryDocument changed,
   ) async {
     final snapshot = List<LibraryDocument>.of(documents);
-    final records = _encodeDocumentRecords(snapshot);
     final changedRemote = changed.toJson();
-    await _writeDocumentRecordsLocally(records);
+    await _writeDocumentSnapshot(snapshot);
     unawaited(_pushDocumentDelta(snapshot, changedRemote));
   }
 
   /// Persists the startup seed without starting a network request before the
   /// first frame. The background sync will merge and publish it if needed.
   Future<void> saveDocumentsLocally(List<LibraryDocument> documents) async {
-    final records = _encodeDocumentRecords(List<LibraryDocument>.of(documents));
-    await _writeDocumentRecordsLocally(records);
+    await _writeDocumentSnapshot(List<LibraryDocument>.of(documents));
   }
 
   /// Joins the complete SharedPreferences snapshot away from the UI isolate.
   /// The per-record cache means an autosave only JSON-encodes the changed
   /// document, but the old `records.join(',')` still copied the entire
   /// library on the main isolate every time.
-  Future<void> _writeDocumentRecordsLocally(List<String> records) {
+  Future<void> _writeDocumentSnapshot(List<LibraryDocument> snapshot) {
     final write = _pendingDocumentWrites.then((_) async {
+      final records = await _encodeDocumentRecords(snapshot);
       final encodedSize = records.fold<int>(
         2,
         (total, record) => total + record.length + 1,
@@ -648,27 +661,20 @@ class StorageService {
     return write;
   }
 
-  /// SharedPreferences writes are asynchronous. Keep document snapshots in
-  /// issue order so a slower old autosave cannot overwrite a newer one.
-  Future<void> _writeDocumentsLocally(String encoded) {
-    final write = _pendingDocumentWrites.then((_) async {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_documentsKey, encoded);
-    });
-    // A failed write is still returned to its caller, but it must not poison
-    // later saves queued by the editor.
-    _pendingDocumentWrites = write.then<void>((_) {}, onError: (_, _) {});
-    return write;
-  }
-
   Future<void> _pushDocumentDelta(
     List<LibraryDocument> full,
     Map<String, dynamic> changed,
   ) => _enqueuePush(() async {
-    var supportsMerge = _mergeWriteCapability;
+    final config = await loadSyncConfig();
+    final generation = _connectionGeneration;
+    var supportsMerge = generation == _connectionGeneration
+        ? _mergeWriteCapability
+        : null;
     if (supportsMerge == null) {
-      final probed = await _probeMergeSupport();
-      if (probed != null) _mergeWriteCapability = probed;
+      final probed = await _probeMergeSupport(config);
+      if (probed != null && generation == _connectionGeneration) {
+        _mergeWriteCapability = probed;
+      }
       supportsMerge = probed ?? false;
     }
     // Modern servers receive one small record. Only construct a complete
@@ -677,22 +683,26 @@ class StorageService {
     final body = supportsMerge
         ? [changed]
         : full.map((document) => document.toJson()).toList(growable: false);
-    await _sendJson('/api/documents', body);
+    await _sendJson('/api/documents', body, config: config);
   });
 
   /// `true`/`false` when the server has answered for certain, `null` when the
   /// probe could not reach it (offline, timeout, a proxy 5xx) so the caller
   /// retries next time rather than caching a pessimistic guess all session.
-  Future<bool?> _probeMergeSupport() async {
-    final uri = _resolve('/healthz', await loadSyncConfig());
+  Future<bool?> _probeMergeSupport(SyncConfig config) async {
+    final uri = _resolve('/healthz', config);
     if (uri == null) return false;
     try {
-      final response = await _client.get(uri).timeout(_probeTimeout);
+      final response = await serverRequest(
+        _client,
+        'GET',
+        uri,
+      ).timeout(_probeTimeout);
       // A server old enough to lack /healthz has no merge endpoint either;
       // that 404 is a definitive answer. Other non-200s are transient.
       if (response.statusCode == 404) return false;
       if (response.statusCode != 200) return null;
-      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      final decoded = await decodeStoredJson(utf8.decode(response.bodyBytes));
       if (decoded is! Map) return false;
       final modes = decoded['write_modes'];
       return modes is List && modes.contains('merge');
@@ -701,21 +711,27 @@ class StorageService {
     }
   }
 
-  List<String> _encodeDocumentRecords(List<LibraryDocument> documents) {
+  Future<List<String>> _encodeDocumentRecords(
+    List<LibraryDocument> documents,
+  ) async {
     final ids = documents.map((document) => document.id).toSet();
     _encodedDocuments.removeWhere((id, _) => !ids.contains(id));
-    final records = <String>[];
-    for (final document in documents) {
-      final cached = _encodedDocuments[document.id];
-      if (cached != null && identical(cached.document, document)) {
-        records.add(cached.json);
-        continue;
-      }
-      final encoded = jsonEncode(document.toJson());
-      _encodedDocuments[document.id] = (document: document, json: encoded);
-      records.add(encoded);
+    final missing = documents
+        .where((d) => !identical(_encodedDocuments[d.id]?.document, d))
+        .toList(growable: false);
+    final encoded = await encodeJsonRecords([
+      for (final d in missing) d.toJson(),
+    ]);
+    for (var index = 0; index < missing.length; index++) {
+      final document = missing[index];
+      _encodedDocuments[document.id] = (
+        document: document,
+        json: encoded[index],
+      );
     }
-    return records;
+    return [
+      for (final document in documents) _encodedDocuments[document.id]!.json,
+    ];
   }
 
   Future<void> saveSettings(AppSettings settings) async {
@@ -799,16 +815,16 @@ class StorageService {
       final uri = _resolve(path, config);
       if (uri == null) return false;
       try {
-        final response = await _client
-            .put(
-              uri,
-              headers: {
-                'Content-Type': 'application/json',
-                ..._authHeaders(config),
-              },
-              body: jsonEncode(body),
-            )
-            .timeout(_networkTimeout);
+        final response = await serverRequest(
+          _client,
+          'PUT',
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            ..._authHeaders(config),
+          },
+          body: await encodeStoredJson(body),
+        ).timeout(_networkTimeout);
         return response.statusCode == 200;
       } catch (error) {
         debugPrint('sepia: clearing $path failed: $error');

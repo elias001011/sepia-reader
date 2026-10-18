@@ -238,7 +238,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String folderContents(int files, int folders) {
-    return '$files files · $folders folders';
+    String _temp0 = intl.Intl.pluralLogic(
+      files,
+      locale: localeName,
+      other: '$files files',
+      one: '1 file',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      folders,
+      locale: localeName,
+      other: '$folders folders',
+      one: '1 folder',
+    );
+    return '$_temp0 · $_temp1';
   }
 
   @override
@@ -1066,4 +1078,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get saveCustomTheme => 'Save as custom theme';
+
+  @override
+  String get serverAccessRefresh => 'Check terminal access';
+
+  @override
+  String get removeImportedFont => 'Remove imported font';
 }

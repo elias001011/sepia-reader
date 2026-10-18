@@ -14,7 +14,7 @@ import re
 import signal
 import threading
 import urllib.parse
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from email.utils import parsedate_to_datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -25,6 +25,56 @@ DATA_DIR = os.environ.get("SEPIA_DATA_DIR", os.path.join(BASE_DIR, "data"))
 PORT = int(os.environ.get("SEPIA_PORT", "8888"))
 HOST = os.environ.get("SEPIA_HOST", "0.0.0.0")
 TOKEN = os.environ.get("SEPIA_TOKEN", "")
+VERSION = "2.5.5"
+# Old clients omitted the timezone. Operators can explicitly select the
+# legacy client timezone; the host's local zone is the compatibility default.
+LEGACY_TIMEZONE = os.environ.get("SEPIA_LEGACY_TIMEZONE", "")
+
+
+def legacy_timezone():
+    if not LEGACY_TIMEZONE:
+        return datetime.now().astimezone().tzinfo
+    offset = re.fullmatch(r"([+-])(\d{2}):(\d{2})", LEGACY_TIMEZONE)
+    if offset:
+        hours, minutes = int(offset[2]), int(offset[3])
+        if hours > 23 or minutes > 59:
+            raise ValueError("Invalid legacy timezone offset")
+        delta = timedelta(hours=hours, minutes=minutes)
+        return timezone(delta if offset[1] == "+" else -delta)
+    from zoneinfo import ZoneInfo  # Only explicit IANA zones need Python 3.9+.
+    return ZoneInfo(LEGACY_TIMEZONE)
+
+
+def canonical_record(record):
+    result = dict(record)
+    for key in ("createdAt", "updatedAt", "deletedAt", "settingsUpdatedAt"):
+        value = result.get(key)
+        if not isinstance(value, str):
+            continue
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=legacy_timezone())
+        result[key] = parsed.astimezone(timezone.utc).isoformat()
+    return result
+
+
+def canonical_payload(value):
+    if isinstance(value, list):
+        return [canonical_record(r) if isinstance(r, dict) else r for r in value]
+    return canonical_record(value) if isinstance(value, dict) else value
+
+
+def mutation_time(records):
+    now = datetime.now(timezone.utc)
+    for record in records:
+        previous = _record_time(record)
+        if previous >= now:
+            now = previous + timedelta(microseconds=1)
+    return now.isoformat()
+
 MAX_BODY_BYTES = 64 * 1024 * 1024
 MERGE_HEADER = "X-Sepia-Write-Mode"
 
@@ -67,7 +117,8 @@ def health_payload():
     """
     return {
         "ok": True,
-        "version": "2.5.0",
+        "version": VERSION,
+        "legacy_timezone": LEGACY_TIMEZONE or str(legacy_timezone()),
         "cli_enabled": server_config()["cliEnabled"],
         "authentication": bool(TOKEN),
         "service": "sepia-sync",
@@ -137,7 +188,7 @@ def _record_time(record, key="updatedAt"):
     except ValueError:
         return datetime.min.replace(tzinfo=timezone.utc)
     if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=timezone.utc)
+        return parsed.replace(tzinfo=legacy_timezone())
     return parsed.astimezone(timezone.utc)
 
 
@@ -215,8 +266,8 @@ def cli_operation(payload):
     path = payload.get("path", "/")
     if not isinstance(path, str):
         raise CliError("path must be a string")
-    docs = _read_json("documents.json", [], strict=True)
-    folders = _read_json("folders.json", [], strict=True)
+    docs = canonical_payload(_read_json("documents.json", [], strict=True))
+    folders = canonical_payload(_read_json("folders.json", [], strict=True))
     if not isinstance(docs, list) or not isinstance(folders, list) or not all(
         isinstance(r, dict) and isinstance(r.get("id"), str) for r in docs + folders
     ):
@@ -273,7 +324,6 @@ def cli_operation(payload):
             raise CliError("unsupported text file extension")
         return title, ext[1:].lower()
 
-    now = datetime.now(timezone.utc).isoformat()
     if command in ("ls", "tree"):
         folder = resolve(path, folder_only=True)
         parent = folder["id"] if folder else None
@@ -294,6 +344,7 @@ def cli_operation(payload):
         if record is None or "content" not in record:
             raise CliError("expected a file")
         return record
+    now = mutation_time(docs + folders)
     if command == "mkdir":
         parent, leaf = destination(path)
         ensure_free(parent, leaf)
@@ -369,15 +420,16 @@ def cli_operation(payload):
             removed_docs = contained
         else:
             removed_docs = [record]
+        removed_ids = {d["id"] for d in removed_docs}
+        bookmarks = canonical_payload(_read_json("bookmarks.json", [], strict=True))
+        if not isinstance(bookmarks, list) or not all(isinstance(b, dict) for b in bookmarks):
+            raise CliError("invalid bookmark data", 500)
+        now = mutation_time(docs + folders + bookmarks)
         for f in live_folders:
             if f["id"] in deleted_folders:
                 f.update(updatedAt=now, deletedAt=now)
         for d in removed_docs:
             d.update(content="", updatedAt=now, deletedAt=now)
-        removed_ids = {d["id"] for d in removed_docs}
-        bookmarks = _read_json("bookmarks.json", [], strict=True)
-        if not isinstance(bookmarks, list) or not all(isinstance(b, dict) for b in bookmarks):
-            raise CliError("invalid bookmark data", 500)
         for b in bookmarks:
             if b.get("documentId") in removed_ids:
                 b.update(updatedAt=now, deletedAt=now)
@@ -388,7 +440,7 @@ def cli_operation(payload):
     raise CliError("unknown command")
 
 
-TEXT_EXTENSIONS = {".md", ".markdown", ".txt", ".json", ".yaml", ".yml", ".html", ".htm",
+TEXT_EXTENSIONS = {".md", ".markdown", ".txt", ".text", ".json", ".yaml", ".yml", ".html", ".htm",
                    ".css", ".js", ".ts", ".py", ".dart", ".sh", ".sql", ".xml", ".csv",
                    ".toml", ".ini", ".log", ".rs", ".go", ".java", ".kt", ".swift", ".c", ".cpp", ".h"}
 
@@ -402,7 +454,7 @@ class Server(ThreadingHTTPServer):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "SepiaServer/2.5"
+    server_version = "SepiaServer/" + VERSION
 
     def _authorized(self, admin=False):
         supplied = self.headers.get("Authorization", "")
@@ -553,7 +605,7 @@ class Handler(BaseHTTPRequestHandler):
         if route in API_FILES:
             filename, default = API_FILES[route]
             with DATA_LOCK:
-                payload = _read_json(filename, default)
+                payload = canonical_payload(_read_json(filename, default))
             self._send_json(200, payload)
             return
         self._serve_static()
@@ -609,11 +661,12 @@ class Handler(BaseHTTPRequestHandler):
 
         try:
             with DATA_LOCK:
+                value = canonical_payload(value)
                 merge_requested = self.headers.get(MERGE_HEADER, "").lower() == "merge"
                 if merge_requested and isinstance(default, list):
-                    value = merge_records(_read_json(filename, default), value)
+                    value = merge_records(canonical_payload(_read_json(filename, default)), value)
                 elif merge_requested and isinstance(default, dict):
-                    value = merge_settings(_read_json(filename, default), value)
+                    value = merge_settings(canonical_payload(_read_json(filename, default)), value)
                 _write_json_atomic(filename, value)
         except ValueError as error:
             self._send_json(400, {"error": str(error)})
@@ -633,6 +686,7 @@ def main():
         configure_cli(args.cli == "on")
         print(json.dumps(server_config()))
         return
+    legacy_timezone()  # Fail before serving if an explicitly configured IANA zone is invalid.
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(WEB_DIR, exist_ok=True)
     server = Server((HOST, PORT), Handler)

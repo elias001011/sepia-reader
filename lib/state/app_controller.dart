@@ -49,21 +49,29 @@ class AppController extends ChangeNotifier {
   AppSettings _settings = const AppSettings();
   Future<SyncRunResult>? _syncInFlight;
 
+  List<LibraryDocument>? _visibleDocuments;
+  List<LibraryFolder>? _visibleFolders;
+  DateTime? _mutationClock;
+
   List<LibraryDocument> get documents {
+    final cached = _visibleDocuments;
+    if (cached != null) return cached;
     final sorted = live(_documents)
       ..sort((a, b) {
         if (a.isFavorite != b.isFavorite) return a.isFavorite ? -1 : 1;
         return b.updatedAt.compareTo(a.updatedAt);
       });
-    return List.unmodifiable(sorted);
+    return _visibleDocuments = List.unmodifiable(sorted);
   }
 
   AppSettings get settings => _settings;
 
   List<LibraryFolder> get folders {
+    final cached = _visibleFolders;
+    if (cached != null) return cached;
     final sorted = live(_folders)
       ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-    return List.unmodifiable(sorted);
+    return _visibleFolders = List.unmodifiable(sorted);
   }
 
   List<LibraryFolder> foldersIn(String? parentId) => folders
@@ -92,14 +100,15 @@ class AppController extends ChangeNotifier {
     // runApp(), leaving a release build on its black native launch surface
     // until they completed or timed out.
     _settings = await _storage.loadLocalSettings();
-    await CustomFonts.load();
+    await CustomFonts.load(selectedFamily: _settings.readerFont);
     _folders.addAll(await _storage.loadLocalFolders());
     _documents.addAll(await _storage.loadLocalDocuments());
     _bookmarks.addAll(await _storage.loadLocalBookmarks());
+    _observeMutationTimes();
     // "Empty" means no *live* documents: a library whose documents were all
     // deleted should still get the welcome document back.
     if (live(_documents).isEmpty) {
-      final now = DateTime.now();
+      final now = _nextMutationTime();
       final isEnglish = _usesEnglish;
       final welcome = LibraryDocument(
         id: welcomeDocumentId,
@@ -141,7 +150,7 @@ class AppController extends ChangeNotifier {
     String content = '',
     String? folderId,
   }) async {
-    final now = DateTime.now();
+    final now = _nextMutationTime();
     final ext = extension.replaceFirst('.', '').toLowerCase();
     final suffix = '.$ext';
     var cleanTitle = title.trim();
@@ -160,7 +169,7 @@ class AppController extends ChangeNotifier {
       folderId: folderId,
     );
     _documents.add(document);
-    await _storage.saveDocument(_documents, document);
+    await _persistDocument(document);
     notifyListeners();
     return document;
   }
@@ -171,9 +180,9 @@ class AppController extends ChangeNotifier {
   }) async {
     final index = _liveDocumentIndex(document.id);
     if (index == -1) return;
-    final updated = document.copyWith(updatedAt: DateTime.now());
+    final updated = document.copyWith(updatedAt: _nextMutationTime());
     _documents[index] = updated;
-    await _storage.saveDocument(_documents, updated);
+    await _persistDocument(updated);
     if (notify) notifyListeners();
   }
 
@@ -190,16 +199,16 @@ class AppController extends ChangeNotifier {
     if (cleanTitle.isEmpty) return;
     _documents[index] = document.copyWith(
       title: cleanTitle,
-      updatedAt: DateTime.now(),
+      updatedAt: _nextMutationTime(),
     );
-    await _storage.saveDocument(_documents, _documents[index]);
+    await _persistDocument(_documents[index]);
     notifyListeners();
   }
 
   Future<void> deleteDocument(String id) async {
     final index = _liveDocumentIndex(id);
     if (index == -1) return;
-    final now = DateTime.now();
+    final now = _nextMutationTime();
     // Keep the record as a tombstone so the deletion reaches other devices,
     // but drop the body: a deleted long document should not keep sitting in
     // the synced payload for the whole retention window.
@@ -225,9 +234,9 @@ class AppController extends ChangeNotifier {
     if (index == -1) return;
     _documents[index] = _documents[index].copyWith(
       isFavorite: !_documents[index].isFavorite,
-      updatedAt: DateTime.now(),
+      updatedAt: _nextMutationTime(),
     );
-    await _storage.saveDocument(_documents, _documents[index]);
+    await _persistDocument(_documents[index]);
     notifyListeners();
   }
 
@@ -251,7 +260,7 @@ class AppController extends ChangeNotifier {
         _folders[index].parentId,
         exceptId: id,
       ),
-      updatedAt: DateTime.now(),
+      updatedAt: _nextMutationTime(),
     );
     await _persistFolders();
     notifyListeners();
@@ -263,9 +272,9 @@ class AppController extends ChangeNotifier {
     _documents[index] = _documents[index].copyWith(
       folderId: folderId,
       moveToRoot: folderId == null,
-      updatedAt: DateTime.now(),
+      updatedAt: _nextMutationTime(),
     );
-    await _storage.saveDocument(_documents, _documents[index]);
+    await _persistDocument(_documents[index]);
     notifyListeners();
   }
 
@@ -282,7 +291,7 @@ class AppController extends ChangeNotifier {
       parentId: parentId,
       moveToRoot: parentId == null,
       name: _uniqueFolderName(_folders[index].name, parentId, exceptId: id),
-      updatedAt: DateTime.now(),
+      updatedAt: _nextMutationTime(),
     );
     await _persistFolders();
     notifyListeners();
@@ -296,7 +305,7 @@ class AppController extends ChangeNotifier {
     Set<String> documentIds = const {},
     required String? destinationParentId,
   }) async {
-    final now = DateTime.now();
+    final now = _nextMutationTime();
     var touchedFolders = false;
     for (final folderId in folderIds) {
       final index = _liveFolderIndex(folderId);
@@ -338,7 +347,7 @@ class AppController extends ChangeNotifier {
     Set<String> folderIds = const {},
     Set<String> documentIds = const {},
   }) async {
-    final now = DateTime.now();
+    final now = _nextMutationTime();
     final doomedFolders = <String>{};
     final doomedDocuments = <String>{...documentIds};
     for (final folderId in folderIds) {
@@ -428,7 +437,7 @@ class AppController extends ChangeNotifier {
   Future<void> deleteFolder(String id) async {
     if (_liveFolderIndex(id) == -1) return;
     final contents = folderContents(id);
-    final now = DateTime.now();
+    final now = _nextMutationTime();
     for (var i = 0; i < _folders.length; i++) {
       if (contents.folderIds.contains(_folders[i].id) &&
           !_folders[i].isDeleted) {
@@ -595,7 +604,7 @@ class AppController extends ChangeNotifier {
       chunkIndex: chunkIndex,
       alignment: alignment,
       excerpt: excerpt,
-      createdAt: DateTime.now(),
+      createdAt: _nextMutationTime(),
     );
     _bookmarks.add(bookmark);
     await _persistBookmarks();
@@ -608,7 +617,7 @@ class AppController extends ChangeNotifier {
       (bookmark) => bookmark.id == id && !bookmark.isDeleted,
     );
     if (index == -1) return;
-    final now = DateTime.now();
+    final now = _nextMutationTime();
     _bookmarks[index] = _bookmarks[index].copyWith(
       updatedAt: now,
       deletedAt: now,
@@ -621,7 +630,7 @@ class AppController extends ChangeNotifier {
     // Stamp the merge clock so this change outranks whatever the server still
     // holds: without it, the next load let a stale server copy overwrite the
     // edit, and appearance settings appeared to reset themselves on upgrade.
-    final stamped = settings.copyWith(settingsUpdatedAt: DateTime.now());
+    final stamped = settings.copyWith(settingsUpdatedAt: _nextMutationTime());
     _settings = stamped;
     // Persist the sync preferences locally *before* saving, so that turning
     // sync off takes effect immediately (this very save must not be pushed)
@@ -634,6 +643,7 @@ class AppController extends ChangeNotifier {
       ),
     );
     await _storage.saveSettings(stamped);
+    await _loadReaderFont();
     notifyListeners();
   }
 
@@ -708,26 +718,27 @@ class AppController extends ChangeNotifier {
       ..clear()
       ..addAll(mergedBookmarks);
     _settings = mergedSettings;
+    _visibleDocuments = null;
+    _visibleFolders = null;
+    _observeMutationTimes();
 
     // StorageService persisted the network result before returning. If an
     // in-flight local edit changed the merged answer, persist and publish the
     // newer state once more so disk, memory and server converge.
-    if (jsonEncode(mergedDocuments.map((item) => item.toJson()).toList()) !=
-        jsonEncode(result.documents.map((item) => item.toJson()).toList())) {
+    if (!sameRecordVersions(mergedDocuments, result.documents)) {
       await _storage.saveDocuments(mergedDocuments);
     }
-    if (jsonEncode(mergedFolders.map((item) => item.toJson()).toList()) !=
-        jsonEncode(result.folders.map((item) => item.toJson()).toList())) {
+    if (!sameRecordVersions(mergedFolders, result.folders)) {
       await _storage.saveFolders(mergedFolders);
     }
-    if (jsonEncode(mergedBookmarks.map((item) => item.toJson()).toList()) !=
-        jsonEncode(result.bookmarks.map((item) => item.toJson()).toList())) {
+    if (!sameRecordVersions(mergedBookmarks, result.bookmarks)) {
       await _storage.saveBookmarks(mergedBookmarks);
     }
     if (jsonEncode(mergedSettings.toJson()) !=
         jsonEncode(result.settings.toJson())) {
       await _storage.saveSettings(mergedSettings);
     }
+    await _loadReaderFont();
     notifyListeners();
     return result.reachedServer ? SyncRunResult.done : SyncRunResult.failed;
   }
@@ -738,9 +749,53 @@ class AppController extends ChangeNotifier {
     super.dispose();
   }
 
-  Future<void> _persistDocuments() => _storage.saveDocuments(_documents);
+  Future<void> _loadReaderFont() async {
+    try {
+      await CustomFonts.ensureLoaded(_settings.readerFont);
+    } catch (error) {
+      debugPrint('sepia: could not load selected local font: $error');
+    }
+  }
 
-  Future<void> _persistFolders() => _storage.saveFolders(_folders);
+  DateTime _nextMutationTime() {
+    final now = DateTime.now().toUtc();
+    final previous = _mutationClock;
+    return _mutationClock = previous != null && !now.isAfter(previous)
+        ? previous.add(const Duration(microseconds: 1))
+        : now;
+  }
+
+  void _observeMutationTimes() {
+    for (final record in <SyncableRecord>[
+      ..._documents,
+      ..._folders,
+      ..._bookmarks,
+    ]) {
+      if (_mutationClock == null || record.updatedAt.isAfter(_mutationClock!)) {
+        _mutationClock = record.updatedAt.toUtc();
+      }
+    }
+    final settingsTime = _settings.settingsUpdatedAt;
+    if (settingsTime != null &&
+        (_mutationClock == null || settingsTime.isAfter(_mutationClock!))) {
+      _mutationClock = settingsTime.toUtc();
+    }
+  }
+
+  Future<void> _persistDocument(LibraryDocument changed) {
+    _visibleDocuments = null;
+    return _storage.saveDocument(_documents, changed);
+  }
+
+  Future<void> _persistDocuments() {
+    _visibleDocuments = null;
+    return _storage.saveDocuments(_documents);
+  }
+
+  Future<void> _persistFolders() {
+    _visibleFolders = null;
+    return _storage.saveFolders(_folders);
+  }
 
   Future<void> _persistBookmarks() => _storage.saveBookmarks(_bookmarks);
 
@@ -752,7 +807,7 @@ class AppController extends ChangeNotifier {
     required String name,
     String? parentId,
   }) {
-    final now = DateTime.now();
+    final now = _nextMutationTime();
     final cleanName = _cleanFolderName(name);
     final folder = LibraryFolder(
       id: _uuid.v4(),
@@ -776,7 +831,7 @@ class AppController extends ChangeNotifier {
     required String content,
     String? folderId,
   }) {
-    final now = DateTime.now();
+    final now = _nextMutationTime();
     final document = LibraryDocument(
       id: _uuid.v4(),
       title: title.trim().isEmpty
