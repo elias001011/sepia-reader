@@ -939,8 +939,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
             children: [
               Text(
                 context.l10n.libraryHero,
-                style: Theme.of(context).textTheme.displaySmall
-                    ?.copyWith(fontWeight: FontWeight.w800, height: 1.05),
+                style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                  fontSize: constraints.maxWidth < 300 ? 28 : null,
+                  fontWeight: FontWeight.w800,
+                  height: 1.05,
+                ),
               ),
               const SizedBox(height: 12),
               Text(
