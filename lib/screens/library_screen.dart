@@ -1243,13 +1243,16 @@ class _LibraryScreenState extends State<LibraryScreen> {
     String? title,
     ({String? id})? currentFolderId,
   }) {
+    final destinations = widget.controller.folders
+        .where((folder) => !blockedFolderIds.contains(folder.id))
+        .toList(growable: false);
     return showDialog<({String? folderId})>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(title ?? dialogContext.l10n.moveTo),
         content: SizedBox(
           width: appDialogWidth(dialogContext, 440),
-          height: 420,
+          height: ((destinations.length + 1) * 72.0).clamp(72.0, 420.0),
           child: ListView(
             children: [
               ListTile(
@@ -1260,23 +1263,22 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     : null,
                 onTap: () => Navigator.pop(dialogContext, (folderId: null)),
               ),
-              for (final folder in widget.controller.folders)
-                if (!blockedFolderIds.contains(folder.id))
-                  ListTile(
-                    leading: const Icon(Icons.folder_rounded),
-                    title: Text(folder.name),
-                    subtitle: Text(
-                      widget.controller
-                          .folderPath(folder.parentId)
-                          .map((item) => item.name)
-                          .join(' / '),
-                    ),
-                    trailing: currentFolderId?.id == folder.id
-                        ? const Icon(Icons.check_rounded)
-                        : null,
-                    onTap: () =>
-                        Navigator.pop(dialogContext, (folderId: folder.id)),
+              for (final folder in destinations)
+                ListTile(
+                  leading: const Icon(Icons.folder_rounded),
+                  title: Text(folder.name),
+                  subtitle: Text(
+                    widget.controller
+                        .folderPath(folder.parentId)
+                        .map((item) => item.name)
+                        .join(' / '),
                   ),
+                  trailing: currentFolderId?.id == folder.id
+                      ? const Icon(Icons.check_rounded)
+                      : null,
+                  onTap: () =>
+                      Navigator.pop(dialogContext, (folderId: folder.id)),
+                ),
             ],
           ),
         ),
