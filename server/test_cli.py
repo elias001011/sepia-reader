@@ -10,6 +10,7 @@ from unittest.mock import patch
 import urllib.error
 import urllib.request
 from pathlib import Path
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import main
 from sepia import Client
@@ -139,6 +140,56 @@ class CliTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'cannot read library data'):
             self.client.request('put', '/new.md', content='must not overwrite')
         self.assertEqual(path.read_text(), '{invalid data')
+
+    def test_text_extension_and_future_revisions_survive_stale_sync(self):
+        c = self.client
+        c.request('put', '/book.text', content='original')
+        records = main._read_json('documents.json', [])
+        records[0]['updatedAt'] = '2099-01-01T00:00:00+00:00'
+        main._write_json_atomic('documents.json', records)
+        old = c.request('get', '/book.text')
+        c.request('put', '/book.text', content='edited', expectedUpdatedAt=old['updatedAt'])
+        edited = c.request('get', '/book.text')
+        self.assertGreater(main._record_time(edited), main._record_time(old))
+        c.request('mv', '/book.text', destination='/moved.text')
+        moved = c.request('get', '/moved.text')
+        self.assertGreater(main._record_time(moved), main._record_time(edited))
+        c.request('rm', '/moved.text')
+        deleted = main._read_json('documents.json', [])[0]
+        self.assertGreater(main._record_time(deleted), main._record_time(moved))
+        self.assertTrue(main.merge_records([deleted], [old])[0]['deletedAt'])
+
+    def test_redirect_does_not_forward_bearer(self):
+        received = []
+        class Destination(BaseHTTPRequestHandler):
+            def do_GET(self):
+                received.append(self.headers.get('Authorization'))
+                self.send_response(200)
+                self.end_headers()
+            def log_message(self, *_):
+                pass
+        destination = ThreadingHTTPServer(('127.0.0.1', 0), Destination)
+        class Redirect(BaseHTTPRequestHandler):
+            def do_POST(self):
+                self.send_response(302)
+                self.send_header('Location', 'http://127.0.0.1:' + str(destination.server_port))
+                self.end_headers()
+            def log_message(self, *_):
+                pass
+        redirect = ThreadingHTTPServer(('127.0.0.1', 0), Redirect)
+        threads = [threading.Thread(target=s.serve_forever, daemon=True) for s in (destination, redirect)]
+        for t in threads:
+            t.start()
+        try:
+            client = Client('http://127.0.0.1:' + str(redirect.server_port), token='dummy-token')
+            with self.assertRaises(ValueError):
+                client.request('ls')
+            self.assertEqual(received, [])
+        finally:
+            for server, thread in zip((destination, redirect), threads):
+                server.shutdown()
+                server.server_close()
+                thread.join()
 
     def test_invalid_text_and_names_are_rejected(self):
         c = self.client

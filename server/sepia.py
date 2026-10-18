@@ -17,7 +17,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-VERSION = "2.5.0"
+VERSION = "2.5.5"
 HELP = """ls [pasta]                listar arquivos e pastas
 cd PASTA / pwd             navegar (use aspas para nomes com espaços)
 tree                      árvore da biblioteca
@@ -32,11 +32,18 @@ help / exit               ajuda / sair
 """
 
 
+class NoApiRedirects(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, request, file, code, message, headers, new_url):
+        # A sync endpoint must never redirect a bearer credential elsewhere.
+        return None
+
+
 class Client:
     def __init__(self, base, token=""):
         self.base = base.rstrip("/")
         self.token = token
         self.cwd = "/"
+        self._http = urllib.request.build_opener(NoApiRedirects())
 
     def path(self, value):
         return posixpath.normpath(posixpath.join(self.cwd, value))
@@ -48,7 +55,7 @@ class Client:
             headers["Authorization"] = "Bearer " + self.token
         request = urllib.request.Request(self.base + "/api/cli", json.dumps(payload).encode(), headers, method="POST")
         try:
-            with urllib.request.urlopen(request, timeout=30) as response:
+            with self._http.open(request, timeout=30) as response:
                 return json.load(response)
         except urllib.error.HTTPError as error:
             try:

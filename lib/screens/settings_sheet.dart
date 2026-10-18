@@ -15,6 +15,7 @@ import '../services/update_checker.dart';
 import '../state/app_controller.dart';
 import '../widgets/color_field.dart';
 import '../widgets/sheet_scaffold.dart';
+import '../widgets/settings_slider.dart';
 import 'voice_downloads_sheet.dart';
 import 'cli_access_switch.dart';
 
@@ -369,8 +370,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
             else
               _voicePicker(context),
             const SizedBox(height: 8),
-            _slider(
-              context,
+            SettingsSlider(
               label: context.l10n.ttsRate,
               value: _draft.ttsRate,
               min: 0.5,
@@ -382,8 +382,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
             // Pitch is a platform-voice control: a neural model renders its
             // voice as trained, so the slider there would do nothing.
             if (!_usingNeural) ...[
-              _slider(
-                context,
+              SettingsSlider(
                 label: context.l10n.ttsPitch,
                 value: _draft.ttsPitch,
                 min: 0.5,
@@ -462,8 +461,8 @@ class _SettingsSheetState extends State<SettingsSheet> {
             ],
           ),
           CliAccessSwitch(
-            serverUrl: () => _serverUrlController.text.trim(),
-            token: () => _draft.syncToken,
+            serverUrl: _serverUrlController.text.trim(),
+            token: _draft.syncToken,
           ),
 
           const Divider(height: 32),
@@ -483,14 +482,13 @@ class _SettingsSheetState extends State<SettingsSheet> {
   Widget _interfaceScale(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Row(
+      Wrap(
+        spacing: 12,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          Expanded(
-            child: Text(
-              '${context.l10n.interfaceScale} · '
-              '${(_draft.uiScale * 100).round()}%',
-              style: Theme.of(context).textTheme.labelLarge,
-            ),
+          Text(
+            '${context.l10n.interfaceScale} · ${(_draft.uiScale * 100).round()}%',
+            style: Theme.of(context).textTheme.labelLarge,
           ),
           if (_draft.uiScale != 1)
             TextButton(
@@ -776,32 +774,6 @@ class _SettingsSheetState extends State<SettingsSheet> {
           setState(() => _draft = _draft.copyWith(ttsVoiceId: value ?? '')),
     );
   }
-
-  Widget _slider(
-    BuildContext context, {
-    required String label,
-    required double value,
-    required double min,
-    required double max,
-    required int divisions,
-    required ValueChanged<double> onChanged,
-  }) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        '$label · ${value.toStringAsFixed(2)}x',
-        style: Theme.of(context).textTheme.labelLarge,
-      ),
-      Slider(
-        value: value.clamp(min, max),
-        min: min,
-        max: max,
-        divisions: divisions,
-        label: '${value.toStringAsFixed(2)}x',
-        onChanged: onChanged,
-      ),
-    ],
-  );
 
   String get _themeChoice =>
       _draft.amoledTheme ? 'amoled' : _draft.themeMode.name;

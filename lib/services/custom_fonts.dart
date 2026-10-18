@@ -9,9 +9,10 @@ import 'package:crypto/crypto.dart';
 class CustomFonts {
   static const _key = 'sepia.customFonts.v1';
   static final Map<String, String> _files = {};
+  static final Set<String> _loaded = {};
   static List<String> get families => _files.keys.toList(growable: false);
 
-  static Future<void> load() async {
+  static Future<void> load({String? selectedFamily}) async {
     _files.clear();
     final prefs = await SharedPreferences.getInstance();
     final stored = prefs.getString(_key);
@@ -21,8 +22,8 @@ class CustomFonts {
           in (jsonDecode(stored) as Map<String, dynamic>).entries) {
         try {
           final encoded = entry.value as String;
-          await _register(entry.key, base64Decode(encoded));
           _files[entry.key] = encoded;
+          if (entry.key == selectedFamily) await ensureLoaded(entry.key);
         } catch (_) {
           // One invalid font must not prevent the library from opening.
         }
@@ -30,6 +31,20 @@ class CustomFonts {
     } catch (_) {
       // A damaged local font registry falls back to the bundled faces.
     }
+  }
+
+  static Future<void> ensureLoaded(String family) async {
+    if (_loaded.contains(family)) return;
+    final encoded = _files[family];
+    if (encoded == null) return;
+    await _register(family, base64Decode(encoded));
+    _loaded.add(family);
+  }
+
+  static Future<void> remove(String family) async {
+    _files.remove(family);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_key, jsonEncode(_files));
   }
 
   static Future<void> _register(String family, Uint8List bytes) async {
@@ -66,6 +81,7 @@ class CustomFonts {
     final family =
         '$name · ${sha256.convert(bytes).toString().substring(0, 8)}';
     await _register(family, bytes);
+    _loaded.add(family);
     _files[family] = base64Encode(bytes);
     final prefs = await SharedPreferences.getInstance();
     if (!await prefs.setString(_key, jsonEncode(_files))) {

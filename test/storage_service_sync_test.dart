@@ -31,7 +31,7 @@ void main() {
         'sepia.settings.v1': jsonEncode(
           const AppSettings(
             syncEnabled: true,
-            syncServerUrl: 'http://192.168.2.5:8888',
+            syncServerUrl: 'http://sepia.example:8888',
           ).toJson(),
         ),
       });
@@ -39,7 +39,7 @@ void main() {
       final config = await StorageService().loadSyncConfig();
 
       expect(config.enabled, isTrue);
-      expect(config.serverUrl, 'http://192.168.2.5:8888');
+      expect(config.serverUrl, 'http://sepia.example:8888');
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getString('sepia.syncconfig.v1'), isNotNull);
     });
@@ -285,7 +285,7 @@ void main() {
     await storage.saveSettings(
       const AppSettings(
         syncEnabled: true,
-        syncServerUrl: 'http://192.168.2.5:8888',
+        syncServerUrl: 'http://sepia.example:8888',
       ),
     );
     await storage.waitForPendingSync();

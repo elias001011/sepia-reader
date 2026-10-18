@@ -43,13 +43,24 @@ class _ReaderSelectionState extends State<ReaderSelection> {
             // invalidate the menu while off-screen blocks register/dispose.
             // Copy the full source directly instead, without expanding the list.
             for (final item in state.contextMenuButtonItems)
-              if (item.type != ContextMenuButtonType.selectAll) item,
+              if (item.type != ContextMenuButtonType.selectAll)
+                item.type == ContextMenuButtonType.copy
+                    ? ContextMenuButtonItem(
+                        type: item.type,
+                        label: item.label,
+                        onPressed: () {
+                          item.onPressed?.call();
+                          state.clearSelection();
+                        },
+                      )
+                    : item,
             ContextMenuButtonItem(
               label: context.l10n.copyDocument,
               onPressed: () async {
                 state.hideToolbar();
                 try {
                   await Clipboard.setData(ClipboardData(text: widget.source));
+                  if (mounted) state.clearSelection();
                   if (context.mounted) {
                     ScaffoldMessenger.maybeOf(context)?.showSnackBar(
                       SnackBar(content: Text(context.l10n.copiedDocument)),

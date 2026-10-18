@@ -12,6 +12,8 @@ import '../models/library_document.dart';
 import '../models/library_folder.dart';
 import '../services/document_drop.dart';
 import '../services/document_kind.dart';
+import '../services/library_index.dart';
+import '../services/html_preview.dart';
 import '../services/document_io.dart';
 import '../services/folder_importer.dart';
 import '../services/update_checker.dart';
@@ -80,6 +82,22 @@ class _LibraryScreenState extends State<LibraryScreen> {
   /// leave exactly that much room above its content. Updated whenever the
   /// header's contents change (top bar ⇄ selection bar, a notice appearing).
   double _headerHeight = 0;
+  List<LibraryDocument>? _indexedDocuments;
+  List<LibraryFolder>? _indexedFolders;
+  LibraryIndex? _libraryIndex;
+
+  LibraryIndex _indexFor(
+    List<LibraryDocument> documents,
+    List<LibraryFolder> folders,
+  ) {
+    if (!identical(_indexedDocuments, documents) ||
+        !identical(_indexedFolders, folders)) {
+      _indexedDocuments = documents;
+      _indexedFolders = folders;
+      _libraryIndex = LibraryIndex(documents, folders);
+    }
+    return _libraryIndex!;
+  }
 
   /// Scroll position of the library. It is kept when folders change, so
   /// opening a folder does not jump back to the top.
@@ -277,49 +295,19 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final searching = normalizedQuery.isNotEmpty;
     final allDocuments = widget.controller.documents;
     final allFolders = widget.controller.folders;
+    final index = _indexFor(allDocuments, allFolders);
     final documents = searching
         ? allDocuments
               .where((document) => _searchResultIds.contains(document.id))
               .toList(growable: false)
-        : allDocuments
-              .where((document) => document.folderId == _currentFolderId)
-              .toList(growable: false);
+        : index.documentsByFolder[_currentFolderId] ??
+              const <LibraryDocument>[];
     final folders = searching
         ? const <LibraryFolder>[]
-        : allFolders
-              .where((folder) => folder.parentId == _currentFolderId)
-              .toList(growable: false);
-    // `folderById` is still needed while searching, to print each result's
-    // folder path. The two count maps are only read by _FolderCard, which is
-    // never built during a search — so skip that whole walk of every document
-    // up its ancestor chain on the typing path.
-    final folderById = {for (final folder in allFolders) folder.id: folder};
-    final childFolderCounts = <String, int>{};
-    final folderDocumentCounts = <String, int>{};
-    if (!searching) {
-      for (final folder in allFolders) {
-        final parentId = folder.parentId;
-        if (parentId != null) {
-          childFolderCounts.update(
-            parentId,
-            (count) => count + 1,
-            ifAbsent: () => 1,
-          );
-        }
-      }
-      for (final document in allDocuments) {
-        var folderId = document.folderId;
-        final seen = <String>{};
-        while (folderId != null && seen.add(folderId)) {
-          folderDocumentCounts.update(
-            folderId,
-            (count) => count + 1,
-            ifAbsent: () => 1,
-          );
-          folderId = folderById[folderId]?.parentId;
-        }
-      }
-    }
+        : index.foldersByParent[_currentFolderId] ?? const <LibraryFolder>[];
+    final folderById = index.folderById;
+    final childFolderCounts = index.childFolderCounts;
+    final folderDocumentCounts = index.folderDocumentCounts;
 
     // Before _MeasureSize has reported, use a close estimate so the content
     // does not start flush at the top for one frame and then jump down.
@@ -601,13 +589,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }) {
     final grid = widget.controller.settings.libraryLayout == 'grid';
     final scheme = Theme.of(context).colorScheme;
-    final menu = PopupMenuButton<String>(
-      onSelected: (value) => actions[value]?.call(),
-      itemBuilder: (_) => [
-        for (final label in actions.keys)
-          PopupMenuItem(value: label, child: Text(label)),
-      ],
-    );
+    final menu = _EntryMenu(actions: actions);
     return Card(
       clipBehavior: Clip.antiAlias,
       color: selected ? scheme.secondaryContainer : null,
@@ -1116,11 +1098,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
         : contentWidth >= 620
         ? 2
         : 1;
+    final textScaler = MediaQuery.textScalerOf(context);
     final mainAxisExtent = layout == 'list'
-        ? 76.0
+        ? 36 + textScaler.scale(40)
         : layout == 'grid'
-        ? 96 + MediaQuery.textScalerOf(context).scale(28)
-        : 238.0;
+        ? 96 + textScaler.scale(28)
+        : 238 +
+              (textScaler.scale(160) - 160)
+                  .clamp(0.0, double.infinity)
+                  .toDouble();
     return (side: side, columns: columns, mainAxisExtent: mainAxisExtent);
   }
 
@@ -1936,6 +1922,39 @@ class _LibraryScreenState extends State<LibraryScreen> {
   );
 }
 
+/// Identical action order, icon spacing and hit targets in every layout.
+class _EntryMenu extends StatelessWidget {
+  const _EntryMenu({required this.actions});
+  final Map<String, VoidCallback> actions;
+  @override
+  Widget build(BuildContext context) {
+    final icons = {
+      context.l10n.rename: Icons.edit_outlined,
+      context.l10n.moveTo: Icons.drive_file_move_outline,
+      context.l10n.exportLabel: Icons.download_rounded,
+      context.l10n.delete: Icons.delete_outline_rounded,
+      context.l10n.favorite: Icons.star_border_rounded,
+      context.l10n.unfavorite: Icons.star_rounded,
+    };
+    return PopupMenuButton<String>(
+      onSelected: (value) => actions[value]?.call(),
+      itemBuilder: (_) => [
+        for (final label in actions.keys)
+          PopupMenuItem(
+            value: label,
+            child: Row(
+              children: [
+                Icon(icons[label] ?? Icons.more_horiz, size: 20),
+                const SizedBox(width: 12),
+                Flexible(child: Text(label)),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class _FolderCard extends StatelessWidget {
   const _FolderCard({
     required this.folder,
@@ -1970,7 +1989,7 @@ class _FolderCard extends StatelessWidget {
       shape: selected
           ? RoundedRectangleBorder(
               side: BorderSide(color: scheme.primary, width: 2),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(20),
             )
           : null,
       child: InkWell(
@@ -1998,44 +2017,12 @@ class _FolderCard extends StatelessWidget {
                   ),
                   const Spacer(),
                   if (!selecting)
-                    PopupMenuButton<String>(
-                      onSelected: (value) {
-                        if (value == 'rename') onRename();
-                        if (value == 'move') onMove();
-                        if (value == 'delete') onDelete();
+                    _EntryMenu(
+                      actions: {
+                        context.l10n.rename: onRename,
+                        context.l10n.moveTo: onMove,
+                        context.l10n.delete: onDelete,
                       },
-                      itemBuilder: (_) => [
-                        PopupMenuItem(
-                          value: 'rename',
-                          child: Row(
-                            children: [
-                              const Icon(Icons.edit_outlined),
-                              const SizedBox(width: 12),
-                              Text(context.l10n.rename),
-                            ],
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: 'move',
-                          child: Row(
-                            children: [
-                              const Icon(Icons.drive_file_move_outline),
-                              const SizedBox(width: 12),
-                              Text(context.l10n.moveTo),
-                            ],
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              const Icon(Icons.delete_outline_rounded),
-                              const SizedBox(width: 12),
-                              Text(context.l10n.delete),
-                            ],
-                          ),
-                        ),
-                      ],
                     ),
                 ],
               ),
@@ -2112,17 +2099,19 @@ class _DocumentCard extends StatelessWidget {
     final previewSource = document.content.length > 1200
         ? document.content.substring(0, 1200)
         : document.content;
-    final preview = previewSource
-        .replaceAll(RegExp(r'[#*_>`\[\]()]'), '')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
+    final markup = documentKindOf(document.extension) == DocumentKind.markup;
+    var preview = markup ? htmlToMarkdown(previewSource) : previewSource;
+    if (document.isMarkdown || markup) {
+      preview = preview.replaceAll(RegExp(r'[#*_>`\[\]()]'), '');
+    }
+    preview = preview.replaceAll(RegExp(r'\s+'), ' ').trim();
     return Card(
       clipBehavior: Clip.antiAlias,
       color: selected ? scheme.secondaryContainer : null,
       shape: selected
           ? RoundedRectangleBorder(
               side: BorderSide(color: scheme.primary, width: 2),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(20),
             )
           : null,
       child: InkWell(
@@ -2173,55 +2162,13 @@ class _DocumentCard extends StatelessWidget {
                             : null,
                       ),
                     ),
-                    PopupMenuButton<String>(
-                      onSelected: (value) {
-                        if (value == 'rename') onRename();
-                        if (value == 'move') onMove();
-                        if (value == 'export') onExport();
-                        if (value == 'delete') onDelete();
+                    _EntryMenu(
+                      actions: {
+                        context.l10n.rename: onRename,
+                        context.l10n.moveTo: onMove,
+                        context.l10n.exportLabel: onExport,
+                        context.l10n.delete: onDelete,
                       },
-                      itemBuilder: (_) => [
-                        PopupMenuItem(
-                          value: 'rename',
-                          child: Row(
-                            children: [
-                              const Icon(Icons.edit_outlined),
-                              const SizedBox(width: 12),
-                              Text(context.l10n.rename),
-                            ],
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: 'move',
-                          child: Row(
-                            children: [
-                              const Icon(Icons.drive_file_move_outline),
-                              const SizedBox(width: 12),
-                              Text(context.l10n.moveTo),
-                            ],
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: 'export',
-                          child: Row(
-                            children: [
-                              const Icon(Icons.download_rounded),
-                              const SizedBox(width: 12),
-                              Text(context.l10n.exportLabel),
-                            ],
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              const Icon(Icons.delete_outline_rounded),
-                              const SizedBox(width: 12),
-                              Text(context.l10n.delete),
-                            ],
-                          ),
-                        ),
-                      ],
                     ),
                   ],
                 ],

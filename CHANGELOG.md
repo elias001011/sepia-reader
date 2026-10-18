@@ -1,9 +1,23 @@
 # Histórico
 
-As notas de cada Release publicada no GitHub são geradas a partir dos commits.
+As notas de cada Release publicada no GitHub descrevem as mudanças e a validação.
 Este arquivo resume o que muda para quem usa o app, e mantém uma seção para o
 que já está em `main` mas ainda não foi lançado.
 
+
+## 2.5.5 — 2026-10-18
+
+- Reutiliza a biblioteca ordenada e indexa pastas e contadores apenas quando os documentos mudam.
+- Evita codificar o conteúdo inteiro para comparar revisões e deixa de regravar coleções inalteradas na sincronização.
+- Processa JSON grande em segundo plano nas plataformas nativas; a gravação mantém a ordem dos autosaves. Na web, a codificação de textos grandes cede tempo à interface entre blocos.
+- Fontes importadas são carregadas sob demanda e podem ser removidas nas configurações de leitura.
+- Unifica menus de arquivos e pastas e controles deslizantes, com espaçamento consistente e rótulos que se adaptam à largura.
+- Libera os blocos mantidos durante uma seleção após copiar, preservando a virtualização da leitura.
+- Mantém endereço e token da mesma configuração em cada requisição, recusa redirecionamentos da API e evita consultas automáticas enquanto o endereço é digitado.
+- Corrige o merge de datas locais de clientes antigos com datas UTC; o fuso legado é configurável no servidor.
+- Avança o relógio de alterações após revisões futuras, protegendo edições, movimentos e exclusões contra cópias antigas.
+- Aceita arquivos `.text` pela CLI e identifica servidor e cliente como 2.5.5.
+- Substitui endereços de infraestrutura privada por exemplos genéricos na documentação e nos testes.
 
 ## 2.5.4 — 2026-10-17
 

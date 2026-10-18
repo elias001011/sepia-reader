@@ -77,7 +77,7 @@
       }
     }
   },
-  "folderContents": "{files} files · {folders} folders",
+  "folderContents": "{files, plural, =1{1 file} other{{files} files}} · {folders, plural, =1{1 folder} other{{folders} folders}}",
   "@folderContents": {
     "placeholders": {
       "files": {
@@ -589,5 +589,7 @@
   "serverToken": "Server token (optional)",
   "cliEnabled": "Allow CLI access",
   "serverConfigError": "Could not access server settings. Check the address, token and server version (2.5 required).",
-  "saveCustomTheme": "Save as custom theme"
+  "saveCustomTheme": "Save as custom theme",
+  "serverAccessRefresh": "Check terminal access",
+  "removeImportedFont": "Remove imported font"
 }

@@ -40,19 +40,22 @@ usual de sincronização continua funcionando quando a CLI é desligada.
 
 ## Conectar
 
+Os endereços e usuários abaixo são fictícios. Substitua `sepia.example`,
+o usuário e as portas pelos valores da sua instalação.
+
 Diretamente na rede local, usando a porta do Sépia:
 
 ```bash
-sepia -p 8888 192.168.2.5
+sepia -p 8888 sepia.example
 ```
 
 Por SSH, usando o mesmo login, chave ou senha que você já usa para acessar o
 servidor (a porta SSH e a porta do Sépia são diferentes):
 
 ```bash
-sepia --ssh --ssh-port 8022 -p 8888 192.168.2.5
+sepia --ssh --ssh-port 22 -p 8888 sepia.example
 # Ou, com usuário explícito:
-sepia --ssh --ssh-port 8022 -p 8888 usuario@192.168.2.5
+sepia --ssh --ssh-port 22 -p 8888 usuario@sepia.example
 ```
 
 A CLI abre e fecha o túnel automaticamente. Não precisa abrir SSH primeiro nem
@@ -87,11 +90,11 @@ atual da CLI; `/` é a raiz da biblioteca. O destino de `mv` é o caminho comple
 incluindo o nome final do arquivo ou pasta.
 
 ```bash
-sepia -p 8888 192.168.2.5 ls
-sepia -p 8888 192.168.2.5 mkdir '/Livros'
-sepia -p 8888 192.168.2.5 upload ./texto.md '/Livros/texto.md'
-sepia -p 8888 192.168.2.5 download '/Livros/texto.md' ./texto-exportado.md
-sepia --json -p 8888 192.168.2.5 tree
+sepia -p 8888 sepia.example ls
+sepia -p 8888 sepia.example mkdir '/Livros'
+sepia -p 8888 sepia.example upload ./texto.md '/Livros/texto.md'
+sepia -p 8888 sepia.example download '/Livros/texto.md' ./texto-exportado.md
+sepia --json -p 8888 sepia.example tree
 ```
 
 `download` não sobrescreve arquivos locais. `upload` não sobrescreve documentos
@@ -100,3 +103,17 @@ servidor: se outra pessoa ou aparelho editou o texto, a CLI recusa a gravação 
 preserva a sua edição em um arquivo temporário de recuperação. O caminho é
 informado no terminal. Exclusões usam os mesmos tombstones do app, para que
 se propaguem na próxima sincronização. Em scripts, `rm` exige `--yes`.
+
+### Compatibilidade de datas anteriores à 2.5
+
+Clientes antigos gravavam horários locais sem indicar fuso. O servidor 2.5.5
+converte as datas da API para UTC. Por padrão, interpreta horários sem fuso no
+fuso local do servidor. Se os clientes antigos usavam outro fuso, configure
+`SEPIA_LEGACY_TIMEZONE` com o identificador IANA correspondente (por exemplo,
+`Europe/Lisbon`) ou um deslocamento fixo (`+01:00`, `-03:00`) antes de iniciar o servidor. Use o fuso em que esses registros
+foram criados; registros que já incluem `Z` ou um deslocamento não são alterados.
+Em instalações sem a base de fusos do sistema, instale o pacote Python `tzdata`
+para usar um identificador IANA explícito.
+
+A CLI e o app recusam redirecionamentos da API. Configure o endereço final do
+servidor, incluindo o esquema correto (`http://` ou `https://`).

@@ -74,6 +74,7 @@ class ColorField extends StatelessWidget {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: Text(label),
+          scrollable: true,
           content: SizedBox(
             width: appDialogWidth(context, 360),
             child: Column(

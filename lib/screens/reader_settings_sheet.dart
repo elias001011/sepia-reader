@@ -11,6 +11,7 @@ import '../state/app_controller.dart';
 import '../widgets/color_field.dart';
 import '../widgets/markdown_view.dart' show readerFontChoices;
 import '../widgets/sheet_scaffold.dart';
+import '../widgets/settings_slider.dart';
 
 typedef _ReaderPreset = ({String label, Color bg, Color text});
 
@@ -195,21 +196,30 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
                   ),
                 ),
             ],
-            onChanged: (font) =>
-                setState(() => _draft = _draft.copyWith(readerFont: font)),
+            onChanged: _selectFont,
           ),
-          TextButton.icon(
-            onPressed: _importFont,
-            icon: const Icon(Icons.file_upload_outlined),
-            label: Text(context.l10n.importFont),
+          Wrap(
+            spacing: 8,
+            children: [
+              TextButton.icon(
+                onPressed: _importFont,
+                icon: const Icon(Icons.file_upload_outlined),
+                label: Text(context.l10n.importFont),
+              ),
+              if (CustomFonts.families.contains(_draft.readerFont))
+                TextButton.icon(
+                  onPressed: _removeFont,
+                  icon: const Icon(Icons.delete_outline),
+                  label: Text(context.l10n.removeImportedFont),
+                ),
+            ],
           ),
           Text(
             context.l10n.importFontHint,
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 18),
-          _slider(
-            context,
+          SettingsSlider(
             label: context.l10n.size,
             value: _draft.readerFontSize,
             min: 14,
@@ -219,8 +229,7 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
             onChanged: (value) =>
                 setState(() => _draft = _draft.copyWith(readerFontSize: value)),
           ),
-          _slider(
-            context,
+          SettingsSlider(
             label: context.l10n.lineHeight,
             value: _draft.readerLineHeight,
             min: 1.2,
@@ -231,8 +240,7 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
               () => _draft = _draft.copyWith(readerLineHeight: value),
             ),
           ),
-          _slider(
-            context,
+          SettingsSlider(
             label: context.l10n.pageWidth,
             value: _draft.readerWidth,
             min: 520,
@@ -334,6 +342,25 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
     ),
   ];
 
+  Future<void> _selectFont(String? font) async {
+    if (font == null) return;
+    try {
+      await CustomFonts.ensureLoaded(font);
+      if (!mounted) return;
+      setState(() => _draft = _draft.copyWith(readerFont: font));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(context.l10n.fontImportError)));
+    }
+  }
+
+  Future<void> _removeFont() async {
+    await CustomFonts.remove(_draft.readerFont);
+    if (!mounted) return;
+    setState(() => _draft = _draft.copyWith(readerFont: 'Sistema'));
+  }
+
   Future<void> _importFont() async {
     try {
       final family = await CustomFonts.import();
@@ -411,32 +438,4 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
       },
     );
   }
-
-  Widget _slider(
-    BuildContext context, {
-    required String label,
-    required double value,
-    required double min,
-    required double max,
-    required int divisions,
-    required String suffix,
-    required ValueChanged<double> onChanged,
-  }) => Column(
-    children: [
-      Row(
-        children: [
-          Text(label),
-          const Spacer(),
-          Text(suffix, style: Theme.of(context).textTheme.labelMedium),
-        ],
-      ),
-      Slider(
-        value: value.clamp(min, max),
-        min: min,
-        max: max,
-        divisions: divisions,
-        onChanged: onChanged,
-      ),
-    ],
-  );
 }

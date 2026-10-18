@@ -5,6 +5,7 @@ import shutil
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 import urllib.error
 import urllib.request
 
@@ -44,6 +45,15 @@ class MergeRecordsTest(unittest.TestCase):
 
         self.assertEqual(merge_records([live], [deleted]), [deleted])
         self.assertEqual(merge_records([deleted], [live]), [deleted])
+
+    def test_legacy_local_timestamps_merge_with_utc_clients(self):
+        with patch.object(main, 'LEGACY_TIMEZONE', '-03:00'):
+            current = {'id': 'a', 'updatedAt': '2026-10-17T15:00:00Z', 'content': 'UTC'}
+            legacy = {'id': 'a', 'updatedAt': '2026-10-17T12:05:00', 'content': 'legacy edit'}
+            merged = main.canonical_payload(merge_records([current], [legacy]))
+            self.assertEqual(merged[0]['content'], 'legacy edit')
+            self.assertEqual(merged[0]['updatedAt'], '2026-10-17T15:05:00+00:00')
+            self.assertEqual(merge_records([legacy], [current]), [legacy])
 
     def test_rejects_records_without_an_id(self):
         with self.assertRaisesRegex(ValueError, "string id"):
@@ -164,7 +174,7 @@ class HeadlessServerTest(unittest.TestCase):
             self.assertEqual(response.headers["Content-Encoding"], "gzip")
             self.assertIn("Accept-Encoding", response.headers["Vary"])
 
-        self.assertEqual(json.loads(gzip.decompress(body)), documents)
+        self.assertEqual(json.loads(gzip.decompress(body)), main.canonical_payload(documents))
 
 
 if __name__ == "__main__":

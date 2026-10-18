@@ -77,7 +77,7 @@
       }
     }
   },
-  "folderContents": "{files} arquivos · {folders} pastas",
+  "folderContents": "{files, plural, =1{1 arquivo} other{{files} arquivos}} · {folders, plural, =1{1 pasta} other{{folders} pastas}}",
   "@folderContents": {
     "placeholders": {
       "files": {
@@ -589,5 +589,7 @@
   "serverToken": "Token do servidor (opcional)",
   "cliEnabled": "Permitir acesso pela CLI",
   "serverConfigError": "Não foi possível acessar as configurações. Verifique o endereço, o token e a versão 2.5 do servidor.",
-  "saveCustomTheme": "Salvar como tema personalizado"
+  "saveCustomTheme": "Salvar como tema personalizado",
+  "serverAccessRefresh": "Consultar acesso pelo terminal",
+  "removeImportedFont": "Remover fonte importada"
 }

@@ -238,6 +238,6 @@ jobs:
             gh release create "$RELEASE_TAG" "${assets[@]}" \
               --repo "$GITHUB_REPOSITORY" \
               --title "Sépia $RELEASE_TAG" \
-              --generate-notes \
+              --notes-file "docs/RELEASE-${RELEASE_TAG#v}.md" \
               --verify-tag
           fi
