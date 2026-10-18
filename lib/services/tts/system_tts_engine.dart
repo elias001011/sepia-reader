@@ -23,6 +23,8 @@ class SystemTtsEngine extends TtsEngine {
 
   FlutterTts? _tts;
   Completer<void>? _utterance;
+  Future<void>? _preparing;
+  int _epoch = 0;
 
   @override
   String get label => 'system';
@@ -41,6 +43,10 @@ class SystemTtsEngine extends TtsEngine {
   @override
   Future<void> prepare() async {
     if (_tts != null) return;
+    return _preparing ??= _prepare().whenComplete(() => _preparing = null);
+  }
+
+  Future<void> _prepare() async {
     final tts = FlutterTts();
     // iOS/macOS only — it routes speech through the shared audio session so
     // it mixes properly with whatever else is playing. Every other platform
@@ -51,7 +57,11 @@ class SystemTtsEngine extends TtsEngine {
     tts.setCancelHandler(_finishUtterance);
     tts.setErrorHandler((message) {
       debugPrint('sepia: TTS error: $message');
-      _finishUtterance();
+      final pending = _utterance;
+      _utterance = null;
+      if (pending != null && !pending.isCompleted) {
+        pending.completeError(StateError('system speech failed: $message'));
+      }
     });
     _tts = tts;
   }
@@ -99,9 +109,11 @@ class SystemTtsEngine extends TtsEngine {
     if (voiceId != null && voiceId.contains('::')) {
       final parts = voiceId.split('::');
       try {
-        await tts.setVoice({'name': parts[0], 'locale': parts[1]});
+        // Setting the language AFTER the voice can restore Android's default
+        // voice for that locale and silently undo the user's selection.
         await tts.setLanguage(parts[1]);
-        selected = true;
+        selected =
+            await tts.setVoice({'name': parts[0], 'locale': parts[1]}) == 1;
       } catch (error) {
         debugPrint('sepia: could not select voice $voiceId: $error');
       }
@@ -128,30 +140,36 @@ class SystemTtsEngine extends TtsEngine {
         }
       }
     }
-    // Android's own scale is 0.0-1.0 with 0.5 as normal speed, while iOS,
-    // macOS and the browser take a multiplier where 1.0 is normal. Mapping
-    // here keeps "1.0x" meaning the same thing to the user everywhere.
-    final platformRate = defaultTargetPlatform == TargetPlatform.android && !kIsWeb
-        ? (rate / 2).clamp(0.0, 1.0)
-        : rate;
-    await tts.setSpeechRate(platformRate);
+    // flutter_tts maps Android's 0.5 to its native 1.0; Apple uses a
+    // normalized rate with 0.5 as default. Web uses a direct multiplier.
+    final normalizedRate =
+        !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.android ||
+            defaultTargetPlatform == TargetPlatform.iOS ||
+            defaultTargetPlatform == TargetPlatform.macOS);
+    await tts.setSpeechRate(
+      normalizedRate ? rate.clamp(.5, 2) / 2 : rate.clamp(.5, 2),
+    );
     await tts.setPitch(pitch);
   }
 
   @override
   Future<void> speak(String text) async {
     if (text.trim().isEmpty) return;
+    final epoch = _epoch;
     await prepare();
+    if (epoch != _epoch) return;
     _finishUtterance();
     // Android's engine drops an utterance handed to it in the same beat as
     // a stop. A tick is enough for it to have settled, and is imperceptible.
     if (_stoppedAt != null &&
-        DateTime.now().difference(_stoppedAt!) < const Duration(milliseconds: 60)) {
+        DateTime.now().difference(_stoppedAt!) <
+            const Duration(milliseconds: 60)) {
       await Future<void>.delayed(const Duration(milliseconds: 60));
     }
+    if (epoch != _epoch) return;
     final completer = Completer<void>();
     _utterance = completer;
-    await _tts!.speak(text);
     // The completion callback is the platform's to fire, and some engines
     // never do — a browser voice that fails to start, an Android engine
     // that was swapped out mid-utterance. Without a bound, one silent
@@ -159,7 +177,14 @@ class SystemTtsEngine extends TtsEngine {
     // nothing. The bound is generous: far longer than any sentence takes to
     // say, so a slow voice is never cut off.
     try {
-      await completer.future.timeout(_budgetFor(text));
+      await Future.wait<void>([
+        _tts!.speak(text).then((status) {
+          if (status == 0 && epoch == _epoch) {
+            throw StateError('system speech did not start');
+          }
+        }),
+        completer.future.timeout(_budgetFor(text)),
+      ], eagerError: true);
     } on TimeoutException {
       // The platform never reported the utterance finishing. Silence the
       // engine before giving up, or a callback that was merely slow lets
@@ -168,27 +193,32 @@ class SystemTtsEngine extends TtsEngine {
       // Through stop(), not the plugin directly: a timeout is exactly a stop
       // followed immediately by a speak, which is the case the settle window
       // exists for, and it is keyed off stop() recording when it happened.
+      if (epoch != _epoch) return;
       await stop();
+      throw StateError('system speech did not complete');
+    } finally {
+      if (identical(_utterance, completer)) _finishUtterance();
     }
   }
 
   /// Time to allow one utterance, from a deliberately slow reading pace.
-  static Duration _budgetFor(String text) => Duration(
-    milliseconds: 4000 + text.length * 220,
-  );
+  static Duration _budgetFor(String text) =>
+      Duration(milliseconds: 4000 + text.length * 220);
 
   DateTime? _stoppedAt;
 
   @override
   Future<void> stop() async {
-    await _tts?.stop();
+    _epoch++;
     _stoppedAt = DateTime.now();
     _finishUtterance();
+    await _tts?.stop();
   }
 
   @override
   Future<void> release() async {
     await stop();
+    await _preparing;
     _tts = null;
   }
 }

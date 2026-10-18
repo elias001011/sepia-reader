@@ -5,6 +5,18 @@ Este arquivo resume o que muda para quem usa o app, e mantém uma seção para o
 que já está em `main` mas ainda não foi lançado.
 
 
+## Em desenvolvimento — leitura em voz alta
+
+- Extrai o texto do Markdown com o mesmo parser do leitor, incluindo links por referência, tabelas, imagens e entidades, sem falar a marcação ou blocos de código.
+- Normaliza reticências, travessões e separadores somente para a fala, preservando o documento original e os acentos.
+- Corrige a preparação antecipada das vozes neurais: o trecho atual tem prioridade e o próximo é sintetizado durante sua reprodução, sem pedidos duplicados.
+- Cancela resultados antigos ao pausar, pular, voltar ou trocar a velocidade, com fila e cache de áudio limitados.
+- Libera o modelo neural antes de encerrar seu worker e usa diretórios temporários independentes para cada motor.
+- Acrescenta um pequeno silêncio antes do áudio neural para proteger o início da fala ao abrir a saída de áudio.
+- Limita trechos longos sem cortar palavras e prepara documentos grandes fora da interface nas plataformas nativas.
+- Oferece ajustes de velocidade e, para a voz nativa, tom diretamente no leitor; aplicar mantém a posição e o estado de pausa.
+- Corrige a seleção da voz nativa e a escala de velocidade nas plataformas Apple. As melhorias compartilhadas também estão na Lite.
+
 ## 2.5.5 — 2026-10-18
 
 - Reutiliza a biblioteca ordenada e indexa pastas e contadores apenas quando os documentos mudam.

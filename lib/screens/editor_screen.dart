@@ -26,6 +26,7 @@ import 'bookmarks_sheet.dart';
 import 'chapter_navigation_sheet.dart';
 import 'listen_sheet.dart';
 import 'reader_settings_sheet.dart';
+import 'speech_settings_sheet.dart';
 
 int _countWords(Iterable<String> parts) {
   var words = 0;
@@ -662,7 +663,9 @@ class _EditorScreenState extends State<EditorScreen>
           'sepia: neural voice failed, falling back: ${controller.error}',
         );
         _engineKey = 'system';
-        await controller.useEngine(SystemTtsEngine());
+        await controller.useEngine(
+          SystemTtsEngine(preferredLanguage: _preferredLanguage(settings)),
+        );
         await run();
         if (!mounted) return;
         controller = _tts!;
@@ -1508,6 +1511,25 @@ class _EditorScreenState extends State<EditorScreen>
     ),
   );
 
+  Future<void> _openSpeechSettings() async {
+    final speech = _tts;
+    if (speech == null) return;
+    final applied = await showAppSheet<bool>(
+      context: context,
+      builder: (_) => SpeechSettingsSheet(
+        controller: widget.controller,
+        supportsPitch: speech.supportsPitch,
+      ),
+    );
+    if (applied != true || !mounted || !identical(speech, _tts)) return;
+    final settings = widget.controller.settings;
+    await speech.reconfigure(
+      voiceId: settings.ttsVoiceId.isEmpty ? null : settings.ttsVoiceId,
+      rate: settings.ttsRate,
+      pitch: settings.ttsPitch,
+    );
+  }
+
   /// Playback controls, pinned to the bottom while something is being read.
   ///
   /// Deliberately outside the auto-hiding reader chrome: the controls that
@@ -1530,28 +1552,41 @@ class _EditorScreenState extends State<EditorScreen>
               backgroundColor: scheme.surfaceContainerHighest,
             ),
             Padding(
-              padding: EdgeInsets.fromLTRB(compact ? 8 : 16, 4, compact ? 4 : 12, 4),
+              padding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
               child: Row(
                 children: [
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          controller.sectionTitle ??
-                              context.l10n.ttsWholeDocument,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.labelLarge,
-                        ),
-                        Text(
-                          context.l10n.ttsProgress(
-                            controller.pieceIndex + 1,
-                            controller.pieceCount,
-                          ),
-                          style: Theme.of(context).textTheme.labelSmall,
-                        ),
-                      ],
+                    child: Text(
+                      controller.sectionTitle ?? context.l10n.ttsWholeDocument,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: context.l10n.ttsSpeechSettings,
+                    onPressed: _openSpeechSettings,
+                    icon: const Icon(Icons.tune_rounded),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                compact ? 8 : 16,
+                0,
+                compact ? 4 : 12,
+                4,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      context.l10n.ttsProgress(
+                        controller.pieceIndex + 1,
+                        controller.pieceCount,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelSmall,
                     ),
                   ),
                   IconButton(

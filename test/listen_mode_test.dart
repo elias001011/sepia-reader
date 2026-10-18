@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -69,6 +70,63 @@ void main() {
     expect(find.text('Ler o documento inteiro'), findsOneWidget);
     expect(find.text('Capítulo um'), findsWidgets);
     expect(find.text('Capítulo dois'), findsWidgets);
+  });
+
+  testWidgets('speech controls work in the reader at 320px with larger text', (
+    tester,
+  ) async {
+    const channel = MethodChannel('flutter_tts');
+    final calls = <MethodCall>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+      call,
+    ) async {
+      calls.add(call);
+      return call.method == 'isLanguageAvailable' ? true : 1;
+    });
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        channel,
+        null,
+      ),
+    );
+    final controller = await openReader(
+      tester,
+      ttsEnabled: true,
+      content: '# Capítulo um\n\nEspere... Depois, café e ação!\n\nFim.',
+    );
+    await controller.updateSettings(controller.settings.copyWith(uiScale: 1.4));
+    tester.view.physicalSize = const Size(320, 700);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Ouvir'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ler o documento inteiro'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Pausar'), findsOneWidget);
+    await tester.tap(find.byTooltip('Pausar'));
+    await tester.pumpAndSettle();
+    final spokenBefore = calls.where((call) => call.method == 'speak').length;
+    await tester.tap(find.byTooltip('Ajustes da fala'));
+    await tester.pumpAndSettle();
+    final slider = tester.widget<Slider>(find.byType(Slider).first);
+    slider.onChanged!(1.5);
+    await tester.pump();
+    await tester.tap(find.text('Aplicar'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Continuar'), findsOneWidget);
+    expect(calls.where((call) => call.method == 'speak').length, spokenBefore);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.byTooltip('Continuar'));
+    await tester.pumpAndSettle();
+    expect(
+      calls.where((call) => call.method == 'speak').length,
+      spokenBefore + 1,
+    );
+    expect(
+      calls.lastWhere((call) => call.method == 'setSpeechRate').arguments,
+      .75,
+    );
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
   });
 
   testWidgets('html abre em prévia e alterna para o código', (tester) async {
