@@ -1228,4 +1228,8 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get remoteEnableServer => 'Habilitar TTS no servidor';
+
+  @override
+  String get remoteElevenLanguageHint =>
+      'O Multilingual v2 detecta o idioma pelo texto. Outros modelos recebem este idioma quando compatível.';
 }

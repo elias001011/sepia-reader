@@ -176,7 +176,7 @@ Every Release ships **two** Android builds of the same app:
 
 In short, Lite is the whole of Sépia — same UI, same offline fonts, same sync
 — minus the on-device neural-TTS stack, which accounts for nearly all of the
-size difference. Use Lite if you don't need the neural voices and want the
+size difference. Use Lite if you don't need on-device neural models and want the
 smaller APK.
 
 ## Branches

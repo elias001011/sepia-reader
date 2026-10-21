@@ -1226,4 +1226,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get remoteEnableServer => 'Enable server speech';
+
+  @override
+  String get remoteElevenLanguageHint =>
+      'Multilingual v2 detects the language from the text. Other models receive this language when supported.';
 }

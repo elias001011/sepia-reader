@@ -60,6 +60,34 @@ void main() {
     );
     await client.synthesize('Olá…', 1.1);
   });
+  test('ElevenLabs supported models receive language without inventing voice locales', () async {
+    final client = RemoteSpeechClient(
+      const RemoteSpeechConfig(
+        provider: 'elevenlabs',
+        voice: 'voice-id',
+        model: 'eleven_flash_v2_5',
+        apiKey: 'key',
+        consent: true,
+        language: 'pt-BR',
+      ),
+      client: MockClient((request) async {
+        if (request.method == 'GET') {
+          return http.Response(
+            jsonEncode({
+              'voices': [
+                {'voice_id': 'voice-id', 'name': 'Voice', 'labels': {}},
+              ],
+            }),
+            200,
+          );
+        }
+        expect(jsonDecode(request.body)['language_code'], 'pt');
+        return http.Response.bytes(testWav(), 200);
+      }),
+    );
+    await client.synthesize('Texto', 1);
+    expect((await client.voices()).single.locale, isEmpty);
+  });
   test(
     'custom server never inherits credentials belonging to the sync origin',
     () async {

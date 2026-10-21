@@ -309,7 +309,13 @@ class _RemoteSpeechSheetState extends State<RemoteSpeechSheet> {
         ),
         _field(_voice, context.l10n.remoteVoiceId),
         if (_provider == 'elevenlabs') _field(_model, context.l10n.remoteModel),
-        _field(_language, context.l10n.language),
+        _field(
+          _language,
+          context.l10n.language,
+          hint: _provider == 'elevenlabs'
+              ? context.l10n.remoteElevenLanguageHint
+              : null,
+        ),
         CheckboxListTile(
           contentPadding: EdgeInsets.zero,
           value: _consent,
@@ -368,7 +374,9 @@ class _RemoteSpeechSheetState extends State<RemoteSpeechSheet> {
                   DropdownMenuItem(
                     value: voice.id,
                     child: Text(
-                      '${voice.name} · ${voice.locale}',
+                      voice.locale.isEmpty
+                          ? voice.name
+                          : '${voice.name} · ${voice.locale}',
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),

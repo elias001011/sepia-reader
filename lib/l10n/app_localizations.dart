@@ -2035,6 +2035,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enable server speech'**
   String get remoteEnableServer;
+
+  /// No description provided for @remoteElevenLanguageHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Multilingual v2 detects the language from the text. Other models receive this language when supported.'**
+  String get remoteElevenLanguageHint;
 }
 
 class _AppLocalizationsDelegate

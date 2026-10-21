@@ -77,7 +77,7 @@ Cada Release traz **duas** builds Android do mesmo app:
 
 Em resumo: o Lite é o Sépia inteiro — mesma UI, mesmas fontes offline, mesmo
 sync — **sem a pilha de voz neural on-device**, que responde por quase toda a
-diferença de tamanho. Use o Lite se não precisa das vozes neurais e quer o
+diferença de tamanho. Use o Lite se não precisa dos modelos neurais no aparelho e quer o
 APK menor.
 
 ## Branches
