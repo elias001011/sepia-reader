@@ -25,7 +25,7 @@ DATA_DIR = os.environ.get("SEPIA_DATA_DIR", os.path.join(BASE_DIR, "data"))
 PORT = int(os.environ.get("SEPIA_PORT", "8888"))
 HOST = os.environ.get("SEPIA_HOST", "0.0.0.0")
 TOKEN = os.environ.get("SEPIA_TOKEN", "")
-VERSION = "2.5.5"
+VERSION = "2.5.6"
 # Old clients omitted the timezone. Operators can explicitly select the
 # legacy client timezone; the host's local zone is the compatibility default.
 LEGACY_TIMEZONE = os.environ.get("SEPIA_LEGACY_TIMEZONE", "")

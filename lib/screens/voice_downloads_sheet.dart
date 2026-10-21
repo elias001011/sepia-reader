@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/l10n.dart';
 import '../services/tts/neural_tts_engine.dart';
@@ -37,6 +38,7 @@ class VoiceDownloadsSheet extends StatefulWidget {
 
 class _VoiceDownloadsSheetState extends State<VoiceDownloadsSheet> {
   late String _selected;
+  final _languages = <String, String>{};
 
   /// Its own store, only for auditioning: the download manager is typed to
   /// the narrow storage interface, and playing a sample needs the real one.
@@ -179,6 +181,13 @@ class _VoiceDownloadsSheetState extends State<VoiceDownloadsSheet> {
             else ...[
               _tierHeader(
                 context,
+                context.l10n.ttsTierSupertonic,
+                context.l10n.ttsTierSupertonicHint,
+              ),
+              for (final pack in voicePacks.where((p) => p.isSupertonic))
+                ..._multiVoicePack(context, pack),
+              _tierHeader(
+                context,
                 context.l10n.ttsTierLight,
                 context.l10n.ttsTierLightHint,
               ),
@@ -188,7 +197,7 @@ class _VoiceDownloadsSheetState extends State<VoiceDownloadsSheet> {
                 context.l10n.ttsTierBest,
                 context.l10n.ttsTierBestHint,
               ),
-              for (final pack in best) ..._kokoroPack(context, pack),
+              for (final pack in best) ..._multiVoicePack(context, pack),
             ],
           ],
         );
@@ -236,15 +245,65 @@ class _VoiceDownloadsSheetState extends State<VoiceDownloadsSheet> {
   }
 
   /// The one multi-speaker pack: a single download, then a voice list.
-  List<Widget> _kokoroPack(BuildContext context, VoicePack pack) {
+  List<Widget> _multiVoicePack(BuildContext context, VoicePack pack) {
     final installed = widget.downloads.isInstalled(pack);
     final byLanguage = <String, List<NeuralVoice>>{};
     for (final voice in pack.voices) {
       byLanguage.putIfAbsent(voice.language, () => []).add(voice);
     }
+    final selectedVoice = resolveVoice(_selected);
+    final initialLanguage = selectedVoice?.pack.id == pack.id
+        ? selectedVoice!.voice.language
+        : Localizations.localeOf(context).languageCode;
+    final language =
+        _languages[pack.id] ??
+        (byLanguage.containsKey(initialLanguage)
+            ? initialLanguage
+            : pack.languages.first);
     return [
       _packTile(context, pack, null),
-      if (installed)
+      if (pack.isSupertonic)
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Wrap(
+            spacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                context.l10n.ttsSupertonicPackHint,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              TextButton(
+                onPressed: () => launchUrl(
+                  Uri.parse(
+                    'https://huggingface.co/${pack.repo}/blob/${pack.revision}/LICENSE',
+                  ),
+                ),
+                child: Text(context.l10n.ttsModelLicense),
+              ),
+            ],
+          ),
+        ),
+      if (installed && pack.isSupertonic) ...[
+        DropdownButtonFormField<String>(
+          key: ValueKey('${pack.id}/$language'),
+          initialValue: language,
+          isExpanded: true,
+          decoration: InputDecoration(labelText: context.l10n.language),
+          items: [
+            for (final code in byLanguage.keys)
+              DropdownMenuItem(
+                value: code,
+                child: Text(languageLabelFor(code)),
+              ),
+          ],
+          onChanged: (value) {
+            if (value != null) setState(() => _languages[pack.id] = value);
+          },
+        ),
+        for (final voice in byLanguage[language]!)
+          _voiceRow(context, pack, voice),
+      ] else if (installed)
         for (final entry in byLanguage.entries) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 10, 4, 2),
@@ -261,7 +320,11 @@ class _VoiceDownloadsSheetState extends State<VoiceDownloadsSheet> {
 
   /// A downloadable pack. [soleVoice] is set when the pack has exactly one,
   /// in which case the row doubles as that voice's row.
-  Widget _packTile(BuildContext context, VoicePack pack, NeuralVoice? soleVoice) {
+  Widget _packTile(
+    BuildContext context,
+    VoicePack pack,
+    NeuralVoice? soleVoice,
+  ) {
     final installed = widget.downloads.isInstalled(pack);
     final job = widget.downloads.jobFor(pack);
     final megabytes = (pack.approxBytes / (1024 * 1024)).round();
@@ -290,7 +353,8 @@ class _VoiceDownloadsSheetState extends State<VoiceDownloadsSheet> {
               height: 26,
               child: CircularProgressIndicator(
                 strokeWidth: 2.5,
-                value: job.state == VoiceDownloadState.queued || job.fraction == 0
+                value:
+                    job.state == VoiceDownloadState.queued || job.fraction == 0
                     ? null
                     : job.fraction,
               ),
@@ -323,12 +387,13 @@ class _VoiceDownloadsSheetState extends State<VoiceDownloadsSheet> {
       VoiceDownloadState.failed => context.l10n.ttsVoiceInstallFailed(
         job!.error ?? '?',
       ),
-      null => installed
-          ? context.l10n.ttsVoiceInstalled
-          : pack.isKokoro
-          ? '${context.l10n.ttsVoiceSize(megabytes)} · '
-                '${context.l10n.ttsVoiceCount(pack.voices.length)}'
-          : context.l10n.ttsVoiceSize(megabytes),
+      null =>
+        installed
+            ? context.l10n.ttsVoiceInstalled
+            : pack.voices.length > 1
+            ? '${context.l10n.ttsVoiceSize(megabytes)} · '
+                  '${context.l10n.ttsVoiceCount(pack.isSupertonic ? 2 : pack.voices.length)}'
+            : context.l10n.ttsVoiceSize(megabytes),
     };
 
     return ListTile(
@@ -367,7 +432,11 @@ class _VoiceDownloadsSheetState extends State<VoiceDownloadsSheet> {
       ),
       title: Text(voice.label),
       subtitle: Text(
-        selected ? context.l10n.ttsVoiceInUse : voice.languageLabel,
+        selected
+            ? context.l10n.ttsVoiceInUse
+            : pack.id == 'supertonic/3' && voice.speakerId == 1
+            ? '${voice.languageLabel} · ${context.l10n.ttsRecommended}'
+            : voice.languageLabel,
         style: Theme.of(context).textTheme.bodySmall,
       ),
       trailing: Row(

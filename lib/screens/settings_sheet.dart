@@ -647,7 +647,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
           child: Text(
             resolved == null
                 ? context.l10n.ttsNoNeuralVoice
-                : '${resolved.voice.languageLabel} · ${resolved.voice.label}',
+                : '${resolved.voice.languageLabel} · ${resolved.pack.isSupertonic ? '${resolved.pack.label} · ' : ''}${resolved.voice.label}',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
         ),

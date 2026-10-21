@@ -90,7 +90,7 @@ class _DeviceAudioOutput implements SpeechAudioOutput {
 /// model lives in a worker and only file paths cross back.
 ///
 /// The model is loaded on [prepare] and freed on [release], never at start-up:
-/// a Piper voice holds tens of megabytes and Kokoro several hundred, and none
+/// voice models hold tens to hundreds of megabytes, and none
 /// of that has any business being resident while somebody is only reading.
 class NeuralTtsEngine extends TtsEngine {
   NeuralTtsEngine({
@@ -154,6 +154,16 @@ class NeuralTtsEngine extends TtsEngine {
 
   @override
   bool get supportsPitch => false;
+
+  @override
+  bool get preserveSpeechPunctuation => pack.isSupertonic;
+
+  @override
+  int get utteranceLimit => pack.id == 'supertonic/2'
+      ? 200
+      : pack.isSupertonic
+      ? 300
+      : 240;
 
   @override
   Future<bool> isAvailable() => store.isInstalled(pack);
@@ -255,6 +265,19 @@ class NeuralTtsEngine extends TtsEngine {
   /// the sherpa types have to cross the isolate boundary.
   Map<String, dynamic> _describeModel(String dirPath) {
     String at(String name) => '$dirPath/$name';
+    if (pack.isSupertonic) {
+      return {
+        'kind': 'supertonic',
+        'durationPredictor': at('onnx/duration_predictor.onnx'),
+        'textEncoder': at('onnx/text_encoder.onnx'),
+        'vectorEstimator': at('onnx/vector_estimator.onnx'),
+        'vocoder': at('onnx/vocoder.onnx'),
+        'ttsJson': at('onnx/tts.json'),
+        'unicodeIndexer': at('unicode_indexer.bin'),
+        'voiceStyle': at('voice.bin'),
+        'lang': voice.language.split('-').first,
+      };
+    }
     if (pack.isKokoro) {
       return {
         'kind': 'kokoro',
@@ -449,7 +472,21 @@ void _synthesisWorker(_WorkerBootstrap bootstrap) {
     // inherited from whoever spawned us.
     sherpa.initBindings();
     final config = bootstrap.config;
-    final model = config['kind'] == 'kokoro'
+    final model = config['kind'] == 'supertonic'
+        ? sherpa.OfflineTtsModelConfig(
+            supertonic: sherpa.OfflineTtsSupertonicModelConfig(
+              durationPredictor: config['durationPredictor'] as String,
+              textEncoder: config['textEncoder'] as String,
+              vectorEstimator: config['vectorEstimator'] as String,
+              vocoder: config['vocoder'] as String,
+              ttsJson: config['ttsJson'] as String,
+              unicodeIndexer: config['unicodeIndexer'] as String,
+              voiceStyle: config['voiceStyle'] as String,
+            ),
+            numThreads: 2,
+            debug: false,
+          )
+        : config['kind'] == 'kokoro'
         ? sherpa.OfflineTtsModelConfig(
             kokoro: sherpa.OfflineTtsKokoroModelConfig(
               model: config['model'] as String,
@@ -496,14 +533,25 @@ void _synthesisWorker(_WorkerBootstrap bootstrap) {
     if (message is! _SynthesisRequest) return;
     try {
       final engine = tts ??= create();
-      final audio = engine.generate(
-        // Headings and whitespace-split clauses still need a terminal pause.
-        text: RegExp(r'[.!?;:]["”’»)]?$').hasMatch(message.text)
-            ? message.text
-            : '${message.text}.',
-        sid: message.speakerId,
-        speed: message.speed,
-      );
+      final isSupertonic = bootstrap.config['kind'] == 'supertonic';
+      final text = RegExp(r'[.!?;:…]["”’»)]?$').hasMatch(message.text)
+          ? message.text
+          : '${message.text}.';
+      final audio = isSupertonic
+          ? engine.generateWithConfig(
+              text: text,
+              config: sherpa.OfflineTtsGenerationConfig(
+                sid: message.speakerId,
+                speed: message.speed,
+                numSteps: 8,
+                extra: {'lang': bootstrap.config['lang'] as String, 'seed': 42},
+              ),
+            )
+          : engine.generate(
+              text: text,
+              sid: message.speakerId,
+              speed: message.speed,
+            );
       if (audio.samples.isEmpty) {
         throw StateError('the model produced no audio for this text');
       }

@@ -71,13 +71,11 @@ void main() {
     sandbox = Directory.systemTemp.createTempSync('sepia-voices');
     // path_provider has no implementation in a widget test; point it at a
     // real temp directory so the store exercises the actual filesystem.
-    TestDefaultBinaryMessengerBinding
-        .instance
-        .defaultBinaryMessenger
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
-      const MethodChannel('plugins.flutter.io/path_provider'),
-      (call) async => sandbox.path,
-    );
+          const MethodChannel('plugins.flutter.io/path_provider'),
+          (call) async => sandbox.path,
+        );
   });
 
   tearDown(() {
@@ -135,10 +133,7 @@ void main() {
 
   test('uma falha de rede não deixa arquivo pela metade', () async {
     final store = VoiceStore(client: fakeClient(failOnce: {'model.onnx'}));
-    await expectLater(
-      store.install(testPack),
-      throwsA(isA<HttpException>()),
-    );
+    await expectLater(store.install(testPack), throwsA(isA<HttpException>()));
     final dir = await store.packDirectory(testPack);
     expect(File('${dir.path}/model.onnx').existsSync(), isFalse);
     expect(File('${dir.path}/model.onnx.part').existsSync(), isFalse);
@@ -188,7 +183,9 @@ void main() {
   });
 
   test('cada pacote Piper é uma voz só', () {
-    for (final pack in voicePacks.where((pack) => !pack.isKokoro)) {
+    for (final pack in voicePacks.where(
+      (pack) => pack.kind == NeuralVoiceKind.piper,
+    )) {
       expect(pack.voices, hasLength(1), reason: pack.id);
       expect(pack.voices.single.speakerId, 0, reason: pack.id);
     }
@@ -209,7 +206,11 @@ void main() {
       expect(pack.repo, isNotEmpty, reason: pack.id);
       expect(pack.modelFile, endsWith('.onnx'), reason: pack.id);
       expect(pack.voices, isNotEmpty, reason: pack.id);
-      expect(repos.add(pack.repo), isTrue, reason: 'repo repetido: ${pack.repo}');
+      expect(
+        repos.add(pack.repo),
+        isTrue,
+        reason: 'repo repetido: ${pack.repo}',
+      );
       if (pack.isKokoro) {
         expect(pack.voicesFile, isNotNull, reason: pack.id);
       }

@@ -1,5 +1,15 @@
 # Histórico
 
+## 2.5.6 — 2026-10-20
+
+- Adiciona Supertonic 2 e 3, vozes M1/M2 e escolha de idioma; recomenda Supertonic 3 M2 sem alterar escolhas existentes.
+- Mantém os modelos originais FP32 em downloads opcionais, com revisão fixa, SHA-256 e licença preservada.
+- Corrige a preparação de Markdown para fala e preserva pontuação expressiva no Supertonic.
+- Prepara a próxima fala em segundo plano com fila limitada e cancelamento consistente após pausa, salto ou mudança de velocidade.
+- Carrega e libera modelos sob demanda, preserva amostras de áudio e trata falhas do worker e do player.
+- Adiciona ajustes de ritmo no leitor e corrige configuração e erros da voz nativa, incluindo a Lite.
+
+
 As notas de cada Release publicada no GitHub descrevem as mudanças e a validação.
 Este arquivo resume o que muda para quem usa o app, e mantém uma seção para o
 que já está em `main` mas ainda não foi lançado.

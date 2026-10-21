@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
 import 'voice_catalog.dart';
+import 'supertonic_assets.dart';
 import 'voice_store_types.dart';
 
 /// One file in a voice's repository.
@@ -66,6 +67,30 @@ class VoiceStore implements VoiceStorage {
     if (!File('${dir.path}/$_manifestName').existsSync()) return false;
     // The model file itself is what must really be there: a manifest left
     // behind by a half-deleted directory should not count as installed.
+    if (pack.isSupertonic) {
+      try {
+        final manifest = jsonDecode(
+          await File('${dir.path}/$_manifestName').readAsString(),
+        );
+        if (manifest is! Map || manifest['revision'] != pack.revision) {
+          return false;
+        }
+        for (final file in pack.files) {
+          final local = File('${dir.path}/${file.path}');
+          if (!await local.exists() || await local.length() != file.bytes) {
+            return false;
+          }
+        }
+        for (final name in ['unicode_indexer.bin', 'voice.bin']) {
+          final local = File('${dir.path}/$name');
+          if (!await local.exists() || await local.length() == 0) return false;
+        }
+      } on FileSystemException {
+        return false;
+      } on FormatException {
+        return false;
+      }
+    }
     final model = File('${dir.path}/${pack.modelFile}');
     return model.existsSync() && model.lengthSync() > 0;
   }
@@ -102,7 +127,9 @@ class VoiceStore implements VoiceStorage {
     final uri = Uri.parse(
       'https://huggingface.co/api/models/$repo/tree/main?recursive=true',
     );
-    final response = await _client.get(uri).timeout(const Duration(seconds: 30));
+    final response = await _client
+        .get(uri)
+        .timeout(const Duration(seconds: 30));
     if (response.statusCode != 200) {
       throw HttpException('HTTP ${response.statusCode} listing $repo');
     }
@@ -135,9 +162,28 @@ class VoiceStore implements VoiceStorage {
     void Function(VoiceInstallProgress)? onProgress,
     bool Function()? shouldCancel,
   }) async {
-    final remote = await listRepository(pack.repo);
+    final remote = pack.files.isEmpty
+        ? await listRepository(pack.repo)
+        : [
+            for (final file in pack.files)
+              RemoteFile(
+                path: file.path,
+                size: file.bytes,
+                sha256: file.sha256,
+              ),
+          ];
+    for (final file in remote) {
+      if (file.path.isEmpty ||
+          file.path.startsWith('/') ||
+          file.path.contains('\\') ||
+          file.path.split('/').any((p) => p == '..' || p == '.')) {
+        throw const FormatException('unsafe voice file path');
+      }
+    }
     final dir = await packDirectory(pack);
     if (!dir.existsSync()) dir.createSync(recursive: true);
+    final manifest = File('${dir.path}/$_manifestName');
+    if (await manifest.exists()) await manifest.delete();
 
     final bytesTotal = remote.fold<int>(0, (sum, file) => sum + file.size);
     var bytesDone = 0;
@@ -156,7 +202,11 @@ class VoiceStore implements VoiceStorage {
     final pending = <RemoteFile>[];
     for (final file in remote) {
       final target = File('${dir.path}/${file.path}');
-      if (target.existsSync() && target.lengthSync() == file.size) {
+      if (target.existsSync() &&
+          target.lengthSync() == file.size &&
+          (file.sha256 == null ||
+              (await sha256.bind(target.openRead()).first).toString() ==
+                  file.sha256)) {
         bytesDone += file.size;
         filesDone++;
         continue;
@@ -174,7 +224,7 @@ class VoiceStore implements VoiceStorage {
         if (shouldCancel?.call() ?? false) throw const VoiceInstallCancelled();
         final file = queue.removeAt(0);
         report(file.path);
-        await _downloadFile(pack.repo, file, dir);
+        await _downloadFile(pack, file, dir, shouldCancel);
         bytesDone += file.size;
         filesDone++;
         report(file.path);
@@ -183,19 +233,21 @@ class VoiceStore implements VoiceStorage {
 
     final workers = queue.isEmpty
         ? <Future<void>>[]
-        : [
-            for (var i = 0; i < _concurrency && i < queue.length; i++)
-              worker(),
-          ];
+        : [for (var i = 0; i < _concurrency && i < queue.length; i++) worker()];
     await Future.wait(workers);
 
     if (shouldCancel?.call() ?? false) throw const VoiceInstallCancelled();
     // The manifest is written last and is what marks the install complete:
     // without it, a directory of half the files is correctly treated as not
     // installed rather than as a voice that mysteriously fails to load.
+    if (pack.isSupertonic) {
+      await compute(prepareSupertonicAssets, dir.path);
+      if (shouldCancel?.call() ?? false) throw const VoiceInstallCancelled();
+    }
     File('${dir.path}/$_manifestName').writeAsStringSync(
       jsonEncode({
         'repo': pack.repo,
+        'revision': pack.revision,
         'files': remote.length,
         'bytes': bytesTotal,
         'installedAt': DateTime.now().toIso8601String(),
@@ -204,12 +256,13 @@ class VoiceStore implements VoiceStorage {
   }
 
   Future<void> _downloadFile(
-    String repo,
+    VoicePack pack,
     RemoteFile file,
     Directory dir,
+    bool Function()? shouldCancel,
   ) async {
     final uri = Uri.parse(
-      'https://huggingface.co/$repo/resolve/main/${Uri.encodeFull(file.path)}',
+      'https://huggingface.co/${pack.repo}/resolve/${pack.revision}/${Uri.encodeFull(file.path)}',
     );
     final target = File('${dir.path}/${file.path}');
     target.parent.createSync(recursive: true);
@@ -229,13 +282,23 @@ class VoiceStore implements VoiceStorage {
         ? null
         : sha256.startChunkedConversion(collector);
     try {
-      await for (final chunk in response.stream) {
-        sink.add(chunk);
-        hasher?.add(chunk);
+      try {
+        await for (final chunk in response.stream.timeout(
+          const Duration(seconds: 60),
+        )) {
+          if (shouldCancel?.call() ?? false) {
+            throw const VoiceInstallCancelled();
+          }
+          sink.add(chunk);
+          hasher?.add(chunk);
+        }
+        await sink.flush();
+      } finally {
+        await sink.close();
       }
-      await sink.flush();
-    } finally {
-      await sink.close();
+    } catch (_) {
+      if (await temp.exists()) await temp.delete();
+      rethrow;
     }
 
     void reject(String reason) {
