@@ -633,5 +633,6 @@
   "remoteEngine": "Voz por API ou servidor",
   "remoteEngineHint": "Usa a conexão de rede e poupa o processamento de síntese no aparelho.",
   "remoteConfigure": "Configurar TTS remoto",
-  "remoteEnableServer": "Habilitar TTS no servidor"
+  "remoteEnableServer": "Habilitar TTS no servidor",
+  "remoteElevenLanguageHint": "O Multilingual v2 detecta o idioma pelo texto. Outros modelos recebem este idioma quando compatível."
 }

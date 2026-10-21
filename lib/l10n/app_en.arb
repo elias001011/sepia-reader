@@ -633,5 +633,6 @@
   "remoteEngine": "API or server voice",
   "remoteEngineHint": "Uses the network and moves speech synthesis off the device.",
   "remoteConfigure": "Configure remote speech",
-  "remoteEnableServer": "Enable server speech"
+  "remoteEnableServer": "Enable server speech",
+  "remoteElevenLanguageHint": "Multilingual v2 detects the language from the text. Other models receive this language when supported."
 }

@@ -185,7 +185,9 @@ class RemoteSpeechClient {
           TtsVoice(
             id: (voice['voice_id'] ?? voice['id']) as String,
             name: voice['name'] as String,
-            locale: (voice['locale'] ?? config.language) as String,
+            locale: config.provider == 'elevenlabs'
+                ? (voice['labels']?['language'] ?? '') as String
+                : (voice['locale'] ?? config.language) as String,
           ),
       ];
     } on RemoteSpeechException {
@@ -241,6 +243,10 @@ class RemoteSpeechClient {
       body = jsonEncode({
         'text': text,
         'model_id': config.model,
+        // Only models that document an explicit language accept this field;
+        // Multilingual v2 detects it from the text and others reject it.
+        if (config.model.contains('v2_5') || config.model.contains('v3'))
+          'language_code': config.language.split('-').first,
         'voice_settings': {'speed': speed},
       });
     } else {
