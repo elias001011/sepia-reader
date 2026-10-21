@@ -243,7 +243,9 @@ class RemoteSpeechClient {
       body = jsonEncode({
         'text': text,
         'model_id': config.model,
-        if (!config.model.contains('multilingual_v2'))
+        // Only models that document an explicit language accept this field;
+        // Multilingual v2 detects it from the text and others reject it.
+        if (config.model.contains('v2_5') || config.model.contains('v3'))
           'language_code': config.language.split('-').first,
         'voice_settings': {'speed': speed},
       });

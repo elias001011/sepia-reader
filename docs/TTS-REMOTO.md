@@ -18,8 +18,9 @@ e pode consumir cota.
 - **ElevenLabs:** chave da conta, identificador de uma voz disponível para ela
   e modelo. O valor inicial é `eleven_multilingual_v2`. A lista consulta até
   100 vozes; um ID que não apareça nela pode ser informado no campo de voz.
-  O Multilingual v2 detecta o idioma automaticamente; outros modelos recebem
-  `language_code` quando compatível. O sotaque depende também da voz escolhida.
+  O Multilingual v2 detecta o idioma automaticamente; os modelos v2.5 e v3
+  recebem `language_code`; os demais não recebem o campo.
+  O sotaque depende também da voz escolhida.
 - **Servidor Sépia:** endereço e token do servidor que executará a síntese.
   Endereço vazio usa o servidor da sincronização ou, no navegador, a origem
   da página. O token da sincronização só é herdado quando o endereço também é

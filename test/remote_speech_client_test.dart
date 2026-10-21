@@ -60,6 +60,23 @@ void main() {
     );
     await client.synthesize('Olá…', 1.1);
   });
+  test('ElevenLabs models without explicit language support omit it', () async {
+    final client = RemoteSpeechClient(
+      const RemoteSpeechConfig(
+        provider: 'elevenlabs',
+        voice: 'voice-id',
+        model: 'eleven_flash_v2',
+        apiKey: 'key',
+        consent: true,
+        language: 'pt-BR',
+      ),
+      client: MockClient((request) async {
+        expect(jsonDecode(request.body), isNot(contains('language_code')));
+        return http.Response.bytes(testWav(), 200);
+      }),
+    );
+    await client.synthesize('Texto', 1);
+  });
   test('ElevenLabs supported models receive language without inventing voice locales', () async {
     final client = RemoteSpeechClient(
       const RemoteSpeechConfig(
