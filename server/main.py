@@ -3,6 +3,7 @@
 
 import argparse
 import hmac
+import importlib.util
 import ipaddress
 import uuid
 import gzip
@@ -25,7 +26,7 @@ DATA_DIR = os.environ.get("SEPIA_DATA_DIR", os.path.join(BASE_DIR, "data"))
 PORT = int(os.environ.get("SEPIA_PORT", "8888"))
 HOST = os.environ.get("SEPIA_HOST", "0.0.0.0")
 TOKEN = os.environ.get("SEPIA_TOKEN", "")
-VERSION = "2.5.6"
+VERSION = "2.5.7"
 # Old clients omitted the timezone. Operators can explicitly select the
 # legacy client timezone; the host's local zone is the compatibility default.
 LEGACY_TIMEZONE = os.environ.get("SEPIA_LEGACY_TIMEZONE", "")
@@ -127,6 +128,7 @@ def health_payload():
         # is advertised. Older servers replaced the whole collection on PUT,
         # so assuming merge support could erase every omitted document.
         "write_modes": ["replace", "merge"],
+        "tts_enabled": server_config()["ttsEnabled"],
         "serves_web": os.path.isfile(os.path.join(WEB_DIR, "index.html")),
     }
 
@@ -241,11 +243,29 @@ def merge_settings(existing, incoming):
 # Optional terminal gateway; configuration lives outside synced reader settings.
 def server_config():
     config = _read_json("server-config.json", {})
-    return {"cliEnabled": config.get("cliEnabled") is True}
+    return {"cliEnabled": config.get("cliEnabled") is True,
+            "ttsEnabled": config.get("ttsEnabled", os.environ.get("SEPIA_TTS_ENABLED") == "1") is True}
 
 
 def configure_cli(enabled):
-    _write_json_atomic("server-config.json", {"cliEnabled": bool(enabled)})
+    config = server_config()
+    config["cliEnabled"] = bool(enabled)
+    _write_json_atomic("server-config.json", config)
+
+
+def tts_backend():
+    try:
+        import server_tts
+        return server_tts
+    except ImportError:
+        return None
+
+
+def tts_capabilities():
+    backend = tts_backend()
+    if backend is None:
+        return {"enabled": False, "available": False, "reason": "missing-runtime", "voices": []}
+    return backend.capabilities(os.environ.get("SEPIA_TTS_MODEL_DIR", ""), server_config()["ttsEnabled"])
 
 
 class CliError(ValueError):
@@ -482,6 +502,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         route = urllib.parse.urlsplit(self.path).path
+        if route == "/api/tts/speech":
+            self._tts_speech()
+            return
         if route != "/api/cli":
             self.send_error(404)
             return
@@ -590,12 +613,55 @@ class Handler(BaseHTTPRequestHandler):
         if not head_only:
             self.wfile.write(data)
 
+    def _tts_speech(self):
+        if not self._authorized():
+            return
+        if not TOKEN and not ipaddress.ip_address(self.client_address[0]).is_loopback:
+            self._send_json(403, {"error": "set SEPIA_TOKEN before exposing speech to the network"})
+            return
+        if self.headers.get("Content-Type", "").split(";", 1)[0].strip() != "application/json":
+            self._send_json(415, {"error": "application/json required"})
+            return
+        try:
+            if int(self.headers.get("Content-Length", "0")) > 16 * 1024:
+                self._send_json(413, {"error": "payload too large"})
+                return
+            payload = self._json_body()
+        except (CliError, ValueError):
+            self._send_json(400, {"error": "invalid speech request"})
+            return
+        backend = tts_backend()
+        if backend is None or not tts_capabilities()["enabled"]:
+            self._send_json(503, {"error": "server TTS unavailable"})
+            return
+        try:
+            data = backend.synthesize(os.environ.get("SEPIA_TTS_MODEL_DIR", ""), payload)
+        except backend.TtsError as error:
+            self._send_json(error.status, {"error": str(error)})
+            return
+        except Exception:
+            self._send_json(503, {"error": "speech synthesis failed"})
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "audio/wav")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        try:
+            self.wfile.write(data)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
     def do_GET(self):
         route = urllib.parse.urlsplit(self.path).path
         if route == "/healthz":
             self._send_json(200, health_payload())
             return
         if route.startswith("/api/") and not self._authorized():
+            return
+        if route == "/api/tts/voices":
+            self._send_json(200, tts_capabilities())
             return
         if route == "/api/server-config":
             with DATA_LOCK:
@@ -629,10 +695,14 @@ class Handler(BaseHTTPRequestHandler):
         if route == "/api/server-config":
             try:
                 payload = self._json_body()
-                if not isinstance(payload, dict) or type(payload.get("cliEnabled")) is not bool:
-                    raise CliError("cliEnabled must be a boolean")
+                if not isinstance(payload, dict) or not payload or any(k not in {"cliEnabled", "ttsEnabled"} or type(v) is not bool for k, v in payload.items()):
+                    raise CliError("server flags must be booleans")
                 with DATA_LOCK:
-                    configure_cli(payload["cliEnabled"])
+                    if payload.get("ttsEnabled") is True and not tts_capabilities().get("available"):
+                        raise CliError("install the optional TTS runtime and model first", 503)
+                    config = server_config()
+                    config.update(payload)
+                    _write_json_atomic("server-config.json", config)
                 self._send_json(200, server_config())
             except CliError as error:
                 self._send_json(error.status, {"error": str(error)})

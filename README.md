@@ -21,12 +21,13 @@ Leitor, biblioteca e editor de Markdown feito em Flutter. O Sépia foi pensado p
 ### Ouvir
 - leitura em voz alta, com escolha do capítulo (`#`/`##`) por onde começar, "continuar de onde parei", pausa, avanço de trecho e controle de velocidade;
 - o texto rola acompanhando a voz;
-- três níveis de voz:
+- opções de voz:
   - **voz do sistema** — ultra leve, usa o que o Android ou o navegador já tem, nada para baixar;
   - **Supertonic 2 / 3** (~252 / 381 MiB) — vozes M1 e M2, modelos originais opcionais; a versão 3 M2 é recomendada e a 2 exige menos processamento;
   - **Piper** (~80 MB) — alternativa neural menor, com qualidade de pronúncia variável;
   - **Kokoro** (~400 MB) — mais natural, para quem tem espaço e memória sobrando;
-- as vozes neurais rodam offline no próprio aparelho via sherpa-onnx: nenhum texto sai do dispositivo, sem API e sem chave;
+- **voz por API ou servidor** — Azure Speech, ElevenLabs ou Supertonic 3 no seu servidor Sépia, também na Lite; chave própria, autorização explícita e prévia antes de aplicar. Veja [TTS remoto](docs/TTS-REMOTO.md);
+- as vozes neurais locais rodam offline no próprio aparelho via sherpa-onnx: nenhum texto sai do dispositivo, sem API e sem chave;
 - vozes baixadas sob demanda, com progresso, cancelamento, retomada de download interrompido e remoção; o download continua se você fechar as configurações e fica visível na biblioteca;
 - a sintaxe do Markdown não é lida em voz alta — tabelas viram texto, código e diagramas são pulados.
 
@@ -64,8 +65,9 @@ Cada Release traz **duas** builds Android do mesmo app:
 |---|---|---|
 | Foco | completo | mesmo app, APK menor |
 | Tamanho do APK `arm64` (por ABI) | ~48 MB | ~25 MB |
-| Voz neural (Supertonic / Piper / Kokoro, on-device) | sim, via `sherpa_onnx` (~26 MB de libs nativas) | **não** — só a voz do sistema |
+| Voz neural (Supertonic / Piper / Kokoro, on-device) | sim, via `sherpa_onnx` (~26 MB de libs nativas) | **não** — voz do sistema e TTS remoto |
 | Voz do sistema (Android/navegador) | sim | sim |
+| TTS por API ou servidor | sim | sim, sem modelos neurais locais |
 | Fontes, temas e as 16 paletas de leitura | idênticas nos dois, **empacotadas** (offline) | ← |
 | Editor, marcadores, navegação por capítulos | sim | sim |
 | Sincronização com servidor próprio | sim | sim |
@@ -225,7 +227,7 @@ no servidor; a biblioteca local nunca é afetada por essa escolha.
 2. No painel do Netlify, abra **Deploys** e arraste a pasta `build/web` inteira para a área de deploy manual.
 3. Em **Domain management**, defina o endereço desejado, como `sepia-md.netlify.app`.
 
-Os arquivos `_headers` e `_redirects` já são incluídos na build para compatibilidade com WebAssembly, rotas estáticas e uma política de conteúdo restrita à própria origem.
+Os arquivos `_headers` e `_redirects` já são incluídos na build para compatibilidade com WebAssembly, rotas estáticas e uma política que mantém scripts e fontes na própria origem, permite conexões HTTP(S) aos servidores escolhidos e reprodução de áudio em memória.
 
 ## Releases
 

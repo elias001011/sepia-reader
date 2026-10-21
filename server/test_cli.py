@@ -95,7 +95,7 @@ class CliTest(unittest.TestCase):
         url = self.client.base + '/api/server-config'
         request = urllib.request.Request(url, data=b'{"cliEnabled":false}', method='PUT')
         with urllib.request.urlopen(request) as response:
-            self.assertEqual(json.load(response), {'cliEnabled': False})
+            self.assertEqual(json.load(response), {'cliEnabled': False, 'ttsEnabled': False})
         self.assertFalse(main.health_payload()['cli_enabled'])
         self.assertFalse(Path(self.tmp.name, 'settings.json').exists())
 

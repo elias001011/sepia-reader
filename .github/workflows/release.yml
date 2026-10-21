@@ -183,8 +183,11 @@ jobs:
           tar -C build/web -czf "dist/sepia-${VERSION}-web.tar.gz" .
           cp server/main.py "dist/sepia-${VERSION}-server.py"
           cp server/sepia.py "dist/sepia-${VERSION}-cli.py"
+          tar -C server -czf "dist/sepia-${VERSION}-tts-server.tar.gz" \
+            main.py server_tts.py supertonic-model.json requirements-tts.txt \
+            vendor/supertonic.py vendor/SUPERTONIC-LICENSE.txt
           cd dist
-          sha256sum sepia-*.apk "sepia-${VERSION}-web.tar.gz" "sepia-${VERSION}-server.py" "sepia-${VERSION}-cli.py" > SHA256SUMS.txt
+          sha256sum sepia-*.apk "sepia-${VERSION}-web.tar.gz" "sepia-${VERSION}-server.py" "sepia-${VERSION}-cli.py" "sepia-${VERSION}-tts-server.tar.gz" > SHA256SUMS.txt
           ls -lh
 
       - uses: actions/upload-artifact@v7
@@ -224,6 +227,7 @@ jobs:
           assets=(
             dist/sepia-*.apk
             dist/sepia-*-web.tar.gz
+            dist/sepia-*-tts-server.tar.gz
             dist/sepia-*-server.py
             dist/sepia-*-cli.py
             dist/SHA256SUMS.txt

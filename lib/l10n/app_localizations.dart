@@ -1313,7 +1313,7 @@ abstract class AppLocalizations {
   /// No description provided for @ttsEngineNeuralUnavailableWeb.
   ///
   /// In en, this message translates to:
-  /// **'In the browser only the system voice works: the neural voice needs to run natively. Use the Android app for that.'**
+  /// **'Local neural voices require the native app. In the browser, use the system voice or remote speech.'**
   String get ttsEngineNeuralUnavailableWeb;
 
   /// No description provided for @ttsManageVoices.
@@ -1433,7 +1433,7 @@ abstract class AppLocalizations {
   /// No description provided for @ttsFellBackToSystem.
   ///
   /// In en, this message translates to:
-  /// **'The neural voice could not be used right now; reading with the system voice.'**
+  /// **'The selected voice could not be used; reading with the system voice.'**
   String get ttsFellBackToSystem;
 
   /// No description provided for @ttsVoiceQueued.
@@ -1799,7 +1799,7 @@ abstract class AppLocalizations {
   /// No description provided for @ttsNeuralPitchHint.
   ///
   /// In en, this message translates to:
-  /// **'Neural voice pitch is set by the model. You can adjust the speed.'**
+  /// **'This engine does not support pitch adjustment. You can adjust the speed.'**
   String get ttsNeuralPitchHint;
 
   /// No description provided for @ttsSpeechTitle.
@@ -1837,6 +1837,204 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Recommended'**
   String get ttsRecommended;
+
+  /// No description provided for @remoteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote speech'**
+  String get remoteTitle;
+
+  /// No description provided for @remotePrivacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Sends reading passages to the selected provider or server. This may use quota or incur charges on your account.'**
+  String get remotePrivacy;
+
+  /// No description provided for @remoteProvider.
+  ///
+  /// In en, this message translates to:
+  /// **'Provider'**
+  String get remoteProvider;
+
+  /// No description provided for @remoteSepiaServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Sépia server'**
+  String get remoteSepiaServer;
+
+  /// No description provided for @remoteRegion.
+  ///
+  /// In en, this message translates to:
+  /// **'Azure region'**
+  String get remoteRegion;
+
+  /// No description provided for @remoteServerUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'TTS server URL'**
+  String get remoteServerUrl;
+
+  /// No description provided for @remoteServerUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty: uses your sync server or this page’s origin.'**
+  String get remoteServerUrlHint;
+
+  /// No description provided for @remoteServerToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Server token (optional)'**
+  String get remoteServerToken;
+
+  /// No description provided for @remoteServerTokenHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty: uses the sync token only when inheriting the sync server URL.'**
+  String get remoteServerTokenHint;
+
+  /// No description provided for @remoteApiKey.
+  ///
+  /// In en, this message translates to:
+  /// **'API key'**
+  String get remoteApiKey;
+
+  /// No description provided for @remoteVoiceId.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice ID'**
+  String get remoteVoiceId;
+
+  /// No description provided for @remoteModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get remoteModel;
+
+  /// No description provided for @remoteConsent.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow reading passages to be sent to this destination'**
+  String get remoteConsent;
+
+  /// No description provided for @remotePrefetch.
+  ///
+  /// In en, this message translates to:
+  /// **'Prepare the next passage'**
+  String get remotePrefetch;
+
+  /// No description provided for @remotePrefetchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'May use quota even if you pause or skip. Off by default.'**
+  String get remotePrefetchHint;
+
+  /// No description provided for @remoteLoadVoices.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect and list voices'**
+  String get remoteLoadVoices;
+
+  /// No description provided for @remoteSessionOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'In the browser, this configuration and key last only for this session.'**
+  String get remoteSessionOnly;
+
+  /// No description provided for @remoteSecureStorage.
+  ///
+  /// In en, this message translates to:
+  /// **'Configuration and key are kept in the device’s secure storage, outside the library and sync.'**
+  String get remoteSecureStorage;
+
+  /// No description provided for @remoteSetupGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'Server setup guide'**
+  String get remoteSetupGuide;
+
+  /// No description provided for @remotePricing.
+  ///
+  /// In en, this message translates to:
+  /// **'Provider plans, quotas and terms'**
+  String get remotePricing;
+
+  /// No description provided for @remoteForget.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this device’s remote configuration'**
+  String get remoteForget;
+
+  /// No description provided for @remoteStorageError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not access secure storage. Check the system keyring and try again.'**
+  String get remoteStorageError;
+
+  /// No description provided for @remoteConnectionError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not connect or obtain valid audio. Check the region, URL, voice and model.'**
+  String get remoteConnectionError;
+
+  /// No description provided for @remoteAuthenticationError.
+  ///
+  /// In en, this message translates to:
+  /// **'Check the key or token and your account permissions.'**
+  String get remoteAuthenticationError;
+
+  /// No description provided for @remoteQuotaError.
+  ///
+  /// In en, this message translates to:
+  /// **'Quota or request limit reached, or the server is busy. Try again later.'**
+  String get remoteQuotaError;
+
+  /// No description provided for @remoteServerUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Server speech is unavailable. The administrator must install the runtime/model and enable the feature; see the guide.'**
+  String get remoteServerUnavailable;
+
+  /// No description provided for @remoteVoiceRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter or select a voice.'**
+  String get remoteVoiceRequired;
+
+  /// No description provided for @remoteShowKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Show key'**
+  String get remoteShowKey;
+
+  /// No description provided for @remoteHideKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide key'**
+  String get remoteHideKey;
+
+  /// No description provided for @remoteEngine.
+  ///
+  /// In en, this message translates to:
+  /// **'API or server voice'**
+  String get remoteEngine;
+
+  /// No description provided for @remoteEngineHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Uses the network and moves speech synthesis off the device.'**
+  String get remoteEngineHint;
+
+  /// No description provided for @remoteConfigure.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure remote speech'**
+  String get remoteConfigure;
+
+  /// No description provided for @remoteEnableServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable server speech'**
+  String get remoteEnableServer;
 }
 
 class _AppLocalizationsDelegate

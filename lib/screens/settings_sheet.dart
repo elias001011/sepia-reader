@@ -17,6 +17,7 @@ import '../widgets/sheet_scaffold.dart';
 import '../widgets/speech_controls.dart';
 import 'voice_downloads_sheet.dart';
 import 'cli_access_switch.dart';
+import 'remote_speech_sheet.dart';
 
 class SettingsSheet extends StatefulWidget {
   const SettingsSheet({super.key, required this.controller});
@@ -358,8 +359,21 @@ class _SettingsSheetState extends State<SettingsSheet> {
                   : context.l10n.ttsEngineNeuralUnavailableWeb,
               enabled: _neuralSupported,
             ),
+            _engineOption(
+              context,
+              value: 'remote',
+              title: context.l10n.remoteEngine,
+              description: context.l10n.remoteEngineHint,
+              enabled: true,
+            ),
             const SizedBox(height: 12),
-            if (_usingNeural)
+            if (_usingRemote)
+              OutlinedButton.icon(
+                onPressed: _configureRemote,
+                icon: const Icon(Icons.cloud_outlined),
+                label: Text(context.l10n.remoteConfigure),
+              )
+            else if (_usingNeural)
               _neuralVoiceRow(context)
             else
               _voicePicker(context),
@@ -367,13 +381,13 @@ class _SettingsSheetState extends State<SettingsSheet> {
             SpeechControls(
               rate: _draft.ttsRate,
               pitch: _draft.ttsPitch,
-              supportsPitch: !_usingNeural,
+              supportsPitch: !_usingNeural && !_usingRemote,
               onRateChanged: (value) =>
                   setState(() => _draft = _draft.copyWith(ttsRate: value)),
               onPitchChanged: (value) =>
                   setState(() => _draft = _draft.copyWith(ttsPitch: value)),
             ),
-            if (!_usingNeural) ...[
+            if (!_usingNeural && !_usingRemote) ...[
               const SizedBox(height: 6),
               OutlinedButton.icon(
                 onPressed: _previewVoice,
@@ -588,6 +602,19 @@ class _SettingsSheetState extends State<SettingsSheet> {
   }
 
   bool get _neuralSupported => widget.controller.voiceDownloads.isSupported;
+
+  bool get _usingRemote => _draft.ttsEngine == 'remote';
+
+  Future<void> _configureRemote() async {
+    await showAppSheet<bool>(
+      context: context,
+      builder: (_) => RemoteSpeechSheet(
+        store: widget.controller.remoteSpeech,
+        syncUrl: _serverUrlController.text.trim(),
+        syncToken: _draft.syncToken,
+      ),
+    );
+  }
 
   bool get _usingNeural => _draft.ttsEngine == 'neural' && _neuralSupported;
 

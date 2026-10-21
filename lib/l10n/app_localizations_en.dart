@@ -769,7 +769,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ttsEngineNeuralUnavailableWeb =>
-      'In the browser only the system voice works: the neural voice needs to run natively. Use the Android app for that.';
+      'Local neural voices require the native app. In the browser, use the system voice or remote speech.';
 
   @override
   String get ttsManageVoices => 'Download voices';
@@ -841,7 +841,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ttsFellBackToSystem =>
-      'The neural voice could not be used right now; reading with the system voice.';
+      'The selected voice could not be used; reading with the system voice.';
 
   @override
   String get ttsVoiceQueued => 'Queued…';
@@ -1094,7 +1094,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ttsNeuralPitchHint =>
-      'Neural voice pitch is set by the model. You can adjust the speed.';
+      'This engine does not support pitch adjustment. You can adjust the speed.';
 
   @override
   String get ttsSpeechTitle => 'Voice & pace';
@@ -1114,4 +1114,116 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ttsRecommended => 'Recommended';
+
+  @override
+  String get remoteTitle => 'Remote speech';
+
+  @override
+  String get remotePrivacy =>
+      'Sends reading passages to the selected provider or server. This may use quota or incur charges on your account.';
+
+  @override
+  String get remoteProvider => 'Provider';
+
+  @override
+  String get remoteSepiaServer => 'Sépia server';
+
+  @override
+  String get remoteRegion => 'Azure region';
+
+  @override
+  String get remoteServerUrl => 'TTS server URL';
+
+  @override
+  String get remoteServerUrlHint =>
+      'Empty: uses your sync server or this page’s origin.';
+
+  @override
+  String get remoteServerToken => 'Server token (optional)';
+
+  @override
+  String get remoteServerTokenHint =>
+      'Empty: uses the sync token only when inheriting the sync server URL.';
+
+  @override
+  String get remoteApiKey => 'API key';
+
+  @override
+  String get remoteVoiceId => 'Voice ID';
+
+  @override
+  String get remoteModel => 'Model';
+
+  @override
+  String get remoteConsent =>
+      'Allow reading passages to be sent to this destination';
+
+  @override
+  String get remotePrefetch => 'Prepare the next passage';
+
+  @override
+  String get remotePrefetchHint =>
+      'May use quota even if you pause or skip. Off by default.';
+
+  @override
+  String get remoteLoadVoices => 'Connect and list voices';
+
+  @override
+  String get remoteSessionOnly =>
+      'In the browser, this configuration and key last only for this session.';
+
+  @override
+  String get remoteSecureStorage =>
+      'Configuration and key are kept in the device’s secure storage, outside the library and sync.';
+
+  @override
+  String get remoteSetupGuide => 'Server setup guide';
+
+  @override
+  String get remotePricing => 'Provider plans, quotas and terms';
+
+  @override
+  String get remoteForget => 'Delete this device’s remote configuration';
+
+  @override
+  String get remoteStorageError =>
+      'Could not access secure storage. Check the system keyring and try again.';
+
+  @override
+  String get remoteConnectionError =>
+      'Could not connect or obtain valid audio. Check the region, URL, voice and model.';
+
+  @override
+  String get remoteAuthenticationError =>
+      'Check the key or token and your account permissions.';
+
+  @override
+  String get remoteQuotaError =>
+      'Quota or request limit reached, or the server is busy. Try again later.';
+
+  @override
+  String get remoteServerUnavailable =>
+      'Server speech is unavailable. The administrator must install the runtime/model and enable the feature; see the guide.';
+
+  @override
+  String get remoteVoiceRequired => 'Enter or select a voice.';
+
+  @override
+  String get remoteShowKey => 'Show key';
+
+  @override
+  String get remoteHideKey => 'Hide key';
+
+  @override
+  String get remoteEngine => 'API or server voice';
+
+  @override
+  String get remoteEngineHint =>
+      'Uses the network and moves speech synthesis off the device.';
+
+  @override
+  String get remoteConfigure => 'Configure remote speech';
+
+  @override
+  String get remoteEnableServer => 'Enable server speech';
 }

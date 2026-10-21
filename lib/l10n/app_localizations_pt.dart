@@ -769,7 +769,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get ttsEngineNeuralUnavailableWeb =>
-      'No navegador só a voz do sistema funciona: a voz neural precisa rodar nativamente. Use o app Android para isso.';
+      'Vozes neurais locais requerem o aplicativo nativo. No navegador, use a voz do sistema ou TTS remoto.';
 
   @override
   String get ttsManageVoices => 'Baixar vozes';
@@ -842,7 +842,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get ttsFellBackToSystem =>
-      'A voz neural não pôde ser usada agora; lendo com a voz do sistema.';
+      'Não foi possível usar a voz escolhida; lendo com a voz do sistema.';
 
   @override
   String get ttsVoiceQueued => 'Na fila…';
@@ -1096,7 +1096,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get ttsNeuralPitchHint =>
-      'O tom da voz neural é definido pelo modelo. A velocidade pode ser ajustada.';
+      'Este motor mantém o tom da voz. A velocidade pode ser ajustada.';
 
   @override
   String get ttsSpeechTitle => 'Voz e ritmo';
@@ -1116,4 +1116,116 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get ttsRecommended => 'Recomendada';
+
+  @override
+  String get remoteTitle => 'TTS remoto';
+
+  @override
+  String get remotePrivacy =>
+      'Envia os trechos de leitura ao provedor ou servidor escolhido. Pode consumir cota ou gerar cobrança na sua conta.';
+
+  @override
+  String get remoteProvider => 'Provedor';
+
+  @override
+  String get remoteSepiaServer => 'Servidor Sépia';
+
+  @override
+  String get remoteRegion => 'Região do Azure';
+
+  @override
+  String get remoteServerUrl => 'Endereço do servidor TTS';
+
+  @override
+  String get remoteServerUrlHint =>
+      'Vazio: usa o servidor da sincronização ou o endereço desta página.';
+
+  @override
+  String get remoteServerToken => 'Token do servidor (opcional)';
+
+  @override
+  String get remoteServerTokenHint =>
+      'Vazio: usa o token da sincronização apenas ao herdar o endereço do servidor.';
+
+  @override
+  String get remoteApiKey => 'Chave da API';
+
+  @override
+  String get remoteVoiceId => 'Identificador da voz';
+
+  @override
+  String get remoteModel => 'Modelo';
+
+  @override
+  String get remoteConsent =>
+      'Permitir enviar os trechos de leitura a este destino';
+
+  @override
+  String get remotePrefetch => 'Preparar a próxima fala';
+
+  @override
+  String get remotePrefetchHint =>
+      'Pode consumir cota mesmo se você pausar ou pular o trecho. Desligado por padrão.';
+
+  @override
+  String get remoteLoadVoices => 'Conectar e listar vozes';
+
+  @override
+  String get remoteSessionOnly =>
+      'No navegador, esta configuração e a chave duram apenas nesta sessão.';
+
+  @override
+  String get remoteSecureStorage =>
+      'Configuração e chave guardadas no armazenamento seguro do aparelho, fora da biblioteca e da sincronização.';
+
+  @override
+  String get remoteSetupGuide => 'Como configurar o servidor';
+
+  @override
+  String get remotePricing => 'Planos, cotas e condições do provedor';
+
+  @override
+  String get remoteForget => 'Apagar a configuração remota deste aparelho';
+
+  @override
+  String get remoteStorageError =>
+      'Não foi possível acessar o armazenamento seguro. Verifique o chaveiro do sistema e tente novamente.';
+
+  @override
+  String get remoteConnectionError =>
+      'Não foi possível conectar ou obter áudio válido. Confira região, endereço, voz e modelo.';
+
+  @override
+  String get remoteAuthenticationError =>
+      'Verifique a chave ou token e as permissões da conta.';
+
+  @override
+  String get remoteQuotaError =>
+      'Cota ou limite de solicitações atingido, ou servidor ocupado. Tente novamente mais tarde.';
+
+  @override
+  String get remoteServerUnavailable =>
+      'TTS indisponível no servidor. O administrador precisa instalar o runtime/modelo e habilitar o recurso; consulte o guia.';
+
+  @override
+  String get remoteVoiceRequired => 'Informe ou selecione uma voz.';
+
+  @override
+  String get remoteShowKey => 'Mostrar chave';
+
+  @override
+  String get remoteHideKey => 'Ocultar chave';
+
+  @override
+  String get remoteEngine => 'Voz por API ou servidor';
+
+  @override
+  String get remoteEngineHint =>
+      'Usa a conexão de rede e poupa o processamento de síntese no aparelho.';
+
+  @override
+  String get remoteConfigure => 'Configurar TTS remoto';
+
+  @override
+  String get remoteEnableServer => 'Habilitar TTS no servidor';
 }
