@@ -1,0 +1,65 @@
+[
+  {
+    "repo": "supertone-oss-archive/supertonic-3",
+    "revision": "aafc6e32416a594460b32413efc49d7fe4ce6d46",
+    "path": "LICENSE",
+    "sha256": "0d944a9110fed9a9602d60e0423a272903e7bd21ab060490774efc77c2275e9f",
+    "actual_size": 15007
+  },
+  {
+    "repo": "supertone-oss-archive/supertonic-3",
+    "revision": "aafc6e32416a594460b32413efc49d7fe4ce6d46",
+    "path": "onnx/duration_predictor.onnx",
+    "sha256": "c3eb91414d5ff8a7a239b7fe9e34e7e2bf8a8140d8375ffb14718b1c639325db",
+    "actual_size": 3700147
+  },
+  {
+    "repo": "supertone-oss-archive/supertonic-3",
+    "revision": "aafc6e32416a594460b32413efc49d7fe4ce6d46",
+    "path": "onnx/text_encoder.onnx",
+    "sha256": "c7befd5ea8c3119769e8a6c1486c4edc6a3bc8365c67621c881bbb774b9902ff",
+    "actual_size": 36416150
+  },
+  {
+    "repo": "supertone-oss-archive/supertonic-3",
+    "revision": "aafc6e32416a594460b32413efc49d7fe4ce6d46",
+    "path": "onnx/tts.json",
+    "sha256": "42078d3aef1cd43ab43021f3c54f47d2d75ceb4e75f627f118890128b06a0d09",
+    "actual_size": 8253
+  },
+  {
+    "repo": "supertone-oss-archive/supertonic-3",
+    "revision": "aafc6e32416a594460b32413efc49d7fe4ce6d46",
+    "path": "onnx/unicode_indexer.json",
+    "sha256": "9bf7346e43883a81f8645c81224f786d43c5b57f3641f6e7671a7d6c493cb24f",
+    "actual_size": 277676
+  },
+  {
+    "repo": "supertone-oss-archive/supertonic-3",
+    "revision": "aafc6e32416a594460b32413efc49d7fe4ce6d46",
+    "path": "onnx/vector_estimator.onnx",
+    "sha256": "883ac868ea0275ef0e991524dc64f16b3c0376efd7c320af6b53f5b780d7c61c",
+    "actual_size": 256534781
+  },
+  {
+    "repo": "supertone-oss-archive/supertonic-3",
+    "revision": "aafc6e32416a594460b32413efc49d7fe4ce6d46",
+    "path": "onnx/vocoder.onnx",
+    "sha256": "085de76dd8e8d5836d6ca66826601f615939218f90e519f70ee8a36ed2a4c4ba",
+    "actual_size": 101424195
+  },
+  {
+    "repo": "supertone-oss-archive/supertonic-3",
+    "revision": "aafc6e32416a594460b32413efc49d7fe4ce6d46",
+    "path": "voice_styles/M1.json",
+    "sha256": "e35604687f5d23694b8e91593a93eec0e4eca6c0b02bb8ed69139ab2ea6b0a5b",
+    "actual_size": 291748
+  },
+  {
+    "repo": "supertone-oss-archive/supertonic-3",
+    "revision": "aafc6e32416a594460b32413efc49d7fe4ce6d46",
+    "path": "voice_styles/M2.json",
+    "sha256": "b76cbf62bac707c710cf0ae5aba5e31eea1a6339a9734bfae33ab98499534a50",
+    "actual_size": 292055
+  }
+]

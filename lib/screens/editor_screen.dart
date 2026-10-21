@@ -14,6 +14,7 @@ import '../services/document_kind.dart';
 import '../services/document_sections.dart';
 import '../services/html_preview.dart';
 import '../services/tts/neural_tts_engine.dart';
+import '../services/tts/remote_tts_engine.dart';
 import '../services/tts/system_tts_engine.dart';
 import '../services/tts/tts_engine.dart';
 import '../services/tts/tts_playback.dart';
@@ -515,6 +516,13 @@ class _EditorScreenState extends State<EditorScreen>
   /// to me"; a plainer voice is not.
   TtsEngine _buildEngine() {
     final settings = widget.controller.settings;
+    if (settings.ttsEngine == 'remote') {
+      return RemoteTtsEngine(
+        loadConfig: widget.controller.remoteSpeech.load,
+        syncUrl: settings.syncServerUrl,
+        syncToken: settings.syncToken,
+      );
+    }
     if (settings.ttsEngine == 'neural' && _voiceStore.isSupported) {
       final resolved = resolveVoice(settings.ttsNeuralVoiceId);
       if (resolved != null) {
@@ -539,6 +547,9 @@ class _EditorScreenState extends State<EditorScreen>
 
   String get _wantedEngineKey {
     final settings = widget.controller.settings;
+    if (settings.ttsEngine == 'remote') {
+      return 'remote:${widget.controller.remoteSpeech.revision}:${settings.syncServerUrl}:${settings.syncToken}';
+    }
     return settings.ttsEngine == 'neural' && _voiceStore.isSupported
         ? 'neural:${settings.ttsNeuralVoiceId}'
         : 'system';
@@ -660,7 +671,7 @@ class _EditorScreenState extends State<EditorScreen>
       // me"; falling back to the platform voice and saying so is not.
       if (controller.error != null && _engineKey != 'system') {
         debugPrint(
-          'sepia: neural voice failed, falling back: ${controller.error}',
+          'sepia: speech engine failed, falling back: ${controller.error}',
         );
         _engineKey = 'system';
         await controller.useEngine(

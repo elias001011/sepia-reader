@@ -13,6 +13,7 @@ import '../services/document_kind.dart';
 import '../services/custom_fonts.dart';
 import '../services/storage_service.dart';
 import '../services/tts/voice_download_manager.dart';
+import '../services/tts/remote_speech_config.dart';
 import '../services/update_checker.dart';
 import '../services/sync_merge.dart';
 
@@ -42,6 +43,7 @@ class AppController extends ChangeNotifier {
   /// Voice downloads live here, above any screen, so closing the sheet that
   /// started one does not take a several-hundred-megabyte install with it.
   final VoiceDownloadManager voiceDownloads = VoiceDownloadManager();
+  final RemoteSpeechStore remoteSpeech = RemoteSpeechStore();
   final Uuid _uuid = const Uuid();
   final List<LibraryDocument> _documents = [];
   final List<LibraryFolder> _folders = [];
@@ -896,7 +898,7 @@ No modo leitura, o botão de fone lê o documento em voz alta.
 
 - Se o texto tem títulos `#` ou `##`, dá para escolher **de qual capítulo começar** — ou continuar de onde você parou.
 - A voz padrão é a do próprio Android ou do navegador: não baixa nada e funciona sem internet.
-- Em **Configurações → Leitura em voz alta** dá para mudar a **velocidade** e trocar de voz.
+- Em **Configurações → Leitura em voz alta** dá para ajustar a **velocidade**, escolher a voz do sistema ou conectar a uma **API ou servidor TTS**. O modo remoto também está disponível na Lite e envia os trechos ao destino escolhido, com autorização explícita.
 
 ## Marcadores
 
@@ -945,7 +947,7 @@ In reading mode, the headphone button reads the document out loud.
 
 - If the text has `#` or `##` headings, you can pick **which chapter to start from** — or carry on from where you stopped.
 - The default voice is the one Android or your browser already has: nothing to download, and it works offline.
-- Under **Settings → Read aloud** you can change the **speed** and switch voices.
+- Under **Settings → Read aloud**, adjust **speed**, choose the system voice, or connect to an **API or TTS server**. Remote speech is also available in Lite and sends passages to your chosen destination with explicit permission.
 
 ## Bookmarks
 

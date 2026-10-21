@@ -23,12 +23,13 @@ A calm, local-first Markdown library, reader, and editor built with Flutter. Sé
 ### Listening
 - read-aloud, with a chapter (`#`/`##`) picker to start from, "carry on from where I stopped", pause, skip, and speed control;
 - the page scrolls along with the voice;
-- three voice tiers:
+- voice options:
   - **system voice** — ultra light, uses what Android or the browser already has, nothing to download;
   - **Supertonic 2 / 3** (~252 / 381 MiB) — M1 and M2 voices, optional original models; version 3 M2 is recommended and version 2 needs less processing;
   - **Piper** (~80 MB) — a smaller neural alternative, with variable pronunciation quality;
   - **Kokoro** (~400 MB) — more natural, for devices with space and memory to spare;
-- neural voices run offline on the device through sherpa-onnx: no text leaves the device, no API and no key;
+- **API or server voice** — Azure Speech, ElevenLabs or Supertonic 3 on your Sépia server, also in Lite; your own key, explicit consent and a preview before applying. See [remote TTS](docs/TTS-REMOTO.md);
+- local neural voices run offline on the device through sherpa-onnx: no text leaves the device, no API and no key;
 - voices are downloaded on demand, with progress, cancellation, resumable downloads, and removal; a download keeps going if you close settings, and stays visible in the library;
 - Markdown syntax is never read out loud — tables become prose, code and diagrams are skipped.
 
@@ -155,7 +156,7 @@ The release archive bundles Flutter's rendering runtime, the fifteen reading fam
 2. Open **Deploys** in Netlify and drag the entire `build/web` folder into the manual deploy area.
 3. Under **Domain management**, choose the desired address, such as `sepia-md.netlify.app`.
 
-The generated folder already contains `_headers` and `_redirects` for WebAssembly, static routing, and an origin-only content policy.
+The generated folder already contains `_headers` and `_redirects` for WebAssembly, static routing, and a content policy that keeps scripts and fonts on the same origin while allowing HTTP(S) connections to the chosen servers and in-memory audio playback.
 
 ## Sépia and Sépia Lite
 
@@ -165,8 +166,9 @@ Every Release ships **two** Android builds of the same app:
 |---|---|---|
 | Focus | full-featured | same app, smaller APK |
 | `arm64` APK size (per-ABI) | ~48 MB | ~25 MB |
-| On-device neural voice (Supertonic / Piper / Kokoro) | yes, via `sherpa_onnx` (~26 MB of native libs) | **no** — system voice only |
+| On-device neural voice (Supertonic / Piper / Kokoro) | yes, via `sherpa_onnx` (~26 MB of native libs) | **no** — system voice and remote TTS |
 | System voice (Android/browser) | yes | yes |
+| API or server TTS | yes | yes, without local neural models |
 | Fonts, themes and the 16 reading palettes | identical in both, **bundled** (offline) | ← |
 | Editor, bookmarks, chapter navigation | yes | yes |
 | Sync with your own server | yes | yes |

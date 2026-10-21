@@ -17,7 +17,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-VERSION = "2.5.6"
+VERSION = "2.5.7"
 HELP = """ls [pasta]                listar arquivos e pastas
 cd PASTA / pwd             navegar (use aspas para nomes com espaços)
 tree                      árvore da biblioteca
