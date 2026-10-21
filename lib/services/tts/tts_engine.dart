@@ -21,6 +21,10 @@ abstract class TtsEngine {
   /// Human-readable name of the backend, for the settings screen.
   String get label;
 
+  /// Neural text frontends may interpret typographic pauses themselves.
+  bool get preserveSpeechPunctuation => false;
+  int get utteranceLimit => 240;
+
   /// Whether this engine can be used on the current device at all.
   Future<bool> isAvailable();
 

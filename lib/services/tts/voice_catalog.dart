@@ -1,10 +1,10 @@
-/// How heavy a voice pack is to download and to run.
-///
-/// Three steps, and the app is meant to be usable at every one: the platform
-/// voice needs nothing at all, Piper is a small download that runs
-/// comfortably on a modest phone, and Kokoro is a much larger one that
-/// sounds better where there is room for it.
+part 'supertonic_catalog.dart';
+
+/// Download and runtime groups shown in the voice manager.
 enum NeuralVoiceTier {
+  /// Optional Supertonic models, using original FP32 weights.
+  supertonic,
+
   /// A small, single-language model. Tens of megabytes, quick to load.
   light,
 
@@ -19,7 +19,7 @@ enum NeuralVoiceTier {
 /// Kokoro pack is one model containing many speakers. Modelling that here is
 /// what stops the interface from offering to download the same 400 MB model
 /// once per speaker.
-enum NeuralVoiceKind { piper, kokoro }
+enum NeuralVoiceKind { piper, kokoro, supertonic }
 
 /// One speaker. For Piper there is exactly one per pack; for Kokoro there
 /// are many, all served by the same downloaded model.
@@ -90,6 +90,8 @@ class VoicePack {
     this.dataDir = 'espeak-ng-data',
     this.dictDir,
     this.lexicon = const [],
+    this.revision = 'main',
+    this.files = const [],
   });
 
   /// Stable identifier, e.g. `piper/pt_BR-faber-medium`.
@@ -105,6 +107,10 @@ class VoicePack {
   /// memory at once — which for a 400 MB model is not a slow path but an
   /// impossible one. Streaming each file straight to disk costs neither.
   final String repo;
+
+  /// Immutable revision and exact, hash-verified files for curated packs.
+  final String revision;
+  final List<VoicePackFile> files;
 
   /// Download size, for the picker — measured from each repository's own
   /// listing rather than assumed, because it is the figure a phone with
@@ -131,8 +137,13 @@ class VoicePack {
 
   bool get isKokoro => kind == NeuralVoiceKind.kokoro;
 
-  NeuralVoiceTier get tier =>
-      isKokoro ? NeuralVoiceTier.best : NeuralVoiceTier.light;
+  bool get isSupertonic => kind == NeuralVoiceKind.supertonic;
+
+  NeuralVoiceTier get tier => isSupertonic
+      ? NeuralVoiceTier.supertonic
+      : isKokoro
+      ? NeuralVoiceTier.best
+      : NeuralVoiceTier.light;
 
   /// Languages this pack can speak, in the order its speakers are listed.
   List<String> get languages {
@@ -145,6 +156,37 @@ class VoicePack {
 }
 
 String languageLabelFor(String language) => switch (language) {
+  'en' => 'English',
+  'ko' => '한국어',
+  'ja' => '日本語',
+  'ar' => 'العربية',
+  'bg' => 'Български',
+  'cs' => 'Čeština',
+  'da' => 'Dansk',
+  'de' => 'Deutsch',
+  'el' => 'Ελληνικά',
+  'es' => 'Español',
+  'et' => 'Eesti',
+  'fi' => 'Suomi',
+  'fr' => 'Français',
+  'hi' => 'हिन्दी',
+  'hr' => 'Hrvatski',
+  'hu' => 'Magyar',
+  'id' => 'Bahasa Indonesia',
+  'it' => 'Italiano',
+  'lt' => 'Lietuvių',
+  'lv' => 'Latviešu',
+  'nl' => 'Nederlands',
+  'pl' => 'Polski',
+  'ro' => 'Română',
+  'ru' => 'Русский',
+  'sk' => 'Slovenčina',
+  'sl' => 'Slovenščina',
+  'sv' => 'Svenska',
+  'tr' => 'Türkçe',
+  'uk' => 'Українська',
+  'vi' => 'Tiếng Việt',
+  'pt' => 'Português',
   'pt-BR' => 'Português (Brasil)',
   'pt-PT' => 'Português (Portugal)',
   'en-US' => 'English (US)',
@@ -188,21 +230,27 @@ VoicePack _piper({
   ],
 );
 
-/// Packs offered for download.
-///
-/// Piper leads the list deliberately. Its voices are trained one per
-/// language, and a ~80 MB download that loads in a moment beats a ~400 MB
-/// one needing several hundred megabytes of RAM — on the phone this is
-/// actually read on, that is the difference between a feature and a demo.
+/// Optional downloadable models. No weights are bundled with the app.
 final voicePacks = <VoicePack>[
+  ..._supertonicPacks,
   _piper(slug: 'pt_BR-faber-medium', label: 'Faber', language: 'pt-BR'),
   _piper(slug: 'pt_BR-cadu-medium', label: 'Cadu', language: 'pt-BR'),
   _piper(slug: 'pt_BR-jeff-medium', label: 'Jeff', language: 'pt-BR'),
   _piper(slug: 'pt_PT-tugao-medium', label: 'Tugão', language: 'pt-PT'),
   _piper(slug: 'en_US-amy-medium', label: 'Amy', language: 'en-US'),
-  _piper(approxMegabytes: 132, slug: 'en_US-ryan-high', label: 'Ryan', language: 'en-US'),
+  _piper(
+    approxMegabytes: 132,
+    slug: 'en_US-ryan-high',
+    label: 'Ryan',
+    language: 'en-US',
+  ),
   _piper(slug: 'en_GB-alba-medium', label: 'Alba', language: 'en-GB'),
-  _piper(approxMegabytes: 126, slug: 'en_GB-cori-high', label: 'Cori', language: 'en-GB'),
+  _piper(
+    approxMegabytes: 126,
+    slug: 'en_GB-cori-high',
+    label: 'Cori',
+    language: 'en-GB',
+  ),
   _piper(slug: 'es_ES-davefx-medium', label: 'Davefx', language: 'es-ES'),
   _piper(slug: 'es_MX-claude-high', label: 'Claude', language: 'es-MX'),
   _piper(slug: 'fr_FR-siwis-medium', label: 'Siwis', language: 'fr-FR'),
@@ -230,24 +278,114 @@ final voicePacks = <VoicePack>[
     dictDir: 'dict',
     lexicon: ['lexicon-us-en.txt', 'lexicon-zh.txt'],
     voices: [
-      NeuralVoice(id: 'kokoro/pf_dora', label: 'Dora', language: 'pt-BR', speakerId: 42),
-      NeuralVoice(id: 'kokoro/pm_alex', label: 'Alex', language: 'pt-BR', speakerId: 43),
-      NeuralVoice(id: 'kokoro/pm_santa', label: 'Santa', language: 'pt-BR', speakerId: 44),
-      NeuralVoice(id: 'kokoro/af_heart', label: 'Heart', language: 'en-US', speakerId: 3),
-      NeuralVoice(id: 'kokoro/af_bella', label: 'Bella', language: 'en-US', speakerId: 2),
-      NeuralVoice(id: 'kokoro/am_michael', label: 'Michael', language: 'en-US', speakerId: 16),
-      NeuralVoice(id: 'kokoro/bf_emma', label: 'Emma', language: 'en-GB', speakerId: 21),
-      NeuralVoice(id: 'kokoro/bm_george', label: 'George', language: 'en-GB', speakerId: 26),
-      NeuralVoice(id: 'kokoro/ef_dora', label: 'Dora', language: 'es-ES', speakerId: 28),
-      NeuralVoice(id: 'kokoro/em_alex', label: 'Alex', language: 'es-ES', speakerId: 29),
-      NeuralVoice(id: 'kokoro/ff_siwis', label: 'Siwis', language: 'fr-FR', speakerId: 30),
-      NeuralVoice(id: 'kokoro/if_sara', label: 'Sara', language: 'it-IT', speakerId: 35),
-      NeuralVoice(id: 'kokoro/im_nicola', label: 'Nicola', language: 'it-IT', speakerId: 36),
-      NeuralVoice(id: 'kokoro/jf_alpha', label: 'Alpha', language: 'ja-JP', speakerId: 37),
-      NeuralVoice(id: 'kokoro/jm_kumo', label: 'Kumo', language: 'ja-JP', speakerId: 41),
-      NeuralVoice(id: 'kokoro/hf_alpha', label: 'Alpha', language: 'hi-IN', speakerId: 31),
-      NeuralVoice(id: 'kokoro/zf_xiaoxiao', label: 'Xiaoxiao', language: 'zh-CN', speakerId: 47),
-      NeuralVoice(id: 'kokoro/zm_yunyang', label: 'Yunyang', language: 'zh-CN', speakerId: 52),
+      NeuralVoice(
+        id: 'kokoro/pf_dora',
+        label: 'Dora',
+        language: 'pt-BR',
+        speakerId: 42,
+      ),
+      NeuralVoice(
+        id: 'kokoro/pm_alex',
+        label: 'Alex',
+        language: 'pt-BR',
+        speakerId: 43,
+      ),
+      NeuralVoice(
+        id: 'kokoro/pm_santa',
+        label: 'Santa',
+        language: 'pt-BR',
+        speakerId: 44,
+      ),
+      NeuralVoice(
+        id: 'kokoro/af_heart',
+        label: 'Heart',
+        language: 'en-US',
+        speakerId: 3,
+      ),
+      NeuralVoice(
+        id: 'kokoro/af_bella',
+        label: 'Bella',
+        language: 'en-US',
+        speakerId: 2,
+      ),
+      NeuralVoice(
+        id: 'kokoro/am_michael',
+        label: 'Michael',
+        language: 'en-US',
+        speakerId: 16,
+      ),
+      NeuralVoice(
+        id: 'kokoro/bf_emma',
+        label: 'Emma',
+        language: 'en-GB',
+        speakerId: 21,
+      ),
+      NeuralVoice(
+        id: 'kokoro/bm_george',
+        label: 'George',
+        language: 'en-GB',
+        speakerId: 26,
+      ),
+      NeuralVoice(
+        id: 'kokoro/ef_dora',
+        label: 'Dora',
+        language: 'es-ES',
+        speakerId: 28,
+      ),
+      NeuralVoice(
+        id: 'kokoro/em_alex',
+        label: 'Alex',
+        language: 'es-ES',
+        speakerId: 29,
+      ),
+      NeuralVoice(
+        id: 'kokoro/ff_siwis',
+        label: 'Siwis',
+        language: 'fr-FR',
+        speakerId: 30,
+      ),
+      NeuralVoice(
+        id: 'kokoro/if_sara',
+        label: 'Sara',
+        language: 'it-IT',
+        speakerId: 35,
+      ),
+      NeuralVoice(
+        id: 'kokoro/im_nicola',
+        label: 'Nicola',
+        language: 'it-IT',
+        speakerId: 36,
+      ),
+      NeuralVoice(
+        id: 'kokoro/jf_alpha',
+        label: 'Alpha',
+        language: 'ja-JP',
+        speakerId: 37,
+      ),
+      NeuralVoice(
+        id: 'kokoro/jm_kumo',
+        label: 'Kumo',
+        language: 'ja-JP',
+        speakerId: 41,
+      ),
+      NeuralVoice(
+        id: 'kokoro/hf_alpha',
+        label: 'Alpha',
+        language: 'hi-IN',
+        speakerId: 31,
+      ),
+      NeuralVoice(
+        id: 'kokoro/zf_xiaoxiao',
+        label: 'Xiaoxiao',
+        language: 'zh-CN',
+        speakerId: 47,
+      ),
+      NeuralVoice(
+        id: 'kokoro/zm_yunyang',
+        label: 'Yunyang',
+        language: 'zh-CN',
+        speakerId: 52,
+      ),
     ],
   ),
 ];
@@ -272,3 +410,11 @@ VoicePack? voicePackById(String id) {
 /// Every voice in the catalogue, flattened.
 Iterable<NeuralVoice> get allNeuralVoices =>
     voicePacks.expand((pack) => pack.voices);
+
+/// An exact upstream file, downloaded unchanged and checked before installation.
+class VoicePackFile {
+  const VoicePackFile(this.path, this.bytes, this.sha256);
+  final String path;
+  final int bytes;
+  final String sha256;
+}

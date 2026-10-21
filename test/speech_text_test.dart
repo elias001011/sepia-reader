@@ -3,6 +3,29 @@ import 'package:sepia_reader/services/document_sections.dart';
 
 void main() {
   test(
+    'Supertonic keeps expressive punctuation while removing layout noise',
+    () {
+      const input = '— Olá… sim. **Uma voz**.\n\n---\n\nEle voltou…';
+      final plain = speakableText(input);
+      final pieces = utterancesFor(
+        plain,
+        preservePunctuation: true,
+        limit: 200,
+      );
+      expect(pieces.join(' '), '— Olá… sim. Uma voz. Ele voltou…');
+      expect(utterancesFor(plain).join(' '), isNot(contains('…')));
+    },
+  );
+  test('shorter model chunks preserve all words and stay bounded', () {
+    final text = List.filled(
+      15,
+      'O viajante abriu a janela. Depois voltou para casa.',
+    ).join(' ');
+    final pieces = utterancesFor(text, preservePunctuation: true, limit: 200);
+    expect(pieces.every((piece) => piece.length <= 200), isTrue);
+    expect(pieces.join(' '), text);
+  });
+  test(
     'reference links, entities, nested parentheses and HTML leave prose',
     () {
       final text = speakableText('''

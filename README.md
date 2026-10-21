@@ -25,9 +25,10 @@ Leitor, biblioteca e editor de Markdown feito em Flutter. O Sépia foi pensado p
 - o texto rola acompanhando a voz;
 - três níveis de voz:
   - **voz do sistema** — ultra leve, usa o que o Android ou o navegador já tem, nada para baixar;
-  - **Piper** (~80 MB) — voz neural que roda bem em qualquer aparelho;
+  - **Supertonic 2 / 3** (~252 / 381 MiB) — vozes M1 e M2, modelos originais opcionais; a versão 3 M2 é recomendada e a 2 exige menos processamento;
+  - **Piper** (~80 MB) — alternativa neural menor, com qualidade de pronúncia variável;
   - **Kokoro** (~400 MB) — mais natural, para quem tem espaço e memória sobrando;
-- as duas neurais rodam offline no próprio aparelho via sherpa-onnx: nenhum texto sai do dispositivo, sem API e sem chave;
+- as vozes neurais rodam offline no próprio aparelho via sherpa-onnx: nenhum texto sai do dispositivo, sem API e sem chave;
 - vozes baixadas sob demanda, com progresso, cancelamento, retomada de download interrompido e remoção; o download continua se você fechar as configurações e fica visível na biblioteca;
 - a sintaxe do Markdown não é lida em voz alta — tabelas viram texto, código e diagramas são pulados.
 
@@ -65,7 +66,7 @@ Cada Release traz **duas** builds Android do mesmo app:
 |---|---|---|
 | Foco | completo | mesmo app, APK menor |
 | Tamanho do APK `arm64` (por ABI) | ~48 MB | ~25 MB |
-| Voz neural (Piper / Kokoro, on-device) | sim, via `sherpa_onnx` (~26 MB de libs nativas) | **não** — só a voz do sistema |
+| Voz neural (Supertonic / Piper / Kokoro, on-device) | sim, via `sherpa_onnx` (~26 MB de libs nativas) | **não** — só a voz do sistema |
 | Voz do sistema (Android/navegador) | sim | sim |
 | Fontes, temas e as 16 paletas de leitura | idênticas nos dois, **empacotadas** (offline) | ← |
 | Editor, marcadores, navegação por capítulos | sim | sim |
@@ -255,3 +256,5 @@ Flutter + Material 3, `flutter_markdown_plus`, `highlight`, `file_picker` (impor
 ## Licença
 
 MIT.
+
+[Modelos e licenças Supertonic](docs/SUPERTONIC.md).

@@ -775,11 +775,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ttsManageVoices => 'Download voices';
 
   @override
-  String get ttsVoicesTitle => 'Voices to download';
+  String get ttsVoicesTitle => 'Voices';
 
   @override
   String get ttsVoicesDescription =>
-      'Download once and use offline forever. It is stored on the device and can be removed whenever you like.';
+      'Download optional models for offline listening. Remove them at any time.';
 
   @override
   String get ttsVoiceInstall => 'Download';
@@ -1098,4 +1098,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ttsSpeechTitle => 'Voice & pace';
+
+  @override
+  String get ttsTierSupertonic => 'Supertonic';
+
+  @override
+  String get ttsTierSupertonicHint =>
+      'Natural voices · version 2 needs less processing; version 3 offers more languages';
+
+  @override
+  String get ttsSupertonicPackHint => 'Original FP32 model · M1 and M2';
+
+  @override
+  String get ttsModelLicense => 'Model license';
+
+  @override
+  String get ttsRecommended => 'Recommended';
 }

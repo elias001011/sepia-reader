@@ -1325,13 +1325,13 @@ abstract class AppLocalizations {
   /// No description provided for @ttsVoicesTitle.
   ///
   /// In en, this message translates to:
-  /// **'Voices to download'**
+  /// **'Voices'**
   String get ttsVoicesTitle;
 
   /// No description provided for @ttsVoicesDescription.
   ///
   /// In en, this message translates to:
-  /// **'Download once and use offline forever. It is stored on the device and can be removed whenever you like.'**
+  /// **'Download optional models for offline listening. Remove them at any time.'**
   String get ttsVoicesDescription;
 
   /// No description provided for @ttsVoiceInstall.
@@ -1807,6 +1807,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Voice & pace'**
   String get ttsSpeechTitle;
+
+  /// No description provided for @ttsTierSupertonic.
+  ///
+  /// In en, this message translates to:
+  /// **'Supertonic'**
+  String get ttsTierSupertonic;
+
+  /// No description provided for @ttsTierSupertonicHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Natural voices · version 2 needs less processing; version 3 offers more languages'**
+  String get ttsTierSupertonicHint;
+
+  /// No description provided for @ttsSupertonicPackHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Original FP32 model · M1 and M2'**
+  String get ttsSupertonicPackHint;
+
+  /// No description provided for @ttsModelLicense.
+  ///
+  /// In en, this message translates to:
+  /// **'Model license'**
+  String get ttsModelLicense;
+
+  /// No description provided for @ttsRecommended.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended'**
+  String get ttsRecommended;
 }
 
 class _AppLocalizationsDelegate

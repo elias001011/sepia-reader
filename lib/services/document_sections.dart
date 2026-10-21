@@ -203,13 +203,16 @@ class _SpeechVisitor implements md.NodeVisitor {
 /// Common typographic punctuation is normalized once for every backend,
 /// including Lite's system voice. Never remove accents or meaningful symbols
 /// from prose; only decoration-only lines and invisible layout characters go.
-String normalizeSpeechText(String text) => text
+String _cleanSpeechLayout(String text) => text
     .replaceAll(
       RegExp(r'^[ \t]*[-_*═─━=•·. …]{3,}[ \t]*$', multiLine: true),
       '',
     )
     .replaceAll(RegExp('[\u00ad\u200b\ufeff]'), '')
     .replaceAll(RegExp('[\u00a0\u202f]'), ' ')
+    .trim();
+
+String normalizeSpeechText(String text) => _cleanSpeechLayout(text)
     // A hesitation followed by a lowercase continuation is a pause inside
     // the sentence ('Eu… sim', 'O… o nosso'), not a one-letter sentence that
     // a phonemizer may spell out. Sentence endings keep a full stop.
@@ -225,10 +228,17 @@ String normalizeSpeechText(String text) => text
 /// Bounded utterances keep synthesis, cancellation and resume responsive even
 /// for a long unpunctuated paragraph. Split on sentence/clause boundaries when
 /// possible, otherwise on whitespace, never inside a word or surrogate pair.
-List<String> utterancesFor(String text) {
-  const limit = 240;
+List<String> utterancesFor(
+  String text, {
+  bool preservePunctuation = false,
+  int limit = 240,
+}) {
+  if (limit < 60) throw ArgumentError.value(limit, 'limit');
+  final prepared = preservePunctuation
+      ? _cleanSpeechLayout(text)
+      : normalizeSpeechText(text);
   final result = <String>[];
-  for (final paragraph in normalizeSpeechText(text).split(RegExp(r'\n\s*\n'))) {
+  for (final paragraph in prepared.split(RegExp(r'\n\s*\n'))) {
     final rest = paragraph.replaceAll(RegExp(r'\s+'), ' ').trim();
     var start = 0;
     while (rest.length - start > limit) {

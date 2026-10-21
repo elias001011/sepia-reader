@@ -113,7 +113,12 @@ class TtsPlaybackController extends ChangeNotifier {
     _index = 0;
     _notify();
     try {
-      final request = (document: document, section: section);
+      final request = (
+        document: document,
+        section: section,
+        preservePunctuation: _engine.preserveSpeechPunctuation,
+        limit: _engine.utteranceLimit,
+      );
       final pieces = !kIsWeb && document.content.length >= 32000
           ? await compute(_buildPieces, request)
           : await _buildPieces(request);
@@ -145,7 +150,13 @@ class TtsPlaybackController extends ChangeNotifier {
   }
 
   static Future<List<SpokenPiece>> _buildPieces(
-    ({LibraryDocument document, DocumentSection section}) request,
+    ({
+      LibraryDocument document,
+      DocumentSection section,
+      bool preservePunctuation,
+      int limit,
+    })
+    request,
   ) async {
     final document = request.document;
     final section = request.section;
@@ -160,7 +171,11 @@ class TtsPlaybackController extends ChangeNotifier {
       final spoken = document.isMarkdown
           ? speakableText(chunks[i], linkDefinitions: definitions)
           : chunks[i].trim();
-      for (final utterance in utterancesFor(spoken)) {
+      for (final utterance in utterancesFor(
+        spoken,
+        preservePunctuation: request.preservePunctuation,
+        limit: request.limit,
+      )) {
         pieces.add(SpokenPiece(chunkIndex: i, text: utterance));
       }
     }

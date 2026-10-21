@@ -1,6 +1,7 @@
 # Revisão da leitura em voz alta
 
-Data: 18/10/2026. Alterações posteriores à 2.5.5, ainda sem nova release.
+Data da revisão inicial: 18/10/2026. Melhorias incluídas na 2.5.6.
+A integração posterior do Supertonic está descrita em [SUPERTONIC.md](SUPERTONIC.md).
 
 ## Problemas corrigidos
 
@@ -71,7 +72,7 @@ reportadas pelo plugin deixam de avançar silenciosamente para o próximo trecho
 Não há aparelho Android conectado neste ambiente. A geração de WAVs e os testes
 de navegação não confirmam percepção de naturalidade, pronúncia de nomes
 estrangeiros, comportamento de fones Bluetooth ou latência em hardware móvel.
-Piper e Kokoro foram mantidos; nenhum modelo adicional foi incluído no aplicativo.
+Na revisão inicial, Piper e Kokoro foram mantidos. A versão 2.5.6 também oferece Supertonic 2 e 3 como downloads opcionais.
 
 ## Referências técnicas
 

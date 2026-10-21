@@ -25,9 +25,10 @@ A calm, local-first Markdown library, reader, and editor built with Flutter. Sé
 - the page scrolls along with the voice;
 - three voice tiers:
   - **system voice** — ultra light, uses what Android or the browser already has, nothing to download;
-  - **Piper** (~80 MB) — a neural voice that runs well on any device;
+  - **Supertonic 2 / 3** (~252 / 381 MiB) — M1 and M2 voices, optional original models; version 3 M2 is recommended and version 2 needs less processing;
+  - **Piper** (~80 MB) — a smaller neural alternative, with variable pronunciation quality;
   - **Kokoro** (~400 MB) — more natural, for devices with space and memory to spare;
-- both neural tiers run offline on the device through sherpa-onnx: no text leaves the device, no API and no key;
+- neural voices run offline on the device through sherpa-onnx: no text leaves the device, no API and no key;
 - voices are downloaded on demand, with progress, cancellation, resumable downloads, and removal; a download keeps going if you close settings, and stays visible in the library;
 - Markdown syntax is never read out loud — tables become prose, code and diagrams are skipped.
 
@@ -164,7 +165,7 @@ Every Release ships **two** Android builds of the same app:
 |---|---|---|
 | Focus | full-featured | same app, smaller APK |
 | `arm64` APK size (per-ABI) | ~48 MB | ~25 MB |
-| On-device neural voice (Piper / Kokoro) | yes, via `sherpa_onnx` (~26 MB of native libs) | **no** — system voice only |
+| On-device neural voice (Supertonic / Piper / Kokoro) | yes, via `sherpa_onnx` (~26 MB of native libs) | **no** — system voice only |
 | System voice (Android/browser) | yes | yes |
 | Fonts, themes and the 16 reading palettes | identical in both, **bundled** (offline) | ← |
 | Editor, bookmarks, chapter navigation | yes | yes |
@@ -263,3 +264,5 @@ Flutter, Material 3, `flutter_markdown_plus`, `highlight`, `file_picker` (import
 ## License
 
 MIT.
+
+[Supertonic models and licenses](docs/SUPERTONIC.md).

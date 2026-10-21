@@ -404,8 +404,8 @@
   },
   "ttsEngineNeuralUnavailableWeb": "No navegador só a voz do sistema funciona: a voz neural precisa rodar nativamente. Use o app Android para isso.",
   "ttsManageVoices": "Baixar vozes",
-  "ttsVoicesTitle": "Vozes para baixar",
-  "ttsVoicesDescription": "Baixe uma vez e use offline para sempre. Fica guardada no aparelho e dá para remover quando quiser.",
+  "ttsVoicesTitle": "Vozes",
+  "ttsVoicesDescription": "Baixe modelos opcionais para ouvir offline. Remova quando quiser.",
   "ttsVoiceInstall": "Baixar",
   "ttsVoiceRemove": "Remover",
   "ttsVoiceInstalled": "Instalada",
@@ -595,5 +595,10 @@
   "ttsSpeechSettings": "Ajustes da fala",
   "ttsSpeechSettingsHint": "Ao aplicar, o trecho atual recomeça com os novos ajustes. Se estiver pausado, continua pausado.",
   "ttsNeuralPitchHint": "O tom da voz neural é definido pelo modelo. A velocidade pode ser ajustada.",
-  "ttsSpeechTitle": "Voz e ritmo"
+  "ttsSpeechTitle": "Voz e ritmo",
+  "ttsTierSupertonic": "Supertonic",
+  "ttsTierSupertonicHint": "Vozes naturais · versão 2 exige menos processamento; versão 3 oferece mais idiomas",
+  "ttsSupertonicPackHint": "Modelo FP32 original · M1 e M2",
+  "ttsModelLicense": "Licença do modelo",
+  "ttsRecommended": "Recomendada"
 }
