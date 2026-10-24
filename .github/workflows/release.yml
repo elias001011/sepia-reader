@@ -169,6 +169,17 @@ jobs:
 
       - run: bash tool/build_web.sh
 
+      # Desktop Linux (x86_64) from the full app. The plugins need these -dev
+      # packages at build time; users need libgstreamer, libsecret and GTK 3
+      # at run time, which any mainstream desktop already ships.
+      - name: Build Linux desktop
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libsecret-1-dev
+          flutter build linux --release
+
       - name: Package release files
         shell: bash
         run: |
@@ -181,13 +192,18 @@ jobs:
             [[ -f "$lite" ]] && cp "$lite" "dist/sepia-lite-${VERSION}-android-${abi}.apk"
           done
           tar -C build/web -czf "dist/sepia-${VERSION}-web.tar.gz" .
+          linux_dir="build/sepia-${VERSION}-linux-x64"
+          mkdir -p "$linux_dir"
+          cp -r build/linux/x64/release/bundle "$linux_dir/sepia"
+          cp linux/packaging/install.sh linux/packaging/sepia.desktop linux/packaging/sepia.png "$linux_dir/"
+          tar -C build -czf "dist/sepia-${VERSION}-linux-x64.tar.gz" "sepia-${VERSION}-linux-x64"
           cp server/main.py "dist/sepia-${VERSION}-server.py"
           cp server/sepia.py "dist/sepia-${VERSION}-cli.py"
           tar -C server -czf "dist/sepia-${VERSION}-tts-server.tar.gz" \
             main.py server_tts.py supertonic-model.json requirements-tts.txt \
             vendor/supertonic.py vendor/SUPERTONIC-LICENSE.txt
           cd dist
-          sha256sum sepia-*.apk "sepia-${VERSION}-web.tar.gz" "sepia-${VERSION}-server.py" "sepia-${VERSION}-cli.py" "sepia-${VERSION}-tts-server.tar.gz" > SHA256SUMS.txt
+          sha256sum sepia-*.apk "sepia-${VERSION}-web.tar.gz" "sepia-${VERSION}-linux-x64.tar.gz" "sepia-${VERSION}-server.py" "sepia-${VERSION}-cli.py" "sepia-${VERSION}-tts-server.tar.gz" > SHA256SUMS.txt
           ls -lh
 
       - uses: actions/upload-artifact@v7
@@ -227,6 +243,7 @@ jobs:
           assets=(
             dist/sepia-*.apk
             dist/sepia-*-web.tar.gz
+            dist/sepia-*-linux-x64.tar.gz
             dist/sepia-*-tts-server.tar.gz
             dist/sepia-*-server.py
             dist/sepia-*-cli.py

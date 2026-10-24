@@ -55,7 +55,7 @@ A calm, local-first Markdown library, reader, and editor built with Flutter. Sé
 - interface localized in Brazilian Portuguese and English, with a follow-the-system option;
 - adjustable interface size, composing with the system's own font scaling;
 - a new-version notice on launch, linking straight to the APK for the device's architecture — nothing is downloaded or installed without being chosen;
-- web, Android, and iOS builds from the same Flutter codebase (neural voices are native-only).
+- web, Android, iOS, and Linux desktop (x86_64) builds from the same Flutter codebase (local neural voices are native-only; on Linux only remote voices were validated).
 
 ## Web storage and self-hosting
 

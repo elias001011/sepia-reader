@@ -55,7 +55,7 @@ Leitor, biblioteca e editor de Markdown feito em Flutter. O Sépia foi pensado p
 - interface localizada em português do Brasil e inglês, com opção de seguir o sistema;
 - tamanho da interface ajustável por barra, somando-se à escala de fonte do próprio sistema;
 - aviso de nova versão ao abrir, com link direto para o APK da arquitetura do aparelho — nada é baixado nem instalado sem você escolher;
-- versões web, Android e iOS a partir da mesma base Flutter (as vozes neurais são exclusivas das versões nativas).
+- versões web, Android, iOS e desktop Linux (x86_64) a partir da mesma base Flutter (as vozes neurais locais são das versões nativas; no Linux, só as vozes remotas foram validadas).
 
 ## Sépia e Sépia Lite
 
