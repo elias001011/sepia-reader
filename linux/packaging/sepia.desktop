@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Sépia
+Comment=Leitor e editor de textos em Markdown
+Exec=@PREFIX@/sepia/sepia_reader %U
+Icon=@PREFIX@/sepia/sepia.png
+Terminal=false
+Categories=Office;TextEditor;Utility;
+StartupWMClass=dev.elias.sepia_reader

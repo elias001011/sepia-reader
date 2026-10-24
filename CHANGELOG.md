@@ -1,5 +1,11 @@
 # Histórico
 
+## 2.5.8 — 2026-10-24
+
+- Adiciona o Sépia para desktop Linux (x86_64), com biblioteca, leitura, edição, sincronização com o servidor e voz remota (vozes locais não validadas no Linux).
+- Publica `sepia-2.5.8-linux-x64.tar.gz`, com script de instalação sem root e atalho no menu.
+- Evita erro ao parar a voz do sistema em plataformas sem esse recurso, como o Linux.
+
 ## 2.5.7 — 2026-10-21
 
 - Adiciona TTS remoto por Azure Speech, ElevenLabs e servidor Sépia, no app completo, na Lite e na web.

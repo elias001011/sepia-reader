@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show MissingPluginException;
 import 'package:flutter_tts/flutter_tts.dart';
 
 import 'tts_engine.dart';
@@ -212,7 +213,12 @@ class SystemTtsEngine extends TtsEngine {
     _epoch++;
     _stoppedAt = DateTime.now();
     _finishUtterance();
-    await _tts?.stop();
+    try {
+      await _tts?.stop();
+    } on MissingPluginException catch (error) {
+      // flutter_tts has no Linux implementation; nothing is speaking there.
+      debugPrint('sepia: system TTS unavailable: $error');
+    }
   }
 
   @override
