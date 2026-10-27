@@ -7,6 +7,7 @@ import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import '../models/app_settings.dart';
 import 'reader_selection.dart';
 import '../models/library_document.dart';
+import '../services/desktop_header_colors.dart';
 import '../services/document_kind.dart';
 
 /// Splits a document's content into the same fixed, index-addressable chunks
@@ -299,6 +300,13 @@ bool isLinkDefinitionOnly(String chunk) {
 
 bool isMathBlock(String chunk) => _mathBlock.hasMatch(chunk);
 
+/// Paper and text colours of the prose reader. The header bar takes the same
+/// pair while a document is read, so the two always match.
+HeaderColors readerPaperFor(AppSettings settings, ColorScheme scheme) =>
+    settings.readerFollowsTheme
+    ? (background: scheme.surface, foreground: scheme.onSurface)
+    : (background: settings.readerBackground, foreground: settings.readerText);
+
 class DocumentView extends StatelessWidget {
   const DocumentView({
     super.key,
@@ -319,6 +327,13 @@ class DocumentView extends StatelessWidget {
   /// rendered — how "show me the HTML source" is expressed.
   final bool asSource;
 
+  /// Whether [document] is shown by the prose reader rather than the code
+  /// viewer. Source and code files use the app's theme, not the reader's paper.
+  static bool rendersAsProse(
+    LibraryDocument document, {
+    required bool asSource,
+  }) => !asSource && documentKindOf(document.extension) != DocumentKind.code;
+
   @override
   Widget build(BuildContext context) {
     // Source code is not prose, and the prose reader was never right for it:
@@ -326,7 +341,7 @@ class DocumentView extends StatelessWidget {
     // colours, makes a stylesheet harder to read than a plain editor would.
     // Code gets its own viewer instead — monospace, full width, numbered
     // lines, theme colours.
-    if (asSource || documentKindOf(document.extension) == DocumentKind.code) {
+    if (!rendersAsProse(document, asSource: asSource)) {
       return CodeViewer(
         document: document,
         itemScrollController: itemScrollController,
@@ -335,12 +350,9 @@ class DocumentView extends StatelessWidget {
       );
     }
     final scheme = Theme.of(context).colorScheme;
-    final readerBackground = settings.readerFollowsTheme
-        ? scheme.surface
-        : settings.readerBackground;
-    final readerText = settings.readerFollowsTheme
-        ? scheme.onSurface
-        : settings.readerText;
+    final paper = readerPaperFor(settings, scheme);
+    final readerBackground = paper.background;
+    final readerText = paper.foreground;
     final accent = settings.readerFollowsTheme
         ? scheme.primary
         : _accent(readerBackground);

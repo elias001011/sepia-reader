@@ -1,5 +1,9 @@
 # Histórico
 
+## 2.5.9 — 2026-10-27
+
+- Pinta a barra superior do Sépia para Linux com as cores do app, em vez do tema GTK claro, e com o papel do modo leitura enquanto um documento é lido, para que a barra e o fundo do texto fiquem iguais.
+
 ## 2.5.8 — 2026-10-24
 
 - Adiciona o Sépia para desktop Linux (x86_64), com biblioteca, leitura, edição, sincronização com o servidor e voz remota (vozes locais não validadas no Linux).

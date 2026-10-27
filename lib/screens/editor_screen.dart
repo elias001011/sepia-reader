@@ -9,6 +9,7 @@ import '../l10n/l10n.dart';
 import '../models/bookmark.dart';
 import '../models/app_settings.dart';
 import '../models/library_document.dart';
+import '../services/desktop_header_colors.dart';
 import '../services/document_io.dart';
 import '../services/document_kind.dart';
 import '../services/document_sections.dart';
@@ -1321,7 +1322,22 @@ class _EditorScreenState extends State<EditorScreen>
     ),
   );
 
-  Widget _readerOnly(BuildContext context) => Scaffold(
+  // Prose paints the reader's paper into the header bar; code and source
+  // keep the app's theme there.
+  HeaderColors? _readerPaper(BuildContext context) =>
+      DocumentView.rendersAsProse(_readerDocument, asSource: _showMarkupSource)
+      ? readerPaperFor(
+          widget.controller.settings,
+          Theme.of(context).colorScheme,
+        )
+      : null;
+
+  Widget _readerOnly(BuildContext context) => DesktopReaderHeader(
+    paper: _readerPaper(context),
+    child: _readerScaffold(context),
+  );
+
+  Widget _readerScaffold(BuildContext context) => Scaffold(
     body: LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 620;
