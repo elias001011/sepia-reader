@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'l10n/app_localizations.dart';
 import 'models/app_settings.dart';
 import 'screens/library_screen.dart';
+import 'services/desktop_header_colors.dart';
 import 'state/app_controller.dart';
 import 'theme/sepia_theme.dart';
 
@@ -179,11 +180,13 @@ class _SepiaAppState extends State<SepiaApp> {
       // have that undone by opening this app.
       builder: (context, child) {
         final media = MediaQuery.of(context);
-        return MediaQuery(
-          data: media.copyWith(
-            textScaler: _ScaledTextScaler(media.textScaler, settings.uiScale),
+        return DesktopHeaderSync(
+          child: MediaQuery(
+            data: media.copyWith(
+              textScaler: _ScaledTextScaler(media.textScaler, settings.uiScale),
+            ),
+            child: child ?? const SizedBox.shrink(),
           ),
-          child: child ?? const SizedBox.shrink(),
         );
       },
       home: LibraryScreen(controller: widget.controller),
