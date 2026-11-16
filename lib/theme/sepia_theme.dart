@@ -111,6 +111,8 @@ ThemeData buildSepiaTheme(AppSettings settings, Brightness brightness) {
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: scheme.surfaceContainerLow,
       surfaceTintColor: Colors.transparent,
+      dragHandleSize: const Size(40, 4),
+      dragHandleColor: scheme.onSurfaceVariant.withValues(alpha: 0.4),
     ),
     popupMenuTheme: PopupMenuThemeData(
       color: scheme.surfaceContainerHigh,

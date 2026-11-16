@@ -61,6 +61,15 @@ Map<String, WidgetBuilder> get _sheets => {
   ),
 };
 
+/// The capped column inside the full-width panel.
+Finder get _content => find.descendant(
+  of: find.byType(SheetScaffold),
+  matching: find.byWidgetPredicate(
+    (w) =>
+        w is ConstrainedBox && w.constraints.maxWidth == kSheetContentMaxWidth,
+  ),
+);
+
 void main() {
   for (final size in const [
     Size(320, 700),
@@ -77,9 +86,9 @@ void main() {
           textScale: 1.6,
         );
 
-        final panel = tester.getRect(find.byType(SheetScaffold));
+        final panel = tester.getRect(_content);
         expect(tester.takeException(), isNull);
-        expect(panel.width, lessThanOrEqualTo(480));
+        expect(panel.width, lessThanOrEqualTo(kSheetContentMaxWidth));
         expect(panel.left, greaterThanOrEqualTo(0));
         expect(panel.right, lessThanOrEqualTo(size.width));
         // A janela baixa rola: nada é cortado fora do alcance.
@@ -90,7 +99,7 @@ void main() {
     }
   }
 
-  testWidgets('no desktop fica centralizado e com largura de painel', (
+  testWidgets('no desktop o painel ocupa a janela e o conteúdo fica centrado', (
     tester,
   ) async {
     await _openSheet(
@@ -99,9 +108,12 @@ void main() {
       builder: _sheets['lista de escolhas']!,
     );
 
-    final panel = tester.getRect(find.byType(SheetScaffold));
-    expect(panel.width, 480);
-    expect(panel.center.dx, closeTo(800, 1));
+    // A folha vai de ponta a ponta; só o conteúdo tem limite.
+    final sheet = tester.getRect(find.byType(BottomSheet));
+    expect(sheet.width, 1600);
+    final content = tester.getRect(_content);
+    expect(content.width, kSheetContentMaxWidth);
+    expect(content.center.dx, closeTo(800, 1));
 
     // Ações do rodapé continuam no lugar com o painel ancorado embaixo.
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);

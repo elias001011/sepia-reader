@@ -5,6 +5,9 @@ import 'package:flutter/services.dart';
 
 import '../l10n/l10n.dart';
 
+/// The widest the content of a panel gets, however wide the window is.
+const double kSheetContentMaxWidth = 880;
+
 /// Opens a bottom sheet that stops short of the top of the screen.
 ///
 /// A scroll-controlled sheet will otherwise grow until it covers everything,
@@ -15,7 +18,6 @@ Future<T?> showAppSheet<T>({
   required BuildContext context,
   required WidgetBuilder builder,
   bool enableDrag = true,
-  double maxWidth = 480,
 }) {
   final media = MediaQuery.of(context);
   final breathingRoom = media.padding.top + 28;
@@ -37,12 +39,15 @@ Future<T?> showAppSheet<T>({
     // handle goes with it, since it is what promises the gesture.
     enableDrag: enableDrag,
     showDragHandle: enableDrag,
-    // Capping width here, not just in the content inside, is what keeps a
-    // wide desktop window from turning the sheet into an edge-to-edge
-    // strip: Flutter centers a bottom sheet horizontally on its own once
-    // its constraints give it a maxWidth short of the screen.
+    // The panel spans the whole window, as a bottom sheet does on a phone;
+    // Material 3 would otherwise cap it at 640 px and float a narrow card
+    // in the middle of a wide screen. What is capped is the content inside
+    // (see SheetScaffold), so it never stretches across an enormous window.
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
     constraints: BoxConstraints(
-      maxWidth: maxWidth,
+      maxWidth: double.infinity,
       maxHeight: (media.size.height - breathingRoom).clamp(
         lowerBound,
         upperBound,
@@ -142,7 +147,7 @@ class SheetScaffold extends StatelessWidget {
     this.description,
     this.footer,
     this.onClose,
-    this.maxWidth = 400,
+    this.maxWidth = kSheetContentMaxWidth,
   }) : itemCount = null,
        itemBuilder = null;
 
@@ -159,7 +164,7 @@ class SheetScaffold extends StatelessWidget {
     this.description,
     this.footer,
     this.onClose,
-    this.maxWidth = 400,
+    this.maxWidth = kSheetContentMaxWidth,
   }) : children = const [];
 
   final String title;
