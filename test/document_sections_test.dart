@@ -30,10 +30,10 @@ Mais texto.
 Fim.
 '''),
       );
-      expect(
-        sections.map((s) => s.title).toList(),
-        ['Capítulo um', 'Capítulo dois'],
-      );
+      expect(sections.map((s) => s.title).toList(), [
+        'Capítulo um',
+        'Capítulo dois',
+      ]);
       expect(hasChapters(sections), isTrue);
       expect(sections.first.startChunk, 0);
       expect(sections.first.endChunk, sections.last.startChunk);
@@ -56,9 +56,7 @@ Fim.
     });
 
     test('as seções cobrem o documento inteiro sem buracos', () {
-      final sections = sectionsOf(
-        doc('# A\n\nx\n\n# B\n\ny\n\n# C\n\nz'),
-      );
+      final sections = sectionsOf(doc('# A\n\nx\n\n# B\n\ny\n\n# C\n\nz'));
       for (var i = 0; i + 1 < sections.length; i++) {
         expect(sections[i].endChunk, sections[i + 1].startChunk);
       }
@@ -97,7 +95,9 @@ Ele disse **muito** alto, com um [link](https://exemplo.com) no meio.
     });
 
     test('blocos de código não são lidos', () {
-      final spoken = speakableText('Antes.\n\n```dart\nvoid main() {}\n```\n\nDepois.');
+      final spoken = speakableText(
+        'Antes.\n\n```dart\nvoid main() {}\n```\n\nDepois.',
+      );
       expect(spoken, contains('Antes.'));
       expect(spoken, contains('Depois.'));
       expect(spoken, isNot(contains('void main')));

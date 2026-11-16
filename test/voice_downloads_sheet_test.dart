@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sepia_reader/widgets/sheet_choices.dart';
 import 'package:sepia_reader/l10n/app_localizations.dart';
 import 'package:sepia_reader/screens/voice_downloads_sheet.dart';
 import 'package:sepia_reader/services/tts/voice_catalog.dart';
@@ -64,10 +65,8 @@ void main() {
       await tester.tap(find.text('Usar').first);
       await tester.pumpAndSettle();
       expect(selected, 'supertonic/3/M2');
-      await tester.ensureVisible(
-        find.byType(DropdownButtonFormField<String>).first,
-      );
-      await tester.tap(find.byType(DropdownButtonFormField<String>).first);
+      await tester.ensureVisible(find.byType(SheetChoiceField<String>).first);
+      await tester.tap(find.byType(SheetChoiceField<String>).first);
       await tester.pumpAndSettle();
       await tester.tap(find.text('English').last);
       await tester.pumpAndSettle();

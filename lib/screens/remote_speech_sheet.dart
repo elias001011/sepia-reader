@@ -9,6 +9,7 @@ import '../services/tts/remote_speech_client.dart';
 import '../services/tts/remote_speech_config.dart';
 import '../services/tts/remote_tts_engine.dart';
 import '../services/tts/tts_engine.dart';
+import '../widgets/sheet_choices.dart';
 import '../widgets/sheet_scaffold.dart';
 
 class RemoteSpeechSheet extends StatefulWidget {
@@ -257,37 +258,26 @@ class _RemoteSpeechSheetState extends State<RemoteSpeechSheet> {
       if (!_ready && _error == null)
         const Center(child: CircularProgressIndicator()),
       if (_ready) ...[
-        DropdownButtonFormField<String>(
-          initialValue: _provider,
-          isExpanded: true,
-          decoration: InputDecoration(labelText: context.l10n.remoteProvider),
-          items: [
-            const DropdownMenuItem(value: 'azure', child: Text('Azure Speech')),
-            const DropdownMenuItem(
-              value: 'elevenlabs',
-              child: Text('ElevenLabs'),
-            ),
-            DropdownMenuItem(
-              value: 'sepia',
-              child: Text(context.l10n.remoteSepiaServer),
-            ),
+        SheetChoiceField<String>(
+          label: context.l10n.remoteProvider,
+          value: _provider,
+          enabled: !_busy,
+          choices: [
+            const SheetChoice(value: 'azure', label: 'Azure Speech'),
+            const SheetChoice(value: 'elevenlabs', label: 'ElevenLabs'),
+            SheetChoice(value: 'sepia', label: context.l10n.remoteSepiaServer),
           ],
-          onChanged: _busy
-              ? null
-              : (value) {
-                  if (value == null) return;
-                  setState(() {
-                    _provider = value;
-                    _consent = false;
-                    _key.clear();
-                    _voices = [];
-                    _voice.text = value == 'azure'
-                        ? 'pt-BR-AntonioNeural'
-                        : value == 'sepia'
-                        ? 'M2'
-                        : '';
-                  });
-                },
+          onChanged: (value) => setState(() {
+            _provider = value;
+            _consent = false;
+            _key.clear();
+            _voices = [];
+            _voice.text = value == 'azure'
+                ? 'pt-BR-AntonioNeural'
+                : value == 'sepia'
+                ? 'M2'
+                : '';
+          }),
         ),
         const SizedBox(height: 12),
         if (_provider == 'azure') _field(_region, context.l10n.remoteRegion),
@@ -362,30 +352,23 @@ class _RemoteSpeechSheetState extends State<RemoteSpeechSheet> {
         if (_voices.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 12),
-            child: DropdownButtonFormField<String>(
+            child: SheetChoiceField<String>(
               key: ValueKey(_voices.map((v) => v.id).join(',')),
-              isExpanded: true,
-              initialValue: _voices.any((v) => v.id == _voice.text)
+              label: context.l10n.ttsVoice,
+              value: _voices.any((v) => v.id == _voice.text)
                   ? _voice.text
                   : null,
-              decoration: InputDecoration(labelText: context.l10n.ttsVoice),
-              items: [
+              enabled: !_busy,
+              choices: [
                 for (final voice in _voices)
-                  DropdownMenuItem(
+                  SheetChoice(
                     value: voice.id,
-                    child: Text(
-                      voice.locale.isEmpty
-                          ? voice.name
-                          : '${voice.name} · ${voice.locale}',
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    label: voice.locale.isEmpty
+                        ? voice.name
+                        : '${voice.name} · ${voice.locale}',
                   ),
               ],
-              onChanged: _busy
-                  ? null
-                  : (value) {
-                      if (value != null) setState(() => _voice.text = value);
-                    },
+              onChanged: (value) => setState(() => _voice.text = value),
             ),
           ),
         if (_busy)

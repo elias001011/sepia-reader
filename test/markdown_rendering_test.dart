@@ -12,7 +12,8 @@ import 'package:sepia_reader/widgets/markdown_view.dart';
 /// document that uses every construct at once rather than one feature at a
 /// time — which is how the chunking bugs below got in: each rule was right
 /// on its own and wrong next to the others.
-String guide() => File('test/fixtures/markdown_syntax_guide.md').readAsStringSync();
+String guide() =>
+    File('test/fixtures/markdown_syntax_guide.md').readAsStringSync();
 
 LibraryDocument guideDoc() => LibraryDocument(
   id: 'g',
@@ -33,10 +34,7 @@ void main() {
 
       // O editor, por outro lado, deve produzir este segundo formato ao tocar
       // no botão de régua: dois blocos, nunca um sublinhado Setext acidental.
-      expect(
-        splitMarkdownBlocks('- Diálogo.\n\n---\n'),
-        ['- Diálogo.', '---'],
-      );
+      expect(splitMarkdownBlocks('- Diálogo.\n\n---\n'), ['- Diálogo.', '---']);
     });
 
     test('um título nunca engole a lista ou a citação que vem depois', () {
@@ -56,11 +54,16 @@ void main() {
       }
     });
 
-    test('uma cerca de código depois de linha em branco começa um bloco novo', () {
-      final chunks = chunksForDocument(guideDoc());
-      final codeChunk = chunks.firstWhere((c) => c.startsWith('```\nlet message'));
-      expect(codeChunk, isNot(contains('Blocks of code')));
-    });
+    test(
+      'uma cerca de código depois de linha em branco começa um bloco novo',
+      () {
+        final chunks = chunksForDocument(guideDoc());
+        final codeChunk = chunks.firstWhere(
+          (c) => c.startsWith('```\nlet message'),
+        );
+        expect(codeChunk, isNot(contains('Blocks of code')));
+      },
+    );
 
     test('listas aninhadas e citações aninhadas ficam inteiras', () {
       final chunks = chunksForDocument(guideDoc());
@@ -73,8 +76,11 @@ void main() {
         isTrue,
       );
       expect(
-        chunks.any((c) => c.startsWith('> Markdown is a lightweight') &&
-            c.contains('>> Markdown is often used')),
+        chunks.any(
+          (c) =>
+              c.startsWith('> Markdown is a lightweight') &&
+              c.contains('>> Markdown is often used'),
+        ),
         isTrue,
       );
     });
@@ -131,7 +137,8 @@ void main() {
     final doc = LibraryDocument(
       id: 'm',
       title: 'D',
-      content: '# Fluxo\n\n```mermaid\ngraph TD\n  A[Start] --> B{Decision}\n```\n',
+      content:
+          '# Fluxo\n\n```mermaid\ngraph TD\n  A[Start] --> B{Decision}\n```\n',
       extension: 'md',
       createdAt: DateTime(2026),
       updatedAt: DateTime(2026),

@@ -79,38 +79,42 @@ class FakeStore implements VoiceStorage {
 VoicePack packAt(int index) => voicePacks[index];
 
 void main() {
-  test('downloads pedidos ao mesmo tempo entram em fila, não em corrida', () async {
-    final store = FakeStore();
-    final manager = VoiceDownloadManager(store: store);
-    await manager.refreshInstalled();
+  test(
+    'downloads pedidos ao mesmo tempo entram em fila, não em corrida',
+    () async {
+      final store = FakeStore();
+      final manager = VoiceDownloadManager(store: store);
+      await manager.refreshInstalled();
 
-    manager.enqueue(packAt(0));
-    manager.enqueue(packAt(1));
-    manager.enqueue(packAt(2));
-    await Future<void>.delayed(Duration.zero);
+      manager.enqueue(packAt(0));
+      manager.enqueue(packAt(1));
+      manager.enqueue(packAt(2));
+      await Future<void>.delayed(Duration.zero);
 
-    expect(store.installOrder, [packAt(0).id]);
-    expect(manager.jobs, hasLength(3));
+      expect(store.installOrder, [packAt(0).id]);
+      expect(manager.jobs, hasLength(3));
 
-    store.finish(packAt(0).id);
-    await Future<void>.delayed(Duration.zero);
-    expect(store.installOrder, [packAt(0).id, packAt(1).id]);
+      store.finish(packAt(0).id);
+      await Future<void>.delayed(Duration.zero);
+      expect(store.installOrder, [packAt(0).id, packAt(1).id]);
 
-    store.finish(packAt(1).id);
-    await Future<void>.delayed(Duration.zero);
-    store.finish(packAt(2).id);
-    await Future<void>.delayed(Duration.zero);
-    await Future<void>.delayed(Duration.zero);
+      store.finish(packAt(1).id);
+      await Future<void>.delayed(Duration.zero);
+      store.finish(packAt(2).id);
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
 
-    expect(
-      store.peakConcurrent,
-      1,
-      reason: 'dois downloads ao mesmo tempo podem escrever os mesmos '
-          'arquivos quando compartilham um modelo',
-    );
-    expect(manager.jobs, isEmpty);
-    expect(manager.isInstalled(packAt(0)), isTrue);
-  });
+      expect(
+        store.peakConcurrent,
+        1,
+        reason:
+            'dois downloads ao mesmo tempo podem escrever os mesmos '
+            'arquivos quando compartilham um modelo',
+      );
+      expect(manager.jobs, isEmpty);
+      expect(manager.isInstalled(packAt(0)), isTrue);
+    },
+  );
 
   test('pedir a mesma voz duas vezes não baixa duas vezes', () async {
     final store = FakeStore();

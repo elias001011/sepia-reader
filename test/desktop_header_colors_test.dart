@@ -47,7 +47,7 @@ void main() {
       readerBackground: Color(0xFF1E1E1E),
       readerText: Color(0xFFE0D6C2),
     );
-    final paper = readerPaperFor(settings, ColorScheme.dark());
+    final paper = readerPaperFor(settings, const ColorScheme.dark());
     expect(paper.background, const Color(0xFF1E1E1E));
     expect(paper.foreground, const Color(0xFFE0D6C2));
   });

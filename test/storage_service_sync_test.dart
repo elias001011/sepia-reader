@@ -156,10 +156,13 @@ void main() {
     final storage = StorageService(
       client: MockClient((request) async {
         if (request.url.path == '/healthz') {
-          return http.Response(jsonEncode({
-            'ok': true,
-            'write_modes': ['replace', 'merge'],
-          }), 200);
+          return http.Response(
+            jsonEncode({
+              'ok': true,
+              'write_modes': ['replace', 'merge'],
+            }),
+            200,
+          );
         }
         if (request.method == 'PUT') pushed = request;
         return http.Response('[]', 200);
@@ -184,8 +187,10 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     final local = jsonDecode(prefs.getString('sepia.documents.v1')!) as List;
     expect(local, hasLength(2));
-    expect(local.map((item) => (item as Map)['id']),
-        containsAll(['d', 'outro']));
+    expect(
+      local.map((item) => (item as Map)['id']),
+      containsAll(['d', 'outro']),
+    );
   });
 
   test('autosave envia snapshot completo a servidor antigo', () async {
@@ -220,52 +225,65 @@ void main() {
     expect(remote, hasLength(2));
   });
 
-  test('uma falha transitória no healthz não trava o autosave em snapshot cheio',
-      () async {
-    SharedPreferences.setMockInitialValues({
-      'sepia.syncconfig.v1': jsonEncode({
-        'syncEnabled': true,
-        'syncServerUrl': 'http://sync.test',
-      }),
-    });
-    var healthzHits = 0;
-    final pushed = <List<dynamic>>[];
-    final storage = StorageService(
-      client: MockClient((request) async {
-        if (request.url.path == '/healthz') {
-          healthzHits++;
-          // Primeiro autosave: servidor ainda subindo. Depois: já responde.
-          if (healthzHits == 1) return http.Response('', 503);
-          return http.Response(
-            jsonEncode({'ok': true, 'write_modes': ['replace', 'merge']}),
-            200,
-          );
-        }
-        if (request.method == 'PUT') {
-          pushed.add(jsonDecode(request.body) as List<dynamic>);
-        }
-        return http.Response('[]', 200);
-      }),
-    );
-    final first = document('primeiro', DateTime(2026, 8, 27, 1));
-    final second = LibraryDocument(
-      id: 'outro',
-      title: 'Outro',
-      content: 'não mudou',
-      extension: 'md',
-      createdAt: DateTime(2026),
-      updatedAt: DateTime(2026, 8, 27, 1),
-    );
+  test(
+    'uma falha transitória no healthz não trava o autosave em snapshot cheio',
+    () async {
+      SharedPreferences.setMockInitialValues({
+        'sepia.syncconfig.v1': jsonEncode({
+          'syncEnabled': true,
+          'syncServerUrl': 'http://sync.test',
+        }),
+      });
+      var healthzHits = 0;
+      final pushed = <List<dynamic>>[];
+      final storage = StorageService(
+        client: MockClient((request) async {
+          if (request.url.path == '/healthz') {
+            healthzHits++;
+            // Primeiro autosave: servidor ainda subindo. Depois: já responde.
+            if (healthzHits == 1) return http.Response('', 503);
+            return http.Response(
+              jsonEncode({
+                'ok': true,
+                'write_modes': ['replace', 'merge'],
+              }),
+              200,
+            );
+          }
+          if (request.method == 'PUT') {
+            pushed.add(jsonDecode(request.body) as List<dynamic>);
+          }
+          return http.Response('[]', 200);
+        }),
+      );
+      final first = document('primeiro', DateTime(2026, 8, 27, 1));
+      final second = LibraryDocument(
+        id: 'outro',
+        title: 'Outro',
+        content: 'não mudou',
+        extension: 'md',
+        createdAt: DateTime(2026),
+        updatedAt: DateTime(2026, 8, 27, 1),
+      );
 
-    await storage.saveDocument([first, second], first);
-    await storage.waitForPendingSync();
-    await storage.saveDocument([first, second], first);
-    await storage.waitForPendingSync();
+      await storage.saveDocument([first, second], first);
+      await storage.waitForPendingSync();
+      await storage.saveDocument([first, second], first);
+      await storage.waitForPendingSync();
 
-    expect(healthzHits, 2, reason: 'a 503 não pode ser memoizada para a sessão');
-    expect(pushed.first, hasLength(2), reason: 'sem resposta, envia tudo');
-    expect(pushed.last, hasLength(1), reason: 'servidor de volta: só o delta');
-  });
+      expect(
+        healthzHits,
+        2,
+        reason: 'a 503 não pode ser memoizada para a sessão',
+      );
+      expect(pushed.first, hasLength(2), reason: 'sem resposta, envia tudo');
+      expect(
+        pushed.last,
+        hasLength(1),
+        reason: 'servidor de volta: só o delta',
+      );
+    },
+  );
 
   test('configuração remota não recebe o endereço local de sync', () async {
     SharedPreferences.setMockInitialValues({

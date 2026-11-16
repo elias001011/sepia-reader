@@ -34,7 +34,9 @@ String htmlToMarkdown(String html) {
   final codeBlocks = <String>[];
   text = text.replaceAllMapped(_preBlock, (match) {
     final body = _decodeEntities(
-      match.group(1)!.replaceAll(RegExp(r'</?code\b[^>]*>', caseSensitive: false), ''),
+      match
+          .group(1)!
+          .replaceAll(RegExp(r'</?code\b[^>]*>', caseSensitive: false), ''),
     ).trimRight();
     codeBlocks.add(body);
     return '\n\n\u0000CODE${codeBlocks.length - 1}\u0000\n\n';
@@ -45,14 +47,13 @@ String htmlToMarkdown(String html) {
       .replaceAll(RegExp(r'<hr\s*/?>', caseSensitive: false), '\n\n---\n\n');
 
   // Images and links keep their text; everything else about them goes.
-  text = text.replaceAllMapped(
-    RegExp(r'<img\b[^>]*>', caseSensitive: false),
-    (match) {
-      final alt = _attribute(match.group(0)!, 'alt') ?? '';
-      final src = _attribute(match.group(0)!, 'src') ?? '';
-      return '![$alt]($src)';
-    },
-  );
+  text = text.replaceAllMapped(RegExp(r'<img\b[^>]*>', caseSensitive: false), (
+    match,
+  ) {
+    final alt = _attribute(match.group(0)!, 'alt') ?? '';
+    final src = _attribute(match.group(0)!, 'src') ?? '';
+    return '![$alt]($src)';
+  });
   text = text.replaceAllMapped(
     RegExp(r'<a\b([^>]*)>(.*?)</a\s*>', caseSensitive: false, dotAll: true),
     (match) {
@@ -70,8 +71,7 @@ String htmlToMarkdown(String html) {
         caseSensitive: false,
         dotAll: true,
       ),
-      (match) =>
-          '\n\n${'#' * level} ${_inline(match.group(1)!)}\n\n',
+      (match) => '\n\n${'#' * level} ${_inline(match.group(1)!)}\n\n',
     );
   }
 
@@ -84,8 +84,11 @@ String htmlToMarkdown(String html) {
   text = _wrap(text, 's', '~~');
 
   text = text.replaceAllMapped(
-    RegExp(r'<blockquote\b[^>]*>(.*?)</blockquote\s*>',
-        caseSensitive: false, dotAll: true),
+    RegExp(
+      r'<blockquote\b[^>]*>(.*?)</blockquote\s*>',
+      caseSensitive: false,
+      dotAll: true,
+    ),
     (match) {
       final body = _inline(match.group(1)!).trim();
       final quoted = body
@@ -107,26 +110,31 @@ String htmlToMarkdown(String html) {
     (match) => '\n\n${_listItems(match.group(1)!, ordered: false)}\n\n',
   );
 
-  for (final block in ['p', 'div', 'section', 'article', 'header', 'footer',
-      'main', 'nav', 'aside', 'tr', 'li']) {
+  for (final block in [
+    'p',
+    'div',
+    'section',
+    'article',
+    'header',
+    'footer',
+    'main',
+    'nav',
+    'aside',
+    'tr',
+    'li',
+  ]) {
     text = text.replaceAll(
       RegExp('</$block\\s*>', caseSensitive: false),
       '\n\n',
     );
   }
-  text = text.replaceAll(
-    RegExp(r'</t[dh]\s*>', caseSensitive: false),
-    ' · ',
-  );
+  text = text.replaceAll(RegExp(r'</t[dh]\s*>', caseSensitive: false), ' · ');
 
   text = text.replaceAll(_anyTag, '');
   text = _decodeEntities(text);
 
   for (var i = 0; i < codeBlocks.length; i++) {
-    text = text.replaceAll(
-      '\u0000CODE$i\u0000',
-      '```\n${codeBlocks[i]}\n```',
-    );
+    text = text.replaceAll('\u0000CODE$i\u0000', '```\n${codeBlocks[i]}\n```');
   }
 
   return text
@@ -154,13 +162,18 @@ String _listItems(String source, {required bool ordered}) {
   return lines.join('\n');
 }
 
-String _wrap(String source, String tag, String marker) => source.replaceAllMapped(
-  RegExp('<$tag\\b[^>]*>(.*?)</$tag\\s*>', caseSensitive: false, dotAll: true),
-  (match) {
-    final body = match.group(1)!.trim();
-    return body.isEmpty ? '' : '$marker$body$marker';
-  },
-);
+String _wrap(String source, String tag, String marker) =>
+    source.replaceAllMapped(
+      RegExp(
+        '<$tag\\b[^>]*>(.*?)</$tag\\s*>',
+        caseSensitive: false,
+        dotAll: true,
+      ),
+      (match) {
+        final body = match.group(1)!.trim();
+        return body.isEmpty ? '' : '$marker$body$marker';
+      },
+    );
 
 String _inline(String source) => source.replaceAll(_anyTag, '');
 

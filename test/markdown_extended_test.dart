@@ -11,7 +11,8 @@ import 'package:sepia_reader/widgets/markdown_view.dart';
 /// tables and maths. Several of these only broke *because* the reader renders
 /// one block at a time, so they cannot be caught by testing the constructs in
 /// isolation.
-String extended() => File('test/fixtures/markdown_extended.md').readAsStringSync();
+String extended() =>
+    File('test/fixtures/markdown_extended.md').readAsStringSync();
 
 LibraryDocument extendedDoc() => LibraryDocument(
   id: 'e',
@@ -44,14 +45,19 @@ void main() {
     expect(definitions, contains('[dillinger]: https://dillinger.io'));
 
     final chunks = chunksForDocument(extendedDoc());
-    final linkChunk = chunks.firstWhere((c) => c.contains('[reference-style links][dillinger]'));
+    final linkChunk = chunks.firstWhere(
+      (c) => c.contains('[reference-style links][dillinger]'),
+    );
     expect(
       linkChunk.contains('[dillinger]:'),
       isFalse,
       reason: 'sanity: the definition really is in another chunk',
     );
     // Which is exactly why it gets appended at render time.
-    expect('$linkChunk$definitions', contains('[dillinger]: https://dillinger.io'));
+    expect(
+      '$linkChunk$definitions',
+      contains('[dillinger]: https://dillinger.io'),
+    );
   });
 
   test('um bloco que só tem definições de link não vira texto solto', () {
@@ -77,7 +83,16 @@ void main() {
   });
 
   test('equação em bloco é reconhecida como equação', () {
-    expect(isMathBlock(r'$$' '\n' r'\sum_{i=1}^{n} i' '\n' r'$$'), isTrue);
+    expect(
+      isMathBlock(
+        r'$$'
+        '\n'
+        r'\sum_{i=1}^{n} i'
+        '\n'
+        r'$$',
+      ),
+      isTrue,
+    );
     expect(isMathBlock('Inline math: 	E = mc^2'), isFalse);
     expect(isMathBlock('Um parágrafo.'), isFalse);
   });
@@ -93,9 +108,7 @@ void main() {
   testWidgets('lista de tarefas mostra caixas, não colchetes', (tester) async {
     await render(
       tester,
-      extendedDoc().copyWith(
-        content: '- [x] Feito\n- [ ] Pendente\n',
-      ),
+      extendedDoc().copyWith(content: '- [x] Feito\n- [ ] Pendente\n'),
     );
     expect(find.textContaining('[x]'), findsNothing);
     expect(find.textContaining('[ ]'), findsNothing);
@@ -109,7 +122,14 @@ void main() {
     await render(
       tester,
       extendedDoc().copyWith(
-        content: 'Antes.\n\n' r'$$' '\n' r'E = mc^2' '\n' r'$$' '\n\nDepois.',
+        content:
+            'Antes.\n\n'
+            r'$$'
+            '\n'
+            r'E = mc^2'
+            '\n'
+            r'$$'
+            '\n\nDepois.',
       ),
     );
     expect(find.byType(FormulaBlock), findsOneWidget);

@@ -1,6 +1,9 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../l10n/l10n.dart';
 
 /// Opens a bottom sheet that stops short of the top of the screen.
 ///
@@ -45,20 +48,87 @@ Future<T?> showAppSheet<T>({
         upperBound,
       ),
     ),
-    builder: builder,
+    // The keyboard inset is applied once, here: the sheet itself grows above
+    // the keyboard instead of the fields scooting up inside a sheet that is
+    // still sitting behind it.
+    builder: (sheetContext) => Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
+      ),
+      child: builder(sheetContext),
+    ),
   );
 }
 
-/// Preferred width for an [AlertDialog]'s `content`, never wider than the
-/// screen allows.
+/// Asks a yes/no question in the shared panel. Resolves to false when the
+/// sheet is closed without answering.
+Future<bool> showSheetConfirm({
+  required BuildContext context,
+  required String title,
+  required String message,
+  required String confirmLabel,
+  String? cancelLabel,
+  bool destructive = false,
+}) async {
+  final confirmed = await showAppSheet<bool>(
+    context: context,
+    builder: (sheetContext) => SheetPrompt(
+      title: title,
+      content: Text(message),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(sheetContext, false),
+          child: Text(cancelLabel ?? sheetContext.l10n.cancel),
+        ),
+        FilledButton(
+          style: destructive
+              ? FilledButton.styleFrom(
+                  backgroundColor: Theme.of(sheetContext).colorScheme.error,
+                  foregroundColor: Theme.of(sheetContext).colorScheme.onError,
+                )
+              : null,
+          onPressed: () => Navigator.pop(sheetContext, true),
+          child: Text(confirmLabel),
+        ),
+      ],
+    ),
+  );
+  return confirmed ?? false;
+}
+
+/// A short confirmation or a small form in the same panel as the rest of the
+/// app: the bookmarks list, the settings, a rename, a delete.
 ///
-/// An [AlertDialog] does not scroll sideways, so a body fixed at its
-/// preferred width overflows the moment the phone is narrower than that —
-/// the dialog's own `insetPadding` (40 logical pixels on each side by
-/// default) already eats into what is available before this even runs.
-double appDialogWidth(BuildContext context, double preferred) {
-  final available = math.max(0.0, MediaQuery.sizeOf(context).width - 80);
-  return math.min(available, preferred);
+/// [actions] go in the footer, where they stay reachable however long the body
+/// is; leave it empty for a sheet that only shows something.
+class SheetPrompt extends StatelessWidget {
+  const SheetPrompt({
+    super.key,
+    required this.title,
+    required this.content,
+    this.description,
+    this.actions = const [],
+  });
+
+  final String title;
+  final String? description;
+  final Widget content;
+  final List<Widget> actions;
+
+  @override
+  Widget build(BuildContext context) => SheetScaffold(
+    title: title,
+    description: description,
+    footer: actions.isEmpty
+        ? null
+        : OverflowBar(
+            alignment: MainAxisAlignment.end,
+            spacing: 8,
+            overflowSpacing: 8,
+            children: actions,
+          ),
+    children: [content],
+  );
 }
 
 /// Shared frame for the app's bottom sheets: a title, an optional line of
@@ -107,94 +177,97 @@ class SheetScaffold extends StatelessWidget {
   final Future<void> Function()? onClose;
   final double maxWidth;
 
-  static EdgeInsets _bodyPadding(BuildContext context) => EdgeInsets.fromLTRB(
-    20,
-    4,
-    20,
-    16 + MediaQuery.viewInsetsOf(context).bottom,
-  );
+  static const _bodyPadding = EdgeInsets.fromLTRB(20, 4, 20, 16);
 
   @override
   Widget build(BuildContext context) {
     final description = this.description;
-    return SafeArea(
-      top: false,
-      // `heightFactor: 1.0` matters: given a bounded height (the sheet's
-      // own maxHeight), plain `Center` sizes itself to fill all of it
-      // before centering its child — Flutter says so explicitly in its own
-      // docs — which is what left a slab of empty sheet below any content
-      // shorter than that cap. `heightFactor` pins Center's height to the
-      // child's instead. Width is left alone: expanding-then-capping via
-      // the `ConstrainedBox` below is exactly what centers it, and a
-      // `Row` here (tried first) does the capping wrong — a Row hands
-      // non-flex children an *unbounded* main axis, so the ConstrainedBox
-      // renders at its full maxWidth and overflows on anything narrower.
-      child: Center(
-        heightFactor: 1.0,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: maxWidth),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 0, 8, 0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: MaterialLocalizations.of(context)
-                          .closeButtonLabel,
-                      onPressed: () {
-                        final close = onClose;
-                        if (close != null) {
-                          close();
-                        } else {
-                          Navigator.pop(context);
-                        }
-                      },
-                      icon: const Icon(Icons.close_rounded),
-                    ),
-                  ],
-                ),
-              ),
-              if (description != null)
+    // Escape closes on a desktop keyboard. The modal barrier is the pointer
+    // equivalent; both end up in the same place, including the unsaved-changes
+    // question when there is one.
+    void close() {
+      final askFirst = onClose;
+      if (askFirst != null) {
+        askFirst();
+      } else {
+        Navigator.pop(context);
+      }
+    }
+
+    return CallbackShortcuts(
+      bindings: {const SingleActivator(LogicalKeyboardKey.escape): close},
+      child: SafeArea(
+        top: false,
+        // `heightFactor: 1.0` matters: given a bounded height (the sheet's
+        // own maxHeight), plain `Center` sizes itself to fill all of it
+        // before centering its child — Flutter says so explicitly in its own
+        // docs — which is what left a slab of empty sheet below any content
+        // shorter than that cap. `heightFactor` pins Center's height to the
+        // child's instead. Width is left alone: expanding-then-capping via
+        // the `ConstrainedBox` below is exactly what centers it, and a
+        // `Row` here (tried first) does the capping wrong — a Row hands
+        // non-flex children an *unbounded* main axis, so the ConstrainedBox
+        // renders at its full maxWidth and overflows on anything narrower.
+        child: Center(
+          heightFactor: 1.0,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
-                  child: Text(
-                    description,
-                    style: Theme.of(context).textTheme.bodySmall,
+                  padding: const EdgeInsets.fromLTRB(24, 0, 8, 0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: MaterialLocalizations.of(context)
+                            .closeButtonLabel,
+                        onPressed: close,
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                    ],
                   ),
                 ),
-              Flexible(
-                child: itemBuilder == null
-                    ? SingleChildScrollView(
-                        padding: _bodyPadding(context),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: children,
+                if (description != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+                    child: Text(
+                      description,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                Flexible(
+                  child: itemBuilder == null
+                      ? SingleChildScrollView(
+                          padding: _bodyPadding,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: children,
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: _bodyPadding,
+                          shrinkWrap: true,
+                          itemCount: itemCount,
+                          itemBuilder: itemBuilder!,
                         ),
-                      )
-                    : ListView.builder(
-                        padding: _bodyPadding(context),
-                        shrinkWrap: true,
-                        itemCount: itemCount,
-                        itemBuilder: itemBuilder!,
-                      ),
-              ),
-              if (footer != null)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
-                  child: footer,
                 ),
-            ],
+                if (footer != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+                    child: footer,
+                  ),
+              ],
+            ),
           ),
         ),
       ),

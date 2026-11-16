@@ -8,11 +8,13 @@ import 'package:sepia_reader/services/update_checker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 http.Client releaseClient(Map<String, dynamic> body, {int status = 200}) =>
-    MockClient((request) async => http.Response(
-      jsonEncode(body),
-      status,
-      headers: {'content-type': 'application/json; charset=utf-8'},
-    ));
+    MockClient(
+      (request) async => http.Response(
+        jsonEncode(body),
+        status,
+        headers: {'content-type': 'application/json; charset=utf-8'},
+      ),
+    );
 
 Map<String, dynamic> release(String tag) => {
   'tag_name': tag,
@@ -81,9 +83,7 @@ void main() {
   });
 
   test('um erro do servidor é reportado, não engolido', () async {
-    final checker = UpdateChecker(
-      client: releaseClient(const {}, status: 503),
-    );
+    final checker = UpdateChecker(client: releaseClient(const {}, status: 503));
     await expectLater(
       checker.check(force: true),
       throwsA(isA<HttpExceptionLike>()),
@@ -97,7 +97,8 @@ void main() {
     expect(
       await checker.isDueForCheck(),
       isFalse,
-      reason: 'uma consulta por abertura de app seria pedir demais por uma '
+      reason:
+          'uma consulta por abertura de app seria pedir demais por uma '
           'resposta que muda poucas vezes por mês',
     );
     // But an explicit "check now" always goes through.
@@ -106,7 +107,9 @@ void main() {
   });
 
   test('a versão em execução vem do pacote', () async {
-    expect(await UpdateChecker(client: releaseClient(const {})).currentVersion(),
-        '2.0.0');
+    expect(
+      await UpdateChecker(client: releaseClient(const {})).currentVersion(),
+      '2.0.0',
+    );
   });
 }

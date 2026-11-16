@@ -16,7 +16,8 @@ import 'package:sepia_reader/widgets/markdown_view.dart';
 /// all about where the blocks are cut — and those only show up when the
 /// constructs sit next to each other, which is the whole point of this
 /// fixture.
-String torture() => File('test/fixtures/markdown_torture.md').readAsStringSync();
+String torture() =>
+    File('test/fixtures/markdown_torture.md').readAsStringSync();
 
 LibraryDocument tortureDoc() => LibraryDocument(
   id: 't',
@@ -40,14 +41,11 @@ void main() {
 
     test('toda cerca de código fica inteira', () {
       for (final chunk in chunks) {
-        final fences = RegExp(r'^\s*(```|~~~)', multiLine: true)
-            .allMatches(chunk)
-            .length;
-        expect(
-          fences.isEven,
-          isTrue,
-          reason: 'cerca cortada ao meio:\n$chunk',
-        );
+        final fences = RegExp(
+          r'^\s*(```|~~~)',
+          multiLine: true,
+        ).allMatches(chunk).length;
+        expect(fences.isEven, isTrue, reason: 'cerca cortada ao meio:\n$chunk');
       }
     });
 
@@ -58,7 +56,8 @@ void main() {
       expect(
         listChunk,
         contains('- Próximo item.'),
-        reason: 'a lista foi partida em pedaços que renderizam como listas '
+        reason:
+            'a lista foi partida em pedaços que renderizam como listas '
             'separadas, cada uma recomeçando a numeração',
       );
     });
@@ -94,7 +93,8 @@ void main() {
       );
       expect(
         chunks.any(
-          (c) => c.startsWith('Subtítulo por sublinhado') && c.contains('-----'),
+          (c) =>
+              c.startsWith('Subtítulo por sublinhado') && c.contains('-----'),
         ),
         isTrue,
       );
@@ -125,7 +125,15 @@ void main() {
   group('o que a voz recebe', () {
     test('nem sintaxe, nem código, nem a URL enorme', () {
       final spoken = speakableText(torture());
-      for (final noise in ['```', '~~~', '<b>', '<br>', '|---', '===', '* * *']) {
+      for (final noise in [
+        '```',
+        '~~~',
+        '<b>',
+        '<br>',
+        '|---',
+        '===',
+        '* * *',
+      ]) {
         expect(spoken, isNot(contains(noise)), reason: 'a voz leria "$noise"');
       }
       expect(spoken, isNot(contains('print("ok")')));

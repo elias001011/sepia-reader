@@ -13,6 +13,7 @@ import '../services/tts/voice_catalog.dart';
 import '../services/update_checker.dart';
 import '../state/app_controller.dart';
 import '../widgets/color_field.dart';
+import '../widgets/sheet_choices.dart';
 import '../widgets/sheet_scaffold.dart';
 import '../widgets/speech_controls.dart';
 import 'voice_downloads_sheet.dart';
@@ -98,23 +99,24 @@ class _SettingsSheetState extends State<SettingsSheet> {
       Navigator.pop(context);
       return;
     }
-    final choice = await showDialog<String>(
+    final choice = await showAppSheet<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(dialogContext.l10n.unsavedTitle),
-        content: Text(dialogContext.l10n.unsavedBody),
+      enableDrag: false,
+      builder: (sheetContext) => SheetPrompt(
+        title: sheetContext.l10n.unsavedTitle,
+        content: Text(sheetContext.l10n.unsavedBody),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext, 'cancel'),
-            child: Text(dialogContext.l10n.cancel),
+            onPressed: () => Navigator.pop(sheetContext, 'cancel'),
+            child: Text(sheetContext.l10n.cancel),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext, 'discard'),
-            child: Text(dialogContext.l10n.unsavedDiscard),
+            onPressed: () => Navigator.pop(sheetContext, 'discard'),
+            child: Text(sheetContext.l10n.unsavedDiscard),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, 'save'),
-            child: Text(dialogContext.l10n.unsavedSaveAndLeave),
+            onPressed: () => Navigator.pop(sheetContext, 'save'),
+            child: Text(sheetContext.l10n.unsavedSaveAndLeave),
           ),
         ],
       ),
@@ -157,24 +159,22 @@ class _SettingsSheetState extends State<SettingsSheet> {
       setState(() => _wipeServerOnSave = false);
       return;
     }
-    final wipe = await showDialog<bool>(
+    final wipe = await showAppSheet<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(dialogContext.l10n.syncDisabledTitle),
+      builder: (sheetContext) => SheetPrompt(
+        title: sheetContext.l10n.syncDisabledTitle,
         // Spelling out what each button does to the *server* is the whole
-        // point of this dialog — "keep" and "erase" on their own said
+        // point of this question — "keep" and "erase" on their own said
         // nothing about which side was affected.
-        content: SingleChildScrollView(
-          child: Text(dialogContext.l10n.syncDisabledBody),
-        ),
+        content: Text(sheetContext.l10n.syncDisabledBody),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(dialogContext.l10n.syncWipeFromServer),
+            onPressed: () => Navigator.pop(sheetContext, true),
+            child: Text(sheetContext.l10n.syncWipeFromServer),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(dialogContext.l10n.syncKeepOnServer),
+            onPressed: () => Navigator.pop(sheetContext, false),
+            child: Text(sheetContext.l10n.syncKeepOnServer),
           ),
         ],
       ),
@@ -245,41 +245,41 @@ class _SettingsSheetState extends State<SettingsSheet> {
         children: [
           _sectionTitle(context, context.l10n.appearanceSection),
           const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            isExpanded: true,
-            initialValue: _themeChoice,
-            decoration: InputDecoration(labelText: context.l10n.theme),
-            items: [
-              DropdownMenuItem(value: 'light', child: Text(context.l10n.light)),
-              DropdownMenuItem(
-                value: 'system',
-                child: Text(context.l10n.system),
+          SheetChoiceField<String>(
+            label: context.l10n.theme,
+            value: _themeChoice,
+            choices: [
+              SheetChoice(
+                value: 'light',
+                label: context.l10n.light,
+                icon: Icons.light_mode_rounded,
               ),
-              DropdownMenuItem(value: 'dark', child: Text(context.l10n.dark)),
-              DropdownMenuItem(
+              SheetChoice(
+                value: 'system',
+                label: context.l10n.system,
+                icon: Icons.brightness_auto_rounded,
+              ),
+              SheetChoice(
+                value: 'dark',
+                label: context.l10n.dark,
+                icon: Icons.dark_mode_rounded,
+              ),
+              SheetChoice(
                 value: 'amoled',
-                child: Text(context.l10n.amoled),
+                label: context.l10n.amoled,
+                icon: Icons.contrast_rounded,
               ),
             ],
-            onChanged: (value) {
-              if (value != null) _setTheme(value);
-            },
+            onChanged: _setTheme,
           ),
           const SizedBox(height: 20),
-          DropdownButtonFormField<String>(
-            isExpanded: true,
-            initialValue: _draft.localeCode,
-            decoration: InputDecoration(labelText: context.l10n.language),
-            items: [
-              DropdownMenuItem(
-                value: 'system',
-                child: Text(context.l10n.system),
-              ),
-              DropdownMenuItem(
-                value: 'pt_BR',
-                child: Text(context.l10n.portugueseBrazil),
-              ),
-              DropdownMenuItem(value: 'en', child: Text(context.l10n.english)),
+          SheetChoiceField<String>(
+            label: context.l10n.language,
+            value: _draft.localeCode,
+            choices: [
+              SheetChoice(value: 'system', label: context.l10n.system),
+              SheetChoice(value: 'pt_BR', label: context.l10n.portugueseBrazil),
+              SheetChoice(value: 'en', label: context.l10n.english),
             ],
             onChanged: (value) =>
                 setState(() => _draft = _draft.copyWith(localeCode: value)),
@@ -765,23 +765,24 @@ class _SettingsSheetState extends State<SettingsSheet> {
       );
     }
     final known = voices.any((voice) => voice.id == _draft.ttsVoiceId);
-    return DropdownButtonFormField<String>(
-      isExpanded: true,
-      initialValue: known ? _draft.ttsVoiceId : '',
-      decoration: InputDecoration(labelText: context.l10n.ttsVoice),
-      items: [
-        DropdownMenuItem(value: '', child: Text(context.l10n.ttsVoiceAuto)),
+    return SheetChoiceField<String>(
+      label: context.l10n.ttsVoice,
+      value: known ? _draft.ttsVoiceId : '',
+      choices: [
+        SheetChoice(
+          value: '',
+          label: context.l10n.ttsVoiceAuto,
+          icon: Icons.auto_awesome_rounded,
+        ),
         for (final voice in voices)
-          DropdownMenuItem(
+          SheetChoice(
             value: voice.id,
-            child: Text(
-              '${voice.locale} · ${voice.name}',
-              overflow: TextOverflow.ellipsis,
-            ),
+            label: '${voice.locale} · ${voice.name}',
+            icon: Icons.record_voice_over_rounded,
           ),
       ],
       onChanged: (value) =>
-          setState(() => _draft = _draft.copyWith(ttsVoiceId: value ?? '')),
+          setState(() => _draft = _draft.copyWith(ttsVoiceId: value)),
     );
   }
 

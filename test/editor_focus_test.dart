@@ -90,6 +90,12 @@ void main() {
     expect(appBarEditable(), findsOneWidget);
     await tester.enterText(appBarEditable(), 'Minha fic');
     await tester.pump(const Duration(milliseconds: 900));
-    expect(find.descendant(of: find.byType(AppBar), matching: find.text('Minha fic')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(AppBar),
+        matching: find.text('Minha fic'),
+      ),
+      findsOneWidget,
+    );
   });
 }

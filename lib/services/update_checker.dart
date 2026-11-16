@@ -55,8 +55,10 @@ int compareVersions(String a, String b) {
 /// APK to handle updates: the app cannot silently replace itself, and
 /// pretending otherwise would be worse than saying so.
 class UpdateChecker {
-  UpdateChecker({http.Client? client, this.repository = 'elias001011/sepia-reader'})
-    : _client = client ?? http.Client();
+  UpdateChecker({
+    http.Client? client,
+    this.repository = 'elias001011/sepia-reader',
+  }) : _client = client ?? http.Client();
 
   final http.Client _client;
   final String repository;

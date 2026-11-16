@@ -257,4 +257,10 @@ Flutter + Material 3, `flutter_markdown_plus`, `highlight`, `file_picker` (impor
 
 MIT.
 
+## Contribuindo
+
+Critérios de revisão, comandos obrigatórios e padrões de janelas estão em
+[CONTRIBUTING.md](CONTRIBUTING.md). Para relatar problemas de segurança, veja
+[SECURITY.md](SECURITY.md).
+
 [Modelos e licenças Supertonic](docs/SUPERTONIC.md).

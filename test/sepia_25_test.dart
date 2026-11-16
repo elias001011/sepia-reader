@@ -5,6 +5,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sepia_reader/widgets/sheet_choices.dart';
 import 'package:sepia_reader/app.dart';
 import 'package:sepia_reader/models/app_settings.dart';
 import 'package:sepia_reader/models/library_document.dart';
@@ -132,7 +133,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Claros'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byType(DropdownButtonFormField<int>));
+    await tester.tap(find.byType(SheetChoiceField<int>));
     await tester.pumpAndSettle();
     expect(find.text('Papel'), findsOneWidget);
     expect(

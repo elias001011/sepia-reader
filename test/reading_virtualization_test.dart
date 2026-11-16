@@ -25,7 +25,10 @@ void main() {
         home: Scaffold(
           body: SizedBox(
             height: 700,
-            child: DocumentView(document: document, settings: const AppSettings()),
+            child: DocumentView(
+              document: document,
+              settings: const AppSettings(),
+            ),
           ),
         ),
       ),

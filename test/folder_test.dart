@@ -73,21 +73,24 @@ void main() {
     expect(restored.folderById(inner.id)?.parentId, outer.id);
   });
 
-  test('não deixa mover uma pasta para dentro de si mesma ou de um filho', () async {
-    final controller = AppController(updateChecker: offlineUpdateChecker());
-    await controller.initialize();
-    final parent = await controller.createFolder(name: 'Pai');
-    final child = await controller.createFolder(
-      name: 'Filho',
-      parentId: parent.id,
-    );
+  test(
+    'não deixa mover uma pasta para dentro de si mesma ou de um filho',
+    () async {
+      final controller = AppController(updateChecker: offlineUpdateChecker());
+      await controller.initialize();
+      final parent = await controller.createFolder(name: 'Pai');
+      final child = await controller.createFolder(
+        name: 'Filho',
+        parentId: parent.id,
+      );
 
-    expect(controller.canMoveFolderInto(parent.id, parent.id), isFalse);
-    expect(controller.canMoveFolderInto(parent.id, child.id), isFalse);
+      expect(controller.canMoveFolderInto(parent.id, parent.id), isFalse);
+      expect(controller.canMoveFolderInto(parent.id, child.id), isFalse);
 
-    await controller.moveFolder(parent.id, child.id);
-    expect(controller.folderById(parent.id)?.parentId, isNull);
-  });
+      await controller.moveFolder(parent.id, child.id);
+      expect(controller.folderById(parent.id)?.parentId, isNull);
+    },
+  );
 
   test('move uma seleção mista de pasta e documento de uma vez', () async {
     final controller = AppController(updateChecker: offlineUpdateChecker());

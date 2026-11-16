@@ -54,7 +54,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    DocumentView view() => tester.widget<DocumentView>(find.byType(DocumentView));
+    DocumentView view() =>
+        tester.widget<DocumentView>(find.byType(DocumentView));
     final before = view();
 
     // Let the auto-hide timer fire, then reveal the controls again.
@@ -86,7 +87,8 @@ void main() {
     expect(
       identical(first, second),
       isTrue,
-      reason: 'splitting the whole document again per rebuild is a full pass '
+      reason:
+          'splitting the whole document again per rebuild is a full pass '
           'over it, and the answer has not changed',
     );
 

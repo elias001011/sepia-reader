@@ -8,5 +8,4 @@
 library;
 
 export 'voice_store_types.dart';
-export 'voice_store_stub.dart'
-    if (dart.library.io) 'voice_store_io.dart';
+export 'voice_store_stub.dart' if (dart.library.io) 'voice_store_io.dart';

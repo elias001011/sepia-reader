@@ -28,6 +28,5 @@ class VoiceStore implements VoiceStorage {
     VoicePack pack, {
     void Function(VoiceInstallProgress)? onProgress,
     bool Function()? shouldCancel,
-  }) async =>
-      throw UnsupportedError('neural voices need a native platform');
+  }) async => throw UnsupportedError('neural voices need a native platform');
 }

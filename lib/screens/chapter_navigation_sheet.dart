@@ -80,8 +80,9 @@ class ChapterNavigationSheet extends StatelessWidget {
           title: Text(
             chapter.title,
             style: TextStyle(
-              fontWeight:
-                  chapter.level == 1 ? FontWeight.w700 : FontWeight.w400,
+              fontWeight: chapter.level == 1
+                  ? FontWeight.w700
+                  : FontWeight.w400,
             ),
           ),
           onTap: () => onPick(chapter),

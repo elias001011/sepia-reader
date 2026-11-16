@@ -78,7 +78,8 @@ void main() {
     test('sem títulos, corta em linha em branco e nunca no meio de um parágrafo', () {
       final content = List.generate(
         400,
-        (i) => 'Parágrafo $i com um punhado de palavras para dar corpo ao texto.',
+        (i) =>
+            'Parágrafo $i com um punhado de palavras para dar corpo ao texto.',
       ).join('\n\n');
       final sections = editableSectionsOf(content);
       expect(sections.length, greaterThan(1));
@@ -102,95 +103,99 @@ void main() {
     });
   });
 
-  testWidgets(
-    'editar uma parte de um documento gigante preserva o resto',
-    (tester) async {
-      tester.view.physicalSize = const Size(900, 1100);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      SharedPreferences.setMockInitialValues({
-        'sepia.settings.v1': jsonEncode(
-          const AppSettings(localeCode: 'pt_BR').toJson(),
-        ),
-      });
-      final controller = AppController(updateChecker: offlineUpdateChecker());
-      await controller.initialize();
-      final content = hugeWithChapters();
-      final document = await controller.createDocument(
-        title: 'Fic gigante',
-        content: content,
-      );
+  testWidgets('editar uma parte de um documento gigante preserva o resto', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 1100);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    SharedPreferences.setMockInitialValues({
+      'sepia.settings.v1': jsonEncode(
+        const AppSettings(localeCode: 'pt_BR').toJson(),
+      ),
+    });
+    final controller = AppController(updateChecker: offlineUpdateChecker());
+    await controller.initialize();
+    final content = hugeWithChapters();
+    final document = await controller.createDocument(
+      title: 'Fic gigante',
+      content: content,
+    );
 
-      await tester.pumpWidget(SepiaApp(controller: controller));
-      await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Fic gigante.md'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Fic gigante.md'));
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(SepiaApp(controller: controller));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Fic gigante.md'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Fic gigante.md'));
+    await tester.pumpAndSettle();
 
-      // The editor sliced it, and the field holds only the first chapter.
-      expect(find.text('Capítulo 1'), findsWidgets);
-      final editor = find.byWidgetPredicate(
-        (widget) => widget is TextField && widget.expands,
-      );
-      final inField = tester.widget<TextField>(editor).controller!.text;
-      expect(inField.length, lessThan(content.length));
-      expect(inField, startsWith('# Capítulo 1'));
-      expect(inField, isNot(contains('# Capítulo 2')));
+    // The editor sliced it, and the field holds only the first chapter.
+    expect(find.text('Capítulo 1'), findsWidgets);
+    final editor = find.byWidgetPredicate(
+      (widget) => widget is TextField && widget.expands,
+    );
+    final inField = tester.widget<TextField>(editor).controller!.text;
+    expect(inField.length, lessThan(content.length));
+    expect(inField, startsWith('# Capítulo 1'));
+    expect(inField, isNot(contains('# Capítulo 2')));
 
-      // Type into it and let the debounced save land.
-      await tester.enterText(editor, '# Capítulo 1\n\nTexto novo do capítulo.\n\n');
-      await tester.pump(const Duration(milliseconds: 900));
-      await tester.pumpAndSettle();
+    // Type into it and let the debounced save land.
+    await tester.enterText(
+      editor,
+      '# Capítulo 1\n\nTexto novo do capítulo.\n\n',
+    );
+    await tester.pump(const Duration(milliseconds: 900));
+    await tester.pumpAndSettle();
 
-      final stored = controller.documentById(document.id)!.content;
-      expect(stored, contains('Texto novo do capítulo.'));
-      // Everything after the edited slice survived untouched.
-      for (var chapter = 2; chapter <= 12; chapter++) {
-        expect(stored, contains('# Capítulo $chapter'));
-        expect(stored, contains('Parágrafo 39 do capítulo $chapter,'));
-      }
-      expect(stored, isNot(contains('do capítulo 1, com bastante')));
+    final stored = controller.documentById(document.id)!.content;
+    expect(stored, contains('Texto novo do capítulo.'));
+    // Everything after the edited slice survived untouched.
+    for (var chapter = 2; chapter <= 12; chapter++) {
+      expect(stored, contains('# Capítulo $chapter'));
+      expect(stored, contains('Parágrafo 39 do capítulo $chapter,'));
+    }
+    expect(stored, isNot(contains('do capítulo 1, com bastante')));
 
-      // Moving to another part loads that part, and still keeps the whole.
-      await tester.tap(find.byTooltip('Próxima parte'));
-      await tester.pumpAndSettle();
-      final second = tester.widget<TextField>(editor).controller!.text;
-      expect(second, startsWith('# Capítulo 2'));
-      expect(controller.documentById(document.id)!.content, contains('# Capítulo 12'));
-    },
-  );
+    // Moving to another part loads that part, and still keeps the whole.
+    await tester.tap(find.byTooltip('Próxima parte'));
+    await tester.pumpAndSettle();
+    final second = tester.widget<TextField>(editor).controller!.text;
+    expect(second, startsWith('# Capítulo 2'));
+    expect(
+      controller.documentById(document.id)!.content,
+      contains('# Capítulo 12'),
+    );
+  });
 
-  testWidgets(
-    'documento curto não mostra o controle de editar por capítulo',
-    (tester) async {
-      tester.view.physicalSize = const Size(900, 1100);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      SharedPreferences.setMockInitialValues({
-        'sepia.settings.v1': jsonEncode(
-          const AppSettings(localeCode: 'pt_BR').toJson(),
-        ),
-      });
-      final controller = AppController(updateChecker: offlineUpdateChecker());
-      await controller.initialize();
-      await controller.createDocument(
-        title: 'Recado',
-        content: 'Só uma linha, nada para fatiar.',
-      );
+  testWidgets('documento curto não mostra o controle de editar por capítulo', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 1100);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    SharedPreferences.setMockInitialValues({
+      'sepia.settings.v1': jsonEncode(
+        const AppSettings(localeCode: 'pt_BR').toJson(),
+      ),
+    });
+    final controller = AppController(updateChecker: offlineUpdateChecker());
+    await controller.initialize();
+    await controller.createDocument(
+      title: 'Recado',
+      content: 'Só uma linha, nada para fatiar.',
+    );
 
-      await tester.pumpWidget(SepiaApp(controller: controller));
-      await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Recado.md'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Recado.md'));
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(SepiaApp(controller: controller));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Recado.md'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Recado.md'));
+    await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Editar por capítulo'), findsNothing);
-    },
-  );
+    expect(find.byTooltip('Editar por capítulo'), findsNothing);
+  });
 
   testWidgets(
     'desligar a edição por capítulo pela barra de partes vale globalmente',

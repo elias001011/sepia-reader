@@ -153,6 +153,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get hexColor => 'Cor hexadecimal';
 
   @override
+  String get invalidHexColor => 'Informe seis dígitos hexadecimais (0–9, A–F).';
+
+  @override
   String get cancel => 'Cancelar';
 
   @override
@@ -207,6 +210,9 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get rename => 'Renomear';
+
+  @override
+  String get actionsLabel => 'Ações';
 
   @override
   String get root => 'Raiz da biblioteca';

@@ -28,6 +28,14 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
+      # Formatação é obrigatória: um PR que não passa aqui também polui o
+      # histórico de todo mundo que rodar `dart format` depois.
+      - run: dart format --output=none --set-exit-if-changed .
       - run: flutter analyze
-      - run: flutter test
+      - run: flutter test --coverage
+      - name: Dependências desatualizadas (informativo)
+        # Uma versão mais nova não bloqueia o PR por si só; o relatório serve
+        # para a revisão decidir.
+        continue-on-error: true
+        run: flutter pub outdated
       - run: python3 -m unittest discover -s server -p 'test_*.py'

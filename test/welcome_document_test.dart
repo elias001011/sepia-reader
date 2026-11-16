@@ -33,7 +33,10 @@ void main() {
     final browser = AppController(updateChecker: offlineUpdateChecker());
     await browser.initialize();
 
-    final merged = mergeById(phone.documents.toList(), browser.documents.toList());
+    final merged = mergeById(
+      phone.documents.toList(),
+      browser.documents.toList(),
+    );
 
     expect(merged, hasLength(1));
     expect(merged.single.id, welcomeDocumentId);

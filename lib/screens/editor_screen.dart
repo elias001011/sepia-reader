@@ -23,6 +23,7 @@ import '../services/tts/voice_catalog.dart';
 import '../services/tts/voice_store.dart';
 import '../state/app_controller.dart';
 import '../widgets/markdown_view.dart';
+import '../widgets/sheet_choices.dart';
 import '../widgets/sheet_scaffold.dart';
 import 'bookmarks_sheet.dart';
 import 'chapter_navigation_sheet.dart';
@@ -35,7 +36,8 @@ int _countWords(Iterable<String> parts) {
   var inWord = false;
   for (final part in parts) {
     for (final unit in part.codeUnits) {
-      final whitespace = unit <= 0x20 ||
+      final whitespace =
+          unit <= 0x20 ||
           unit == 0x85 ||
           unit == 0xA0 ||
           unit == 0x1680 ||
@@ -71,10 +73,16 @@ String _joinEditorSections(List<String> parts) => parts.join();
   final after = source.substring(end);
   final prefix = before.isEmpty || before.endsWith('\n\n')
       ? ''
-      : before.endsWith('\n') ? '\n' : '\n\n';
+      : before.endsWith('\n')
+      ? '\n'
+      : '\n\n';
   final suffix = after.isEmpty
       ? '\n'
-      : after.startsWith('\n\n') ? '' : after.startsWith('\n') ? '\n' : '\n\n';
+      : after.startsWith('\n\n')
+      ? ''
+      : after.startsWith('\n')
+      ? '\n'
+      : '\n\n';
   final replacement = '$prefix$block$suffix';
   return (
     text: source.replaceRange(start, end, replacement),
@@ -120,6 +128,7 @@ class _EditorScreenState extends State<EditorScreen>
   Timer? _previewTimer;
   Timer? _readerControlsTimer;
   bool _readingMode = false;
+
   /// Reader chrome visibility, as a notifier rather than as state.
   ///
   /// It used to be a plain field flipped with setState, which rebuilt the
@@ -209,8 +218,9 @@ class _EditorScreenState extends State<EditorScreen>
     // When sectioning is on and produced slices, the document is sectionable
     // by definition — no need for _isSectionable to scan it a second time.
     _sectionable = _sectioned || _isSectionable(document.content);
-    _contentController = TextEditingController(text: _sectionText(document.content))
-      ..addListener(_onChanged);
+    _contentController = TextEditingController(
+      text: _sectionText(document.content),
+    )..addListener(_onChanged);
     _titleController = TextEditingController(text: document.title)
       ..addListener(_onTitleChanged);
     _previewContent = ValueNotifier(_sectionText(document.content));
@@ -330,7 +340,8 @@ class _EditorScreenState extends State<EditorScreen>
   /// Decides whether [content] is edited whole or in slices, and selects
   /// which slice. Does not touch the text field — callers set that up.
   void _configureSections(String content, {required int index}) {
-    final needsSectioning = widget.controller.settings.sectionedEditing &&
+    final needsSectioning =
+        widget.controller.settings.sectionedEditing &&
         content.length >= sectionedEditingThreshold;
     if (!needsSectioning) {
       _sectioned = false;
@@ -463,12 +474,9 @@ class _EditorScreenState extends State<EditorScreen>
     final fullContent = !wasSectioned
         ? sectionContent
         : fullLength >= 256 * 1024
-            ? await compute(_joinEditorSections, sectionParts)
-            : _joinEditorSections(sectionParts);
-    final draft = document.copyWith(
-      title: title,
-      content: fullContent,
-    );
+        ? await compute(_joinEditorSections, sectionParts)
+        : _joinEditorSections(sectionParts);
+    final draft = document.copyWith(title: title, content: fullContent);
     await widget.controller.updateDocument(draft, notify: false);
     // The write above is what mattered; if the editor was torn down during it
     // (dispose() calls _save() for a still-dirty document) there is nothing
@@ -616,9 +624,8 @@ class _EditorScreenState extends State<EditorScreen>
     if (error == _surfacedTtsError) return;
     _surfacedTtsError = error;
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(context.l10n.ttsFailed(error))),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(context.l10n.ttsFailed(error))));
   }
 
   Future<void> _openListenSheet() async {
@@ -691,9 +698,9 @@ class _EditorScreenState extends State<EditorScreen>
       if (controller.error != null) {
         _surfaceTtsError();
       } else if (controller.pieceCount == 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.ttsNothingToRead)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.l10n.ttsNothingToRead)));
       } else {
         _showReaderControls();
       }
@@ -703,11 +710,13 @@ class _EditorScreenState extends State<EditorScreen>
   }
 
   Future<void> _updateWakeLock({bool? resumed}) async {
-    final active = resumed ??
+    final active =
+        resumed ??
         WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
     try {
       await WakelockPlus.toggle(
-        enable: active && _readingMode && widget.controller.settings.keepScreenOn,
+        enable:
+            active && _readingMode && widget.controller.settings.keepScreenOn,
       );
     } catch (error) {
       debugPrint('sepia: screen wake lock unavailable: $error');
@@ -860,44 +869,46 @@ class _EditorScreenState extends State<EditorScreen>
               ),
             ),
           if (MediaQuery.sizeOf(context).width < 620)
-            PopupMenuButton<String>(
-              tooltip: context.l10n.adjustments,
-              onSelected: (value) {
-                if (value == 'reader-settings') _openReaderSettings();
-                if (value == 'export') _export();
-                if (value == 'chapter-separator') _toggleChapterSeparator();
-              },
-              itemBuilder: (context) => [
-                PopupMenuItem(
-                  value: 'reader-settings',
-                  child: ListTile(
-                    leading: const Icon(Icons.text_fields_rounded),
-                    title: Text(context.l10n.readingSettings),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-                if (_sectionable)
-                  PopupMenuItem(
-                    value: 'chapter-separator',
-                    child: ListTile(
-                      leading: Icon(
-                        widget.controller.settings.sectionedEditing
-                            ? Icons.toggle_on_rounded
-                            : Icons.toggle_off_rounded,
+            Builder(
+              builder: (context) => IconButton(
+                tooltip: context.l10n.adjustments,
+                icon: const Icon(Icons.more_vert_rounded),
+                onPressed: () async {
+                  final value = await showSheetChoices<String>(
+                    context: context,
+                    title: context.l10n.adjustments,
+                    choices: [
+                      SheetChoice(
+                        value: 'reader-settings',
+                        label: context.l10n.readingSettings,
+                        icon: Icons.text_fields_rounded,
                       ),
-                      title: Text(context.l10n.chapterSeparatorToggle),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
-                PopupMenuItem(
-                  value: 'export',
-                  child: ListTile(
-                    leading: const Icon(Icons.download_rounded),
-                    title: Text(context.l10n.exportLabel),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-              ],
+                      if (_sectionable)
+                        SheetChoice(
+                          value: 'chapter-separator',
+                          label: context.l10n.chapterSeparatorToggle,
+                          icon: widget.controller.settings.sectionedEditing
+                              ? Icons.toggle_on_rounded
+                              : Icons.toggle_off_rounded,
+                        ),
+                      SheetChoice(
+                        value: 'export',
+                        label: context.l10n.exportLabel,
+                        icon: Icons.download_rounded,
+                      ),
+                    ],
+                  );
+                  if (!mounted) return;
+                  switch (value) {
+                    case 'reader-settings':
+                      _openReaderSettings();
+                    case 'export':
+                      await _export();
+                    case 'chapter-separator':
+                      await _toggleChapterSeparator();
+                  }
+                },
+              ),
             )
           else ...[
             IconButton(
@@ -1020,29 +1031,43 @@ class _EditorScreenState extends State<EditorScreen>
                 : null,
             icon: const Icon(Icons.chevron_right_rounded),
           ),
-          PopupMenuButton<int>(
-            tooltip: context.l10n.editSectionChoose,
-            onSelected: (value) =>
-                value == -1 ? _toggleChapterSeparator() : _openSection(value),
-            itemBuilder: (context) => [
-              for (var i = 0; i < _editSections.length; i++)
-                PopupMenuItem(
-                  value: i,
-                  child: Text(
-                    _editSections[i].title == '…'
-                        ? context.l10n.editSectionPart('1')
-                        : RegExp(r'^\d+$').hasMatch(_editSections[i].title)
-                        ? context.l10n.editSectionPart(_editSections[i].title)
-                        : _editSections[i].title,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              const PopupMenuDivider(),
-              PopupMenuItem(
-                value: -1,
-                child: Text(context.l10n.editWholeDocument),
-              ),
-            ],
+          Builder(
+            builder: (context) => IconButton(
+              tooltip: context.l10n.editSectionChoose,
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.list_rounded),
+              onPressed: () async {
+                final value = await showSheetChoices<int>(
+                  context: context,
+                  title: context.l10n.editSectionChoose,
+                  value: _editSectionIndex,
+                  choices: [
+                    for (var i = 0; i < _editSections.length; i++)
+                      SheetChoice(
+                        value: i,
+                        label: _editSections[i].title == '…'
+                            ? context.l10n.editSectionPart('1')
+                            : RegExp(r'^\d+$').hasMatch(_editSections[i].title)
+                            ? context.l10n.editSectionPart(
+                                _editSections[i].title,
+                              )
+                            : _editSections[i].title,
+                      ),
+                    SheetChoice(
+                      value: -1,
+                      label: context.l10n.editWholeDocument,
+                      icon: Icons.notes_rounded,
+                    ),
+                  ],
+                );
+                if (!mounted) return;
+                if (value == -1) {
+                  await _toggleChapterSeparator();
+                } else if (value != null) {
+                  await _openSection(value);
+                }
+              },
+            ),
           ),
         ],
       ),
@@ -1107,7 +1132,7 @@ class _EditorScreenState extends State<EditorScreen>
           ],
         ),
       ),
-      VerticalDivider(width: 1),
+      const VerticalDivider(width: 1),
       Expanded(
         child: Column(
           children: [
@@ -1377,13 +1402,16 @@ class _EditorScreenState extends State<EditorScreen>
                     // exact for every visible chunk, and simply absent for
                     // chunks that are not currently on screen.
                     final byIndex = {
-                      for (final position in positions) position.index: position,
+                      for (final position in positions)
+                        position.index: position,
                     };
                     final viewportHeight = constraints.maxHeight;
                     return Stack(
                       children: [
-                        for (final bookmark in widget.controller
-                            .bookmarksForDocument(widget.documentId))
+                        for (final bookmark
+                            in widget.controller.bookmarksForDocument(
+                              widget.documentId,
+                            ))
                           if (byIndex[bookmark.chunkIndex] case final position?)
                             _bookmarkMarker(
                               context,
@@ -1423,96 +1451,97 @@ class _EditorScreenState extends State<EditorScreen>
                     left: compact ? 10 : 16,
                     right: compact ? 10 : 16,
                     child: AnimatedSlide(
-                duration: const Duration(milliseconds: 180),
-                curve: Curves.easeOut,
-                offset: visible ? Offset.zero : const Offset(0, -.7),
-                child: AnimatedOpacity(
-                  key: const ValueKey('reader-controls'),
-                  duration: const Duration(milliseconds: 160),
-                  opacity: visible ? 1 : 0,
-                  child: IgnorePointer(
-                    ignoring: !visible,
-                    child: Row(
-                      children: [
-                        _readerButton(
-                          context,
-                          compact: compact,
-                          tooltip: context.l10n.backToLibrary,
-                          icon: Icons.arrow_back_rounded,
-                          onPressed: _close,
-                        ),
-                        const Spacer(),
-                        if (documentKindOf(_stored!.extension) ==
-                            DocumentKind.markup) ...[
-                          _readerButton(
-                            context,
-                            compact: compact,
-                            tooltip: _showMarkupSource
-                                ? context.l10n.viewerPreview
-                                : context.l10n.viewerSource,
-                            icon: _showMarkupSource
-                                ? Icons.article_rounded
-                                : Icons.code_rounded,
-                            onPressed: () => setState(
-                              () => _showMarkupSource = !_showMarkupSource,
-                            ),
+                      duration: const Duration(milliseconds: 180),
+                      curve: Curves.easeOut,
+                      offset: visible ? Offset.zero : const Offset(0, -.7),
+                      child: AnimatedOpacity(
+                        key: const ValueKey('reader-controls'),
+                        duration: const Duration(milliseconds: 160),
+                        opacity: visible ? 1 : 0,
+                        child: IgnorePointer(
+                          ignoring: !visible,
+                          child: Row(
+                            children: [
+                              _readerButton(
+                                context,
+                                compact: compact,
+                                tooltip: context.l10n.backToLibrary,
+                                icon: Icons.arrow_back_rounded,
+                                onPressed: _close,
+                              ),
+                              const Spacer(),
+                              if (documentKindOf(_stored!.extension) ==
+                                  DocumentKind.markup) ...[
+                                _readerButton(
+                                  context,
+                                  compact: compact,
+                                  tooltip: _showMarkupSource
+                                      ? context.l10n.viewerPreview
+                                      : context.l10n.viewerSource,
+                                  icon: _showMarkupSource
+                                      ? Icons.article_rounded
+                                      : Icons.code_rounded,
+                                  onPressed: () => setState(
+                                    () =>
+                                        _showMarkupSource = !_showMarkupSource,
+                                  ),
+                                ),
+                                SizedBox(width: compact ? 5 : 8),
+                              ],
+                              if (widget.controller.settings.ttsEnabled) ...[
+                                _readerButton(
+                                  context,
+                                  compact: compact,
+                                  tooltip: context.l10n.ttsListen,
+                                  icon: Icons.headphones_rounded,
+                                  onPressed: _openListenSheet,
+                                ),
+                                SizedBox(width: compact ? 5 : 8),
+                              ],
+                              _readerButton(
+                                context,
+                                compact: compact,
+                                tooltip: context.l10n.chapterNavigation,
+                                icon: Icons.table_rows_rounded,
+                                onPressed: _openChapterNavigation,
+                              ),
+                              SizedBox(width: compact ? 5 : 8),
+                              _readerButton(
+                                context,
+                                compact: compact,
+                                tooltip: context.l10n.addBookmark,
+                                icon: Icons.bookmark_add_rounded,
+                                onPressed: _addBookmarkHere,
+                              ),
+                              SizedBox(width: compact ? 5 : 8),
+                              _readerButton(
+                                context,
+                                compact: compact,
+                                tooltip: context.l10n.bookmarks,
+                                icon: Icons.bookmark_rounded,
+                                onPressed: _openBookmarksSheet,
+                              ),
+                              SizedBox(width: compact ? 5 : 8),
+                              _readerButton(
+                                context,
+                                compact: compact,
+                                tooltip: context.l10n.adjustments,
+                                icon: Icons.text_fields_rounded,
+                                onPressed: _openReaderSettings,
+                              ),
+                              SizedBox(width: compact ? 5 : 8),
+                              _readerButton(
+                                context,
+                                compact: compact,
+                                tooltip: context.l10n.exitReadingMode,
+                                icon: Icons.edit_rounded,
+                                onPressed: _exitReadingMode,
+                              ),
+                            ],
                           ),
-                          SizedBox(width: compact ? 5 : 8),
-                        ],
-                        if (widget.controller.settings.ttsEnabled) ...[
-                          _readerButton(
-                            context,
-                            compact: compact,
-                            tooltip: context.l10n.ttsListen,
-                            icon: Icons.headphones_rounded,
-                            onPressed: _openListenSheet,
-                          ),
-                          SizedBox(width: compact ? 5 : 8),
-                        ],
-                        _readerButton(
-                          context,
-                          compact: compact,
-                          tooltip: context.l10n.chapterNavigation,
-                          icon: Icons.table_rows_rounded,
-                          onPressed: _openChapterNavigation,
                         ),
-                        SizedBox(width: compact ? 5 : 8),
-                        _readerButton(
-                          context,
-                          compact: compact,
-                          tooltip: context.l10n.addBookmark,
-                          icon: Icons.bookmark_add_rounded,
-                          onPressed: _addBookmarkHere,
-                        ),
-                        SizedBox(width: compact ? 5 : 8),
-                        _readerButton(
-                          context,
-                          compact: compact,
-                          tooltip: context.l10n.bookmarks,
-                          icon: Icons.bookmark_rounded,
-                          onPressed: _openBookmarksSheet,
-                        ),
-                        SizedBox(width: compact ? 5 : 8),
-                        _readerButton(
-                          context,
-                          compact: compact,
-                          tooltip: context.l10n.adjustments,
-                          icon: Icons.text_fields_rounded,
-                          onPressed: _openReaderSettings,
-                        ),
-                        SizedBox(width: compact ? 5 : 8),
-                        _readerButton(
-                          context,
-                          compact: compact,
-                          tooltip: context.l10n.exitReadingMode,
-                          icon: Icons.edit_rounded,
-                          onPressed: _exitReadingMode,
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-                ),
-              ),
                   ),
                 ],
               ),
@@ -1723,46 +1752,43 @@ class _EditorScreenState extends State<EditorScreen>
           ),
           if (isOpen)
             ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: 220,
-                maxHeight: 120,
-              ),
+              constraints: const BoxConstraints(maxWidth: 220, maxHeight: 120),
               child: Container(
-              margin: const EdgeInsets.only(top: 6),
-              padding: const EdgeInsets.fromLTRB(12, 6, 6, 6),
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: .25),
-                    blurRadius: 10,
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Flexible(
-                    child: Text(
-                      bookmark.excerpt,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall,
+                margin: const EdgeInsets.only(top: 6),
+                padding: const EdgeInsets.fromLTRB(12, 6, 6, 6),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: .25),
+                      blurRadius: 10,
                     ),
-                  ),
-                  IconButton(
-                    tooltip: context.l10n.removeBookmark,
-                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () {
-                      widget.controller.removeBookmark(bookmark.id);
-                      setState(() => _activeBookmarkPopupId = null);
-                    },
-                  ),
-                ],
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        bookmark.excerpt,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: context.l10n.removeBookmark,
+                      icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () {
+                        widget.controller.removeBookmark(bookmark.id);
+                        setState(() => _activeBookmarkPopupId = null);
+                      },
+                    ),
+                  ],
+                ),
               ),
-            ),
             ),
         ],
       ),

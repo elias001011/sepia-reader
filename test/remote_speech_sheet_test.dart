@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sepia_reader/widgets/sheet_choices.dart';
 import 'package:sepia_reader/l10n/app_localizations.dart';
 import 'package:sepia_reader/screens/remote_speech_sheet.dart';
 import 'package:sepia_reader/services/tts/remote_speech_config.dart';
@@ -61,7 +62,7 @@ void main() {
       await tester.tap(consent);
       await tester.pumpAndSettle();
       expect(tester.widget<CheckboxListTile>(consent).value, isTrue);
-      final provider = find.byType(DropdownButtonFormField<String>).first;
+      final provider = find.byType(SheetChoiceField<String>).first;
       await tester.ensureVisible(provider);
       await tester.tap(provider);
       await tester.pumpAndSettle();

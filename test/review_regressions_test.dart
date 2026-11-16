@@ -139,27 +139,40 @@ void main() {
     expect(find.byType(SheetScaffold), findsOneWidget);
   });
 
-  testWidgets('diálogo nunca pede mais largura do que a tela oferece', (
+  testWidgets('a janela nunca pede mais largura do que a tela oferece', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(240, 400);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    late double width;
 
     await tester.pumpWidget(
       MaterialApp(
-        home: Builder(
-          builder: (context) {
-            width = appDialogWidth(context, 360);
-            return const SizedBox.shrink();
-          },
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showAppSheet<void>(
+                context: context,
+                builder: (_) => const SheetScaffold(
+                  title: 'Painel',
+                  children: [Text('corpo')],
+                ),
+              ),
+              child: const Text('abrir'),
+            ),
+          ),
         ),
       ),
     );
+    await tester.tap(find.text('abrir'));
+    await tester.pumpAndSettle();
 
-    expect(width, 160);
+    expect(
+      tester.getRect(find.byType(SheetScaffold)).width,
+      lessThanOrEqualTo(240),
+    );
+    expect(tester.takeException(), isNull);
   });
 
   group('cercas de código na fala (segunda rodada de review)', () {

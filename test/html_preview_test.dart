@@ -42,8 +42,10 @@ void main() {
   });
 
   test('decodifica entidades numéricas e nomeadas', () {
-    expect(htmlToMarkdown('<p>caf&eacute; &amp; p&#227;o &#x2014; ok</p>'),
-        'café & pão — ok');
+    expect(
+      htmlToMarkdown('<p>caf&eacute; &amp; p&#227;o &#x2014; ok</p>'),
+      'café & pão — ok',
+    );
   });
 
   test('não deixa linhas em branco em excesso', () {

@@ -153,6 +153,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hexColor => 'Hex color';
 
   @override
+  String get invalidHexColor => 'Enter six hexadecimal digits (0–9, A–F).';
+
+  @override
   String get cancel => 'Cancel';
 
   @override
@@ -207,6 +210,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get rename => 'Rename';
+
+  @override
+  String get actionsLabel => 'Actions';
 
   @override
   String get root => 'Library root';

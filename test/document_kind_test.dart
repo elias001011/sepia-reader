@@ -36,7 +36,12 @@ void main() {
     test('pega um binário mesmo renomeado para .txt', () {
       final disguised = bytes([
         ...utf8.encode('quase texto '),
-        0, 0, 0, 1, 2, 3,
+        0,
+        0,
+        0,
+        1,
+        2,
+        3,
         ...utf8.encode(' mais texto'),
       ]);
       expect(isBinaryPayload(disguised), isTrue);
@@ -107,4 +112,3 @@ void main() {
     expect(find.byType(CodeViewer), findsNothing);
   });
 }
-

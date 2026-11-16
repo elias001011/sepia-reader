@@ -1,5 +1,16 @@
 # Histórico
 
+## 2.6.0 — 2026-11-16
+
+- Padroniza todas as janelas em um único componente, o mesmo painel dos marcadores: criação e renomeação de pastas e documentos, exclusão, mover para, seleção de cor, tema, idioma, fonte, paleta de leitura, voz, provedor remoto, formato, layout e capítulos de edição. Não sobram `AlertDialog`, `showDialog`, `PopupMenuButton` nem `DropdownButton` no app.
+- Centraliza os painéis em janelas largas (limite de 480 px), mantém a apresentação inferior no celular e passa a crescer acima do teclado em vez de esconder os campos atrás dele.
+- Fecha painéis com Esc no desktop e mantém as ações alcançáveis em janelas baixas e com texto ampliado.
+- Corrige o seletor de cor: um valor hexadecimal inválido agora bloqueia o botão de aplicar em vez de aplicar a cor anterior sem avisar.
+- Formulários de nome passam a ser donos do próprio controller, liberado junto com a janela.
+- Tema, idioma, fonte, paleta, voz, provedor, formato, layout e menus de ações passam a abrir o painel em vez de listas suspensas e menus flutuantes.
+- Liga as regras de análise exigidas na revisão (`unused_import` e `dead_code` como erro, `always_declare_return_types`, `avoid_print`, `cancel_subscriptions`, `prefer_const_constructors`), formata os arquivos fora do padrão e passa a verificar formatação, cobertura e dependências desatualizadas no CI.
+- Adiciona `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md` e modelo de pull request.
+
 ## 2.5.9 — 2026-10-27
 
 - Pinta a barra superior do Sépia para Linux com as cores do app, em vez do tema GTK claro, e com o papel do modo leitura enquanto um documento é lido, para que a barra e o fundo do texto fiquem iguais.

@@ -18,6 +18,8 @@ import '../services/document_io.dart';
 import '../services/folder_importer.dart';
 import '../services/update_checker.dart';
 import '../state/app_controller.dart';
+import '../widgets/name_entry_sheet.dart';
+import '../widgets/sheet_choices.dart';
 import '../widgets/sheet_scaffold.dart';
 import '../widgets/voice_download_banner.dart';
 import 'editor_screen.dart';
@@ -1025,24 +1027,43 @@ class _LibraryScreenState extends State<LibraryScreen> {
         style: Theme.of(context).textTheme.headlineSmall
             ?.copyWith(fontWeight: FontWeight.w700),
       ),
-      PopupMenuButton<String>(
-        tooltip: context.l10n.libraryLayout,
-        icon: Icon(switch (widget.controller.settings.libraryLayout) {
-          'grid' => Icons.grid_view_rounded,
-          'list' => Icons.view_list_rounded,
-          _ => Icons.view_agenda_outlined,
-        }),
-        onSelected: (value) => widget.controller.updateSettings(
-          widget.controller.settings.copyWith(libraryLayout: value),
+      Builder(
+        builder: (context) => IconButton(
+          tooltip: context.l10n.libraryLayout,
+          icon: Icon(switch (widget.controller.settings.libraryLayout) {
+            'grid' => Icons.grid_view_rounded,
+            'list' => Icons.view_list_rounded,
+            _ => Icons.view_agenda_outlined,
+          }),
+          onPressed: () async {
+            final layout = await showSheetChoices<String>(
+              context: context,
+              title: context.l10n.libraryLayout,
+              value: widget.controller.settings.libraryLayout,
+              choices: [
+                SheetChoice(
+                  value: 'standard',
+                  label: context.l10n.layoutStandard,
+                  icon: Icons.view_agenda_outlined,
+                ),
+                SheetChoice(
+                  value: 'grid',
+                  label: context.l10n.layoutGrid,
+                  icon: Icons.grid_view_rounded,
+                ),
+                SheetChoice(
+                  value: 'list',
+                  label: context.l10n.layoutList,
+                  icon: Icons.view_list_rounded,
+                ),
+              ],
+            );
+            if (layout == null) return;
+            await widget.controller.updateSettings(
+              widget.controller.settings.copyWith(libraryLayout: layout),
+            );
+          },
         ),
-        itemBuilder: (_) => [
-          PopupMenuItem(
-            value: 'standard',
-            child: Text(context.l10n.layoutStandard),
-          ),
-          PopupMenuItem(value: 'grid', child: Text(context.l10n.layoutGrid)),
-          PopupMenuItem(value: 'list', child: Text(context.l10n.layoutList)),
-        ],
       ),
       // One row that scrolls sideways when it does not fit, like the breadcrumbs.
       SingleChildScrollView(
@@ -1246,49 +1267,27 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final destinations = widget.controller.folders
         .where((folder) => !blockedFolderIds.contains(folder.id))
         .toList(growable: false);
-    return showDialog<({String? folderId})>(
+    return showSheetChoices<({String? folderId})>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(title ?? dialogContext.l10n.moveTo),
-        content: SizedBox(
-          width: appDialogWidth(dialogContext, 440),
-          height: ((destinations.length + 1) * 72.0).clamp(72.0, 420.0),
-          child: ListView(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.home_rounded),
-                title: Text(dialogContext.l10n.root),
-                trailing: currentFolderId != null && currentFolderId.id == null
-                    ? const Icon(Icons.check_rounded)
-                    : null,
-                onTap: () => Navigator.pop(dialogContext, (folderId: null)),
-              ),
-              for (final folder in destinations)
-                ListTile(
-                  leading: const Icon(Icons.folder_rounded),
-                  title: Text(folder.name),
-                  subtitle: Text(
-                    widget.controller
-                        .folderPath(folder.parentId)
-                        .map((item) => item.name)
-                        .join(' / '),
-                  ),
-                  trailing: currentFolderId?.id == folder.id
-                      ? const Icon(Icons.check_rounded)
-                      : null,
-                  onTap: () =>
-                      Navigator.pop(dialogContext, (folderId: folder.id)),
-                ),
-            ],
-          ),
+      title: title ?? context.l10n.moveTo,
+      value: currentFolderId == null ? null : (folderId: currentFolderId.id),
+      choices: <SheetChoice<({String? folderId})>>[
+        SheetChoice(
+          value: (folderId: null),
+          label: context.l10n.root,
+          icon: Icons.home_rounded,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(dialogContext.l10n.cancel),
+        for (final folder in destinations)
+          SheetChoice(
+            value: (folderId: folder.id),
+            label: folder.name,
+            subtitle: widget.controller
+                .folderPath(folder.parentId)
+                .map((item) => item.name)
+                .join(' / '),
+            icon: Icons.folder_rounded,
           ),
-        ],
-      ),
+      ],
     );
   }
 
@@ -1330,30 +1329,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
         ...widget.controller.folderContents(id).folderIds,
     };
     final folders = removedFolders.length;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showSheetConfirm(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(dialogContext.l10n.deleteSelectionTitle),
-        content: Text(
-          dialogContext.l10n.deleteSelectionBody(documents, folders),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(dialogContext.l10n.cancel),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(dialogContext).colorScheme.error,
-              foregroundColor: Theme.of(dialogContext).colorScheme.onError,
-            ),
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(dialogContext.l10n.delete),
-          ),
-        ],
-      ),
+      title: context.l10n.deleteSelectionTitle,
+      message: context.l10n.deleteSelectionBody(documents, folders),
+      confirmLabel: context.l10n.delete,
+      destructive: true,
     );
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
     // If the folder currently open is one of the doomed ones, step up to its
     // parent — the same place the single-folder delete lands — rather than
     // all the way back to the root.
@@ -1452,105 +1435,50 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Future<void> _createFolder() async {
-    final name = TextEditingController();
-    final created = await showDialog<bool>(
+    final folderParentId = _currentFolderId;
+    final entry = await showAppSheet<NameEntry>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(context.l10n.newFolder),
-        content: TextField(
-          controller: name,
-          autofocus: true,
-          textInputAction: TextInputAction.done,
-          decoration: InputDecoration(
-            labelText: context.l10n.folderName,
-            hintText: context.l10n.folderNameHint,
-          ),
-          onSubmitted: (_) => Navigator.pop(dialogContext, true),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(context.l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(context.l10n.create),
-          ),
-        ],
+      builder: (sheetContext) => NameEntrySheet(
+        title: sheetContext.l10n.newFolder,
+        label: sheetContext.l10n.folderName,
+        hint: sheetContext.l10n.folderNameHint,
+        actionLabel: sheetContext.l10n.create,
       ),
     );
-    final value = name.text;
-    name.dispose();
-    if (created == true) {
-      await widget.controller.createFolder(
-        name: value,
-        parentId: _currentFolderId,
-      );
-    }
+    if (entry == null || !mounted) return;
+    await widget.controller.createFolder(
+      name: entry.name,
+      parentId: folderParentId,
+    );
   }
 
   Future<void> _renameFolder(LibraryFolder folder) async {
-    final name = TextEditingController(text: folder.name);
-    final renamed = await showDialog<bool>(
+    final entry = await showAppSheet<NameEntry>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(context.l10n.renameFolder),
-        content: TextField(
-          controller: name,
-          autofocus: true,
-          textInputAction: TextInputAction.done,
-          decoration: InputDecoration(labelText: context.l10n.folderName),
-          onSubmitted: (_) => Navigator.pop(dialogContext, true),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(context.l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(context.l10n.rename),
-          ),
-        ],
+      builder: (sheetContext) => NameEntrySheet(
+        title: sheetContext.l10n.renameFolder,
+        label: sheetContext.l10n.folderName,
+        actionLabel: sheetContext.l10n.rename,
+        initialValue: folder.name,
       ),
     );
-    final value = name.text;
-    name.dispose();
-    if (renamed == true) await widget.controller.renameFolder(folder.id, value);
+    if (entry == null || !mounted) return;
+    await widget.controller.renameFolder(folder.id, entry.name);
   }
 
   Future<void> _renameDocument(LibraryDocument document) async {
-    var value = document.title;
-    final renamed = await showDialog<bool>(
+    final entry = await showAppSheet<NameEntry>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(context.l10n.renameDocument),
-        content: TextFormField(
-          initialValue: value,
-          autofocus: true,
-          textInputAction: TextInputAction.done,
-          decoration: InputDecoration(
-            labelText: context.l10n.fileName,
-            suffixText: '.${document.extension}',
-          ),
-          onChanged: (name) => value = name,
-          onFieldSubmitted: (_) => Navigator.pop(dialogContext, true),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(context.l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(context.l10n.rename),
-          ),
-        ],
+      builder: (sheetContext) => NameEntrySheet(
+        title: sheetContext.l10n.renameDocument,
+        label: sheetContext.l10n.fileName,
+        actionLabel: sheetContext.l10n.rename,
+        initialValue: document.title,
+        suffix: '.${document.extension}',
       ),
     );
-    if (renamed == true) {
-      await widget.controller.renameDocument(document.id, value);
-    }
+    if (entry == null || !mounted) return;
+    await widget.controller.renameDocument(document.id, entry.name);
   }
 
   /// Pull-to-refresh. Reports the outcome, because a spinner that just
@@ -1576,32 +1504,16 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final contents = widget.controller.folderContents(folder.id);
     final subfolders = contents.folderIds.length - 1;
     final documents = contents.documents.length;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showSheetConfirm(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(dialogContext.l10n.deleteFolderTitle(folder.name)),
-        content: Text(
-          documents == 0 && subfolders == 0
-              ? dialogContext.l10n.deleteFolderEmptyBody
-              : dialogContext.l10n.deleteFolderBody(documents, subfolders),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(dialogContext.l10n.cancel),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(dialogContext).colorScheme.error,
-              foregroundColor: Theme.of(dialogContext).colorScheme.onError,
-            ),
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(dialogContext.l10n.delete),
-          ),
-        ],
-      ),
+      title: context.l10n.deleteFolderTitle(folder.name),
+      message: documents == 0 && subfolders == 0
+          ? context.l10n.deleteFolderEmptyBody
+          : context.l10n.deleteFolderBody(documents, subfolders),
+      confirmLabel: context.l10n.delete,
+      destructive: true,
     );
-    if (confirmed != true) return;
+    if (!confirmed || !mounted) return;
     await widget.controller.deleteFolder(folder.id);
     if (!mounted) return;
     if (_currentFolderId != null &&
@@ -1678,68 +1590,31 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Future<void> _createDocument() async {
-    final title = TextEditingController();
-    var extension = 'md';
-    final created = await showDialog<LibraryDocument>(
+    final folderId = _currentFolderId;
+    final entry = await showAppSheet<NameEntry>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text(context.l10n.newDocument),
-          content: SizedBox(
-            width: appDialogWidth(context, 420),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: title,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    labelText: context.l10n.fileName,
-                    hintText: context.l10n.fileNameHint,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  initialValue: extension,
-                  decoration: InputDecoration(labelText: context.l10n.format),
-                  items: [
-                    DropdownMenuItem(
-                      value: 'md',
-                      child: Text(context.l10n.markdownFormat),
-                    ),
-                    DropdownMenuItem(
-                      value: 'txt',
-                      child: Text(context.l10n.plainTextFormat),
-                    ),
-                  ],
-                  onChanged: (value) =>
-                      setDialogState(() => extension = value ?? 'md'),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(context.l10n.cancel),
-            ),
-            FilledButton(
-              onPressed: () async {
-                final document = await widget.controller.createDocument(
-                  title: title.text,
-                  extension: extension,
-                  folderId: _currentFolderId,
-                );
-                if (context.mounted) Navigator.pop(context, document);
-              },
-              child: Text(context.l10n.create),
-            ),
-          ],
-        ),
+      builder: (sheetContext) => NameEntrySheet(
+        title: sheetContext.l10n.newDocument,
+        label: sheetContext.l10n.fileName,
+        hint: sheetContext.l10n.fileNameHint,
+        actionLabel: sheetContext.l10n.create,
+        initialFormat: 'md',
+        formats: [
+          SheetChoice(value: 'md', label: sheetContext.l10n.markdownFormat),
+          SheetChoice(value: 'txt', label: sheetContext.l10n.plainTextFormat),
+        ],
       ),
     );
-    title.dispose();
-    if (created != null && mounted) await _open(created);
+    if (entry == null || !mounted) return;
+    // Creating a document is the one place where an empty name has nothing to
+    // fall back to, so a blank field opens an empty document instead of an
+    // invalid one.
+    final document = await widget.controller.createDocument(
+      title: entry.name,
+      extension: entry.format ?? 'md',
+      folderId: folderId,
+    );
+    if (mounted) await _open(document);
   }
 
   Future<void> _importFiles() async {
@@ -1896,28 +1771,18 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Future<void> _confirmDelete(LibraryDocument document) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showSheetConfirm(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.l10n.deleteFileQuestion),
-        content: Text(
-          context.l10n.deleteFileDescription(
-            '${document.title}.${document.extension}',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(context.l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(context.l10n.delete),
-          ),
-        ],
+      title: context.l10n.deleteFileQuestion,
+      message: context.l10n.deleteFileDescription(
+        '${document.title}.${document.extension}',
       ),
+      confirmLabel: context.l10n.delete,
+      destructive: true,
     );
-    if (confirmed == true) await widget.controller.deleteDocument(document.id);
+    if (confirmed && mounted) {
+      await widget.controller.deleteDocument(document.id);
+    }
   }
 
   void _openSettings() => showAppSheet<void>(
@@ -1941,21 +1806,24 @@ class _EntryMenu extends StatelessWidget {
       context.l10n.favorite: Icons.star_border_rounded,
       context.l10n.unfavorite: Icons.star_rounded,
     };
-    return PopupMenuButton<String>(
-      onSelected: (value) => actions[value]?.call(),
-      itemBuilder: (_) => [
-        for (final label in actions.keys)
-          PopupMenuItem(
-            value: label,
-            child: Row(
-              children: [
-                Icon(icons[label] ?? Icons.more_horiz, size: 20),
-                const SizedBox(width: 12),
-                Flexible(child: Text(label)),
-              ],
-            ),
-          ),
-      ],
+    return IconButton(
+      tooltip: MaterialLocalizations.of(context).showMenuTooltip,
+      icon: const Icon(Icons.more_vert),
+      onPressed: () async {
+        final labels = actions.keys.toList(growable: false);
+        final picked = await showSheetChoices<String>(
+          context: context,
+          title: context.l10n.actionsLabel,
+          choices: [
+            for (final label in labels)
+              SheetChoice(label: label, value: label, icon: icons[label]),
+          ],
+        );
+        // The sheet has closed by the time its future completes, so the action
+        // always runs against the library, never behind an open panel.
+        if (picked == null) return;
+        actions[picked]?.call();
+      },
     );
   }
 }

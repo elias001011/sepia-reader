@@ -65,9 +65,13 @@ class VoiceDownloadManager extends ChangeNotifier {
   /// Jobs in flight or waiting, oldest first.
   List<VoiceDownloadJob> get jobs => [
     for (final id in [
-      ..._jobs.keys.where((id) => _jobs[id]!.state == VoiceDownloadState.running),
+      ..._jobs.keys.where(
+        (id) => _jobs[id]!.state == VoiceDownloadState.running,
+      ),
       ..._queue,
-      ..._jobs.keys.where((id) => _jobs[id]!.state == VoiceDownloadState.failed),
+      ..._jobs.keys.where(
+        (id) => _jobs[id]!.state == VoiceDownloadState.failed,
+      ),
     ])
       ?_jobs[id],
   ];

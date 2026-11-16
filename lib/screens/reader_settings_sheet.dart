@@ -10,6 +10,7 @@ import '../models/app_settings.dart';
 import '../state/app_controller.dart';
 import '../widgets/color_field.dart';
 import '../widgets/markdown_view.dart' show readerFontChoices;
+import '../widgets/sheet_choices.dart';
 import '../widgets/sheet_scaffold.dart';
 import '../widgets/settings_slider.dart';
 
@@ -50,23 +51,24 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
       Navigator.pop(context);
       return;
     }
-    final choice = await showDialog<String>(
+    final choice = await showAppSheet<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(dialogContext.l10n.unsavedTitle),
-        content: Text(dialogContext.l10n.unsavedBody),
+      enableDrag: false,
+      builder: (sheetContext) => SheetPrompt(
+        title: sheetContext.l10n.unsavedTitle,
+        content: Text(sheetContext.l10n.unsavedBody),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext, 'cancel'),
-            child: Text(dialogContext.l10n.cancel),
+            onPressed: () => Navigator.pop(sheetContext, 'cancel'),
+            child: Text(sheetContext.l10n.cancel),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext, 'discard'),
-            child: Text(dialogContext.l10n.unsavedDiscard),
+            onPressed: () => Navigator.pop(sheetContext, 'discard'),
+            child: Text(sheetContext.l10n.unsavedDiscard),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, 'save'),
-            child: Text(dialogContext.l10n.unsavedSaveAndLeave),
+            onPressed: () => Navigator.pop(sheetContext, 'save'),
+            child: Text(sheetContext.l10n.unsavedSaveAndLeave),
           ),
         ],
       ),
@@ -169,31 +171,28 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
             ],
           ),
           const SizedBox(height: 22),
-          DropdownButtonFormField<String>(
-            isExpanded: true,
-            initialValue:
+          SheetChoiceField<String>(
+            label: context.l10n.font,
+            value:
                 [
                   ...readerFontChoices,
                   ...CustomFonts.families,
                 ].contains(_draft.readerFont)
                 ? _draft.readerFont
                 : 'Sistema',
-            decoration: InputDecoration(labelText: context.l10n.font),
-            items: [
+            choices: [
               for (final font in [
                 ...readerFontChoices,
                 ...CustomFonts.families,
               ])
-                DropdownMenuItem(
+                SheetChoice(
                   value: font,
-                  child: Text(
-                    font == 'Sistema' ? context.l10n.systemFont : font,
-                    // Render each name in its own face so the list is a
-                    // set of specimens, not just labels.
-                    style: font == 'Sistema'
-                        ? null
-                        : TextStyle(fontFamily: font),
-                  ),
+                  label: font == 'Sistema' ? context.l10n.systemFont : font,
+                  // Each name is drawn in its own face, so the list is a set
+                  // of specimens rather than just labels.
+                  textStyle: font == 'Sistema'
+                      ? null
+                      : TextStyle(fontFamily: font),
                 ),
             ],
             onChanged: _selectFont,
@@ -383,40 +382,21 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
     final selected = presets.indexWhere(
       (p) => p.bg == _draft.readerBackground && p.text == _draft.readerText,
     );
-    return DropdownButtonFormField<int>(
+    return SheetChoiceField<int>(
       key: ValueKey('reader-theme-$_darkPresets-$selected'),
-      initialValue: selected,
-      isExpanded: true,
-      decoration: InputDecoration(labelText: context.l10n.presets),
-      items: [
-        DropdownMenuItem(value: -1, child: Text(context.l10n.customTheme)),
+      label: context.l10n.presets,
+      value: selected,
+      choices: [
+        SheetChoice(value: -1, label: context.l10n.customTheme),
         for (var i = 0; i < presets.length; i++)
-          DropdownMenuItem(
+          SheetChoice(
             value: i,
-            child: Row(
-              children: [
-                Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: presets[i].bg,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Theme.of(context).dividerColor),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    'Aa',
-                    style: TextStyle(color: presets[i].text, fontSize: 12),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Text(presets[i].label),
-              ],
-            ),
+            label: presets[i].label,
+            color: presets[i].bg,
+            textStyle: TextStyle(color: presets[i].text, fontSize: 12),
           ),
       ],
       onChanged: (index) {
-        if (index == null) return;
         if (index < 0) {
           setState(
             () => _draft = _draft.copyWith(

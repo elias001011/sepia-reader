@@ -267,7 +267,7 @@ final voicePacks = <VoicePack>[
   //
   // Speaker ids are the order sherpa-onnx packed the embeddings in, from
   // scripts/kokoro/v1.0/generate_voices_bin.py in that project.
-  VoicePack(
+  const VoicePack(
     id: 'kokoro/multi-lang-v1_0',
     label: 'Kokoro multilíngue',
     kind: NeuralVoiceKind.kokoro,

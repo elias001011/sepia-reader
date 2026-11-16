@@ -214,9 +214,7 @@ void main() {
     await tester.ensureVisible(card);
     await tester.pumpAndSettle();
     await tester.tap(
-      find
-          .descendant(of: card, matching: find.byType(PopupMenuButton<String>))
-          .first,
+      find.descendant(of: card, matching: find.byTooltip('Mostrar menu')),
     );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Renomear'));

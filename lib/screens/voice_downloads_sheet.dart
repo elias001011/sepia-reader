@@ -9,6 +9,7 @@ import '../services/tts/tts_engine.dart';
 import '../services/tts/voice_catalog.dart';
 import '../services/tts/voice_download_manager.dart';
 import '../services/tts/voice_store.dart';
+import '../widgets/sheet_choices.dart';
 import '../widgets/sheet_scaffold.dart';
 
 /// Manages the neural voices stored on the device.
@@ -130,23 +131,14 @@ class _VoiceDownloadsSheetState extends State<VoiceDownloadsSheet> {
   }
 
   Future<void> _remove(VoicePack pack) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showSheetConfirm(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        content: Text(dialogContext.l10n.ttsVoiceRemoveConfirm(pack.label)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(dialogContext.l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(dialogContext.l10n.ttsVoiceRemove),
-          ),
-        ],
-      ),
+      title: context.l10n.ttsVoiceRemove,
+      message: context.l10n.ttsVoiceRemoveConfirm(pack.label),
+      confirmLabel: context.l10n.ttsVoiceRemove,
+      destructive: true,
     );
-    if (confirmed != true) return;
+    if (!confirmed || !mounted) return;
     // The voice being auditioned may be the one whose files are about to go.
     await _stopPreview();
     if (mounted) setState(() => _previewing = null);
@@ -285,21 +277,15 @@ class _VoiceDownloadsSheetState extends State<VoiceDownloadsSheet> {
           ),
         ),
       if (installed && pack.isSupertonic) ...[
-        DropdownButtonFormField<String>(
+        SheetChoiceField<String>(
           key: ValueKey('${pack.id}/$language'),
-          initialValue: language,
-          isExpanded: true,
-          decoration: InputDecoration(labelText: context.l10n.language),
-          items: [
+          label: context.l10n.language,
+          value: language,
+          choices: [
             for (final code in byLanguage.keys)
-              DropdownMenuItem(
-                value: code,
-                child: Text(languageLabelFor(code)),
-              ),
+              SheetChoice(value: code, label: languageLabelFor(code)),
           ],
-          onChanged: (value) {
-            if (value != null) setState(() => _languages[pack.id] = value);
-          },
+          onChanged: (value) => setState(() => _languages[pack.id] = value),
         ),
         for (final voice in byLanguage[language]!)
           _voiceRow(context, pack, voice),

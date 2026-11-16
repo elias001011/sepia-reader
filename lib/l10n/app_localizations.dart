@@ -374,6 +374,12 @@ abstract class AppLocalizations {
   /// **'Hex color'**
   String get hexColor;
 
+  /// No description provided for @invalidHexColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter six hexadecimal digits (0–9, A–F).'**
+  String get invalidHexColor;
+
   /// No description provided for @cancel.
   ///
   /// In en, this message translates to:
@@ -481,6 +487,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Rename'**
   String get rename;
+
+  /// No description provided for @actionsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Actions'**
+  String get actionsLabel;
 
   /// No description provided for @root.
   ///

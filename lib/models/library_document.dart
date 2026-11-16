@@ -37,7 +37,8 @@ class LibraryDocument implements SyncableRecord {
     var words = 0;
     var inWord = false;
     for (final unit in content.codeUnits) {
-      final whitespace = unit <= 0x20 ||
+      final whitespace =
+          unit <= 0x20 ||
           unit == 0x85 ||
           unit == 0xA0 ||
           unit == 0x1680 ||
@@ -56,6 +57,7 @@ class LibraryDocument implements SyncableRecord {
     }
     return words;
   }
+
   int get readingMinutes => wordCount == 0 ? 0 : (wordCount / 220).ceil();
 
   LibraryDocument copyWith({

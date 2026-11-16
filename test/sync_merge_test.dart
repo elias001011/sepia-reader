@@ -94,7 +94,9 @@ void main() {
   group('purgeExpiredTombstones', () {
     test('drops tombstones past the retention window', () {
       final now = DateTime(2026, 8, 1);
-      final expired = now.subtract(tombstoneRetention + const Duration(days: 1));
+      final expired = now.subtract(
+        tombstoneRetention + const Duration(days: 1),
+      );
 
       final kept = purgeExpiredTombstones([
         doc('gone', updatedAt: expired, deletedAt: expired),
@@ -145,9 +147,6 @@ void main() {
       merged.firstWhere((document) => document.id == 'a').title,
       'a week of edits',
     );
-    expect(
-      merged.map((document) => document.id),
-      containsAll(['a', 'b', 'c']),
-    );
+    expect(merged.map((document) => document.id), containsAll(['a', 'b', 'c']));
   });
 }
