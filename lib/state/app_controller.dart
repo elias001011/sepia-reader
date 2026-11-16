@@ -898,7 +898,7 @@ No modo leitura, o botão de fone lê o documento em voz alta.
 
 - Se o texto tem títulos `#` ou `##`, dá para escolher **de qual capítulo começar** — ou continuar de onde você parou.
 - A voz padrão é a do próprio Android ou do navegador: não baixa nada e funciona sem internet.
-- Em **Configurações → Leitura em voz alta** dá para ajustar a **velocidade**, escolher a voz do sistema ou conectar a uma **API ou servidor TTS**. No Sépia normal, também há modelos neurais opcionais que rodam no aparelho: Supertonic 2/3, Piper e Kokoro. O modo remoto também está disponível na Lite e envia os trechos ao destino escolhido, com autorização explícita.
+- Em **Configurações → Leitura em voz alta** dá para ajustar a **velocidade**, escolher a voz do sistema ou conectar a uma **API ou servidor TTS**. O modo remoto também está disponível na Lite e envia os trechos ao destino escolhido, com autorização explícita.
 
 ## Marcadores
 
@@ -947,7 +947,7 @@ In reading mode, the headphone button reads the document out loud.
 
 - If the text has `#` or `##` headings, you can pick **which chapter to start from** — or carry on from where you stopped.
 - The default voice is the one Android or your browser already has: nothing to download, and it works offline.
-- Under **Settings → Read aloud**, adjust **speed**, choose the system voice, or connect to an **API or TTS server**. Full Sépia also offers optional on-device models: Supertonic 2/3, Piper and Kokoro. Remote speech is also available in Lite and sends passages to your chosen destination with explicit permission.
+- Under **Settings → Read aloud**, adjust **speed**, choose the system voice, or connect to an **API or TTS server**. Remote speech is also available in Lite and sends passages to your chosen destination with explicit permission.
 
 ## Bookmarks
 

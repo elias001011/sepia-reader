@@ -5,4 +5,4 @@
 /// `sepia-lite-<ver>-android-*.apk` — so the update check has to offer the
 /// one that matches the build asking. This is the only line that differs
 /// between the branches for that purpose; see [pickApkFor].
-const bool appIsLite = false;
+const bool appIsLite = true;

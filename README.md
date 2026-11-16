@@ -4,6 +4,8 @@
 
 Leitor, biblioteca e editor de Markdown feito em Flutter. O Sépia foi pensado para quem quer guardar textos, editar sem trocar de ferramenta e depois deixar a interface desaparecer para simplesmente ler.
 
+> **Esta branch é a Sépia Lite** — o mesmo app, offline igual, num APK menor: sem a pilha de voz neural on-device (só a voz do sistema). Diferenças completas na tabela [Sépia e Sépia Lite](#sépia-e-sépia-lite).
+
 ## O que já funciona
 
 ### Ler
