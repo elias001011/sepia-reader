@@ -73,6 +73,15 @@ jobs:
             exit 1
           fi
 
+      - name: Verify release notes
+        shell: bash
+        run: |
+          notes="docs/RELEASE-${RELEASE_TAG#v}.md"
+          if [[ ! -s "$notes" ]]; then
+            echo "::error::Release notes are missing or empty: $notes"
+            exit 1
+          fi
+
       - name: Verify the original Merriweather files
         shell: bash
         run: |
