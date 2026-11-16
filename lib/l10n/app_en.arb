@@ -283,6 +283,8 @@
   "syncDisabledBody": "From now on this device stops sending and receiving changes. The library that is here stays whole, whatever you choose.\n\nWhat is left to decide is the copy already on the server:\n\n• Keep on server — the copy stays there, untouched. Other devices that sync keep it, and if you turn syncing back on here the two sides merge again.\n\n• Erase from server — the server copy is emptied now. Other devices that sync will receive that deletion and lose those documents too. This device loses nothing.",
   "syncKeepOnServer": "Keep on server",
   "syncWipeFromServer": "Erase from server",
+  "saveFailed": "The document could not be saved. Your text is still open here.",
+  "libraryUnreadable": "The library saved on this device could not be read. A copy of it was kept and the library was recreated.",
   "syncWipeFailed": "Syncing is off, but the copy on the server could not be erased. It is still there.",
   "syncWipeDone": "Server copy erased.",
   "syncPullDone": "Library synced with the server.",

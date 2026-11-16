@@ -9,6 +9,9 @@
 - Formulários de nome passam a ser donos do próprio controller, liberado junto com a janela.
 - Tema, idioma, fonte, paleta, voz, provedor, formato, layout e menus de ações passam a abrir o painel em vez de listas suspensas e menus flutuantes.
 - Liga as regras de análise exigidas na revisão (`unused_import` e `dead_code` como erro, `always_declare_return_types`, `avoid_print`, `cancel_subscriptions`, `prefer_const_constructors`), formata os arquivos fora do padrão e passa a verificar formatação, cobertura e dependências desatualizadas no CI.
+- Guarda uma cópia e avisa quando a biblioteca salva no aparelho não pode ser lida, em vez de recriá-la em silêncio por cima do conteúdo.
+- Editor: não falha mais ao salvar um documento apagado pela sincronização, e mostra um aviso (mantendo o texto aberto) quando a escrita falha.
+- Configurações: o botão Salvar ignora um segundo toque enquanto o primeiro termina.
 - Adiciona `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md` e modelo de pull request.
 
 ## 2.5.9 — 2026-10-27

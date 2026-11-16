@@ -430,15 +430,23 @@ class _EditorScreenState extends State<EditorScreen>
     });
   }
 
-  Future<void> _save() async {
+  /// Persists what is on screen. Returns false when it could not: the editor
+  /// stays dirty, so the text is kept and the next edit (or close) tries again.
+  Future<bool> _save() async {
     _saveTimer?.cancel();
+    // A sync can remove the document while it is open. Writing it back would
+    // revive a deletion made elsewhere, and there is nothing to write to.
+    final document = _stored;
+    if (document == null) {
+      _dirty.value = false;
+      return true;
+    }
     // Snapshot exactly what is being persisted, before the await.
     final savedContent = _contentController.text;
     final savedTitle = _titleController.text;
     final persistedTitle = savedTitle.trim().isEmpty
         ? context.l10n.untitled
         : savedTitle.trim();
-    final document = _stored!;
     final prefix = _sectionPrefix;
     final suffix = _sectionSuffix;
     final wasSectioned = _sectioned;
@@ -454,7 +462,18 @@ class _EditorScreenState extends State<EditorScreen>
       ),
     );
     _saveQueue = operation.then<void>((_) {}, onError: (_, _) {});
-    await operation;
+    try {
+      await operation;
+      return true;
+    } catch (error) {
+      debugPrint('sepia: saving the document failed: $error');
+      if (mounted) {
+        _dirty.value = true;
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(context.l10n.saveFailed)));
+      }
+      return false;
+    }
   }
 
   Future<void> _persistSnapshot({
@@ -1892,7 +1911,8 @@ class _EditorScreenState extends State<EditorScreen>
 
   Future<void> _close() async {
     unawaited(_tts?.release());
-    if (_dirty.value) await _save();
+    // Leaving after a failed save would throw the text away; stay instead.
+    if (_dirty.value && !await _save()) return;
     if (mounted) Navigator.pop(context);
   }
 

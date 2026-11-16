@@ -183,7 +183,23 @@ class _SettingsSheetState extends State<SettingsSheet> {
     if (mounted) setState(() => _wipeServerOnSave = wipe ?? false);
   }
 
+  /// Set on the first tap and kept after a success: the sheet is on its way
+  /// out, and a second tap would run the save and the pop twice, closing the
+  /// screen underneath. Only a failure lets the button work again.
+  bool _saving = false;
+
   Future<void> _save() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      await _saveSettings();
+    } catch (_) {
+      if (mounted) setState(() => _saving = false);
+      rethrow;
+    }
+  }
+
+  Future<void> _saveSettings() async {
     final draft = _draft.copyWith(
       syncServerUrl: _serverUrlController.text.trim(),
     );
@@ -235,7 +251,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
         footer: SizedBox(
           width: double.infinity,
           child: FilledButton.icon(
-            onPressed: _save,
+            onPressed: _saving ? null : _save,
             icon: const Icon(Icons.check_rounded),
             label: Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
