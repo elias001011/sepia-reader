@@ -79,7 +79,7 @@ void main() {
 
         final panel = tester.getRect(find.byType(SheetScaffold));
         expect(tester.takeException(), isNull);
-        expect(panel.width, lessThanOrEqualTo(480));
+        expect(panel.width, lessThanOrEqualTo(kSheetMaxWidth));
         expect(panel.left, greaterThanOrEqualTo(0));
         expect(panel.right, lessThanOrEqualTo(size.width));
         // A janela baixa rola: nada é cortado fora do alcance.
@@ -90,7 +90,7 @@ void main() {
     }
   }
 
-  testWidgets('no desktop fica centralizado e com largura de painel', (
+  testWidgets('no desktop o painel abraça o conteúdo e fica centralizado', (
     tester,
   ) async {
     await _openSheet(
@@ -99,8 +99,9 @@ void main() {
       builder: _sheets['lista de escolhas']!,
     );
 
+    // Conteúdo curto: o painel fica no piso, não estica pela tela.
     final panel = tester.getRect(find.byType(SheetScaffold));
-    expect(panel.width, 480);
+    expect(panel.width, 360);
     expect(panel.center.dx, closeTo(800, 1));
 
     // Ações do rodapé continuam no lugar com o painel ancorado embaixo.
@@ -108,6 +109,55 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(SheetScaffold), findsNothing);
     expect(find.text('abrir'), findsOneWidget);
+  });
+
+  testWidgets('conteúdo largo para no teto, mesmo em tela enorme', (
+    tester,
+  ) async {
+    await _openSheet(
+      tester,
+      size: const Size(3000, 1200),
+      builder: (_) => SheetScaffold(
+        title: 'Marcadores',
+        children: [Text('trecho muito longo ' * 60, maxLines: 2)],
+      ),
+    );
+
+    final panel = tester.getRect(find.byType(SheetScaffold));
+    expect(panel.width, kSheetMaxWidth);
+    expect(panel.center.dx, closeTo(1500, 1));
+  });
+
+  testWidgets('recorte da câmera num lado não descentraliza o painel', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 360);
+    tester.view.devicePixelRatio = 1;
+    tester.view.padding = const FakeViewPadding(left: 48);
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('pt'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showAppSheet<void>(
+                context: context,
+                builder: _sheets['lista de escolhas']!,
+              ),
+              child: const Text('abrir'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('abrir'));
+    await tester.pumpAndSettle();
+
+    final panel = tester.getRect(find.byType(SheetScaffold));
+    expect(panel.center.dx, closeTo(400, 1));
   });
 
   testWidgets('o teclado empurra a janela em vez de cobrir os campos', (
