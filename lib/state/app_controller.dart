@@ -96,6 +96,16 @@ class AppController extends ChangeNotifier {
     return List.unmodifiable(matches);
   }
 
+  bool _libraryUnreadable = false;
+
+  /// True once, right after a start where the saved library could not be read
+  /// and a copy was kept: the library screen tells the user, then clears it.
+  bool takeLibraryUnreadableNotice() {
+    final pending = _libraryUnreadable;
+    _libraryUnreadable = false;
+    return pending;
+  }
+
   Future<void> initialize() async {
     // Only local persistence belongs on the path to the first frame. Once a
     // user enabled sync, the old startup awaited four network requests before
@@ -105,6 +115,7 @@ class AppController extends ChangeNotifier {
     await CustomFonts.load(selectedFamily: _settings.readerFont);
     _folders.addAll(await _storage.loadLocalFolders());
     _documents.addAll(await _storage.loadLocalDocuments());
+    _libraryUnreadable = _storage.documentsUnreadable;
     _bookmarks.addAll(await _storage.loadLocalBookmarks());
     _observeMutationTimes();
     // "Empty" means no *live* documents: a library whose documents were all

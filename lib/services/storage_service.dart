@@ -165,6 +165,11 @@ class StorageService {
   /// Startup uses the local variants so the first frame never waits for a
   /// server. A background sync reconciles these values after the app is
   /// already visible.
+  ///
+  /// A key that is simply absent means a fresh install and yields an empty
+  /// list. A value that is there but cannot be read is different: the caller
+  /// goes on to write a welcome document over the key, so the unreadable text
+  /// is first copied to a backup key and [documentsUnreadable] is set.
   Future<List<LibraryDocument>> loadLocalDocuments() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_documentsKey);
@@ -174,10 +179,24 @@ class StorageService {
         (await decodeStoredJson(raw)) as List<dynamic>,
         _decodeDocuments,
       );
-    } catch (_) {
+    } catch (error) {
+      debugPrint('sepia: saved documents unreadable: $error');
+      documentsUnreadable = true;
+      try {
+        await prefs.setString(
+          '$_documentsKey.unreadable.${DateTime.now().millisecondsSinceEpoch}',
+          raw,
+        );
+      } catch (_) {
+        // Nothing more can be done; the notice still tells the user.
+      }
       return [];
     }
   }
+
+  /// Set when the last [loadLocalDocuments] found saved documents it could
+  /// not read (and kept a copy of them).
+  bool documentsUnreadable = false;
 
   Future<List<LibraryFolder>> loadLocalFolders() async {
     final prefs = await SharedPreferences.getInstance();

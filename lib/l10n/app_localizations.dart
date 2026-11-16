@@ -1028,6 +1028,18 @@ abstract class AppLocalizations {
   /// **'Erase from server'**
   String get syncWipeFromServer;
 
+  /// No description provided for @saveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The document could not be saved. Your text is still open here.'**
+  String get saveFailed;
+
+  /// No description provided for @libraryUnreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'The library saved on this device could not be read. A copy of it was kept and the library was recreated.'**
+  String get libraryUnreadable;
+
   /// No description provided for @syncWipeFailed.
   ///
   /// In en, this message translates to:

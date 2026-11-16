@@ -40,8 +40,19 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
       jsonEncode(_draft.toJson()) !=
       jsonEncode(widget.controller.settings.toJson());
 
+  /// Kept after a success so a second tap cannot pop twice; see the settings
+  /// sheet for why only a failure re-enables the button.
+  bool _applying = false;
+
   Future<void> _apply() async {
-    await widget.controller.updateSettings(_draft);
+    if (_applying) return;
+    setState(() => _applying = true);
+    try {
+      await widget.controller.updateSettings(_draft);
+    } catch (_) {
+      if (mounted) setState(() => _applying = false);
+      rethrow;
+    }
     if (mounted) Navigator.pop(context);
   }
 
@@ -95,7 +106,7 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
         footer: SizedBox(
           width: double.infinity,
           child: FilledButton.icon(
-            onPressed: _apply,
+            onPressed: _applying ? null : _apply,
             icon: const Icon(Icons.check_rounded),
             label: Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),

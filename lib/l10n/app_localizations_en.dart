@@ -572,6 +572,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get syncWipeFromServer => 'Erase from server';
 
   @override
+  String get saveFailed =>
+      'The document could not be saved. Your text is still open here.';
+
+  @override
+  String get libraryUnreadable =>
+      'The library saved on this device could not be read. A copy of it was kept and the library was recreated.';
+
+  @override
   String get syncWipeFailed =>
       'Syncing is off, but the copy on the server could not be erased. It is still there.';
 

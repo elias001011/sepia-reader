@@ -574,6 +574,14 @@ class AppLocalizationsPt extends AppLocalizations {
   String get syncWipeFromServer => 'Apagar do servidor';
 
   @override
+  String get saveFailed =>
+      'Não foi possível salvar o documento. O texto continua aberto aqui.';
+
+  @override
+  String get libraryUnreadable =>
+      'Não foi possível ler a biblioteca salva neste aparelho. Uma cópia dela foi guardada e a biblioteca foi recriada.';
+
+  @override
   String get syncWipeFailed =>
       'Sincronização desligada, mas não foi possível apagar a cópia no servidor. Ela continua lá.';
 

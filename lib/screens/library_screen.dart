@@ -115,6 +115,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
       onDrop: _importDroppedFiles,
     );
     unawaited(_checkForUpdate());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !widget.controller.takeLibraryUnreadableNotice()) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.l10n.libraryUnreadable),
+          duration: const Duration(seconds: 12),
+        ),
+      );
+    });
   }
 
   @override

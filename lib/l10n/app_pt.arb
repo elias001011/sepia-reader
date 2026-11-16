@@ -283,6 +283,8 @@
   "syncDisabledBody": "A partir de agora este aparelho para de enviar e receber mudanças. A biblioteca que está aqui continua inteira, aconteça o que acontecer.\n\nFalta decidir o que fazer com a cópia que já está no servidor:\n\n• Manter no servidor — a cópia fica lá, intacta. Outros aparelhos que sincronizam continuam com ela, e se você religar a sincronização aqui as duas partes voltam a se juntar.\n\n• Apagar do servidor — a cópia do servidor é esvaziada agora. Os outros aparelhos que sincronizam vão receber essa exclusão e ficar sem esses documentos também. Este aparelho não perde nada.",
   "syncKeepOnServer": "Manter no servidor",
   "syncWipeFromServer": "Apagar do servidor",
+  "saveFailed": "Não foi possível salvar o documento. O texto continua aberto aqui.",
+  "libraryUnreadable": "Não foi possível ler a biblioteca salva neste aparelho. Uma cópia dela foi guardada e a biblioteca foi recriada.",
   "syncWipeFailed": "Sincronização desligada, mas não foi possível apagar a cópia no servidor. Ela continua lá.",
   "syncWipeDone": "Cópia do servidor apagada.",
   "syncPullDone": "Biblioteca sincronizada com o servidor.",
