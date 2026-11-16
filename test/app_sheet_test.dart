@@ -61,6 +61,15 @@ Map<String, WidgetBuilder> get _sheets => {
   ),
 };
 
+/// The capped column inside the full-width panel.
+Finder get _content => find.descendant(
+  of: find.byType(SheetScaffold),
+  matching: find.byWidgetPredicate(
+    (w) =>
+        w is ConstrainedBox && w.constraints.maxWidth == kSheetContentMaxWidth,
+  ),
+);
+
 void main() {
   for (final size in const [
     Size(320, 700),
@@ -77,9 +86,9 @@ void main() {
           textScale: 1.6,
         );
 
-        final panel = tester.getRect(find.byType(SheetScaffold));
+        final panel = tester.getRect(_content);
         expect(tester.takeException(), isNull);
-        expect(panel.width, lessThanOrEqualTo(kSheetMaxWidth));
+        expect(panel.width, lessThanOrEqualTo(kSheetContentMaxWidth));
         expect(panel.left, greaterThanOrEqualTo(0));
         expect(panel.right, lessThanOrEqualTo(size.width));
         // A janela baixa rola: nada é cortado fora do alcance.
@@ -90,7 +99,7 @@ void main() {
     }
   }
 
-  testWidgets('no desktop o painel abraça o conteúdo e fica centralizado', (
+  testWidgets('no desktop o painel ocupa a janela e o conteúdo fica centrado', (
     tester,
   ) async {
     await _openSheet(
@@ -99,65 +108,18 @@ void main() {
       builder: _sheets['lista de escolhas']!,
     );
 
-    // Conteúdo curto: o painel fica no piso, não estica pela tela.
-    final panel = tester.getRect(find.byType(SheetScaffold));
-    expect(panel.width, 360);
-    expect(panel.center.dx, closeTo(800, 1));
+    // A folha vai de ponta a ponta; só o conteúdo tem limite.
+    final sheet = tester.getRect(find.byType(BottomSheet));
+    expect(sheet.width, 1600);
+    final content = tester.getRect(_content);
+    expect(content.width, kSheetContentMaxWidth);
+    expect(content.center.dx, closeTo(800, 1));
 
     // Ações do rodapé continuam no lugar com o painel ancorado embaixo.
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
     expect(find.byType(SheetScaffold), findsNothing);
     expect(find.text('abrir'), findsOneWidget);
-  });
-
-  testWidgets('conteúdo largo para no teto, mesmo em tela enorme', (
-    tester,
-  ) async {
-    await _openSheet(
-      tester,
-      size: const Size(3000, 1200),
-      builder: (_) => SheetScaffold(
-        title: 'Marcadores',
-        children: [Text('trecho muito longo ' * 60, maxLines: 2)],
-      ),
-    );
-
-    final panel = tester.getRect(find.byType(SheetScaffold));
-    expect(panel.width, kSheetMaxWidth);
-    expect(panel.center.dx, closeTo(1500, 1));
-  });
-
-  testWidgets('recorte da câmera num lado não descentraliza o painel', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(800, 360);
-    tester.view.devicePixelRatio = 1;
-    tester.view.padding = const FakeViewPadding(left: 48);
-    addTearDown(tester.view.reset);
-    await tester.pumpWidget(
-      MaterialApp(
-        locale: const Locale('pt'),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => TextButton(
-              onPressed: () => showAppSheet<void>(
-                context: context,
-                builder: _sheets['lista de escolhas']!,
-              ),
-              child: const Text('abrir'),
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.tap(find.text('abrir'));
-    await tester.pumpAndSettle();
-
-    final panel = tester.getRect(find.byType(SheetScaffold));
-    expect(panel.center.dx, closeTo(400, 1));
   });
 
   testWidgets('o teclado empurra a janela em vez de cobrir os campos', (

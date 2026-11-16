@@ -5,20 +5,8 @@ import 'package:flutter/services.dart';
 
 import '../l10n/l10n.dart';
 
-/// The widest a panel ever gets, however wide the window is.
-const double kSheetMaxWidth = 560;
-
-/// The narrowest a panel gets on a window wide enough to have margins.
-const double _sheetMinWidth = 360;
-
-/// Below this window width the panel simply spans it, as bottom sheets do on a
-/// phone held upright.
-const double _sheetFullWidthBelow = 520;
-
-/// Past this many rows a list is built lazily and the panel takes the full
-/// [kSheetMaxWidth]: measuring what a hundred chapter titles want is not worth
-/// building all of them.
-const int _eagerListLimit = 40;
+/// The widest the content of a panel gets, however wide the window is.
+const double kSheetContentMaxWidth = 880;
 
 /// Opens a bottom sheet that stops short of the top of the screen.
 ///
@@ -30,13 +18,8 @@ Future<T?> showAppSheet<T>({
   required BuildContext context,
   required WidgetBuilder builder,
   bool enableDrag = true,
-  double maxWidth = kSheetMaxWidth,
 }) {
   final media = MediaQuery.of(context);
-  // A notch or gesture bar on one side of a landscape phone must not push
-  // the panel off-center, so the room it takes is reserved on both sides.
-  final sideInset = math.max(media.padding.left, media.padding.right);
-  final availableWidth = media.size.width - 2 * sideInset;
   final breathingRoom = media.padding.top + 28;
   // On desktop/web, cap at 80 % of the viewport so sheets feel like a panel,
   // not a full-screen takeover.
@@ -56,11 +39,15 @@ Future<T?> showAppSheet<T>({
     // handle goes with it, since it is what promises the gesture.
     enableDrag: enableDrag,
     showDragHandle: enableDrag,
-    // This is only the ceiling. Inside it the panel is as wide as its
-    // content asks (see SheetScaffold), and Flutter centers a bottom sheet
-    // horizontally on its own once the width is short of the screen.
+    // The panel spans the whole window, as a bottom sheet does on a phone;
+    // Material 3 would otherwise cap it at 640 px and float a narrow card
+    // in the middle of a wide screen. What is capped is the content inside
+    // (see SheetScaffold), so it never stretches across an enormous window.
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
     constraints: BoxConstraints(
-      maxWidth: math.min(maxWidth, availableWidth),
+      maxWidth: double.infinity,
       maxHeight: (media.size.height - breathingRoom).clamp(
         lowerBound,
         upperBound,
@@ -150,11 +137,8 @@ class SheetPrompt extends StatelessWidget {
 }
 
 /// Shared frame for the app's bottom sheets: a title, an optional line of
-/// explanation, a close button, and a scrolling body.
-///
-/// The panel is as wide as its content, between a floor and [kSheetMaxWidth],
-/// on every platform; a window narrower than a phone held upright gets the
-/// whole width.
+/// explanation, a close button, and a scrolling body that never grows wider
+/// than a comfortable measure.
 class SheetScaffold extends StatelessWidget {
   const SheetScaffold({
     super.key,
@@ -163,6 +147,7 @@ class SheetScaffold extends StatelessWidget {
     this.description,
     this.footer,
     this.onClose,
+    this.maxWidth = kSheetContentMaxWidth,
   }) : itemCount = null,
        itemBuilder = null;
 
@@ -179,6 +164,7 @@ class SheetScaffold extends StatelessWidget {
     this.description,
     this.footer,
     this.onClose,
+    this.maxWidth = kSheetContentMaxWidth,
   }) : children = const [];
 
   final String title;
@@ -194,6 +180,7 @@ class SheetScaffold extends StatelessWidget {
   /// Runs instead of popping, for a sheet that needs to ask something first
   /// (unsaved changes, most obviously).
   final Future<void> Function()? onClose;
+  final double maxWidth;
 
   static const _bodyPadding = EdgeInsets.fromLTRB(20, 4, 20, 16);
 
@@ -212,106 +199,80 @@ class SheetScaffold extends StatelessWidget {
       }
     }
 
-    final narrow = MediaQuery.sizeOf(context).width < _sheetFullWidthBelow;
-    final lazy = itemBuilder != null && (itemCount ?? 0) > _eagerListLimit;
-
-    Widget body;
-    if (itemBuilder == null) {
-      body = SingleChildScrollView(
-        padding: _bodyPadding,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: children,
-        ),
-      );
-    } else if (lazy) {
-      body = ListView.builder(
-        padding: _bodyPadding,
-        shrinkWrap: true,
-        itemCount: itemCount,
-        itemBuilder: itemBuilder!,
-      );
-    } else {
-      // A short list is laid out eagerly: a lazy viewport cannot report how
-      // wide its rows want to be, and that is what sizes the panel.
-      body = SingleChildScrollView(
-        padding: _bodyPadding,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (var i = 0; i < itemCount!; i++) ?itemBuilder!(context, i),
-          ],
-        ),
-      );
-    }
-
-    final column = Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 0, 8, 0),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.headlineSmall
-                      ?.copyWith(fontWeight: FontWeight.w700),
-                ),
-              ),
-              IconButton(
-                tooltip: MaterialLocalizations.of(context).closeButtonLabel,
-                onPressed: close,
-                icon: const Icon(Icons.close_rounded),
-              ),
-            ],
-          ),
-        ),
-        if (description != null)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
-            child: Text(
-              description,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ),
-        Flexible(child: body),
-        if (footer != null)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
-            child: footer,
-          ),
-      ],
-    );
-
     return CallbackShortcuts(
       bindings: {const SingleActivator(LogicalKeyboardKey.escape): close},
-      // Side insets are not applied here: showAppSheet already keeps the
-      // panel clear of them on both sides, so it stays centered.
       child: SafeArea(
         top: false,
-        left: false,
-        right: false,
         // `heightFactor: 1.0` matters: given a bounded height (the sheet's
         // own maxHeight), plain `Center` sizes itself to fill all of it
-        // before centering its child, which left a slab of empty sheet below
-        // any content shorter than that cap. `widthFactor: 1.0` does the same
-        // for width, so the panel wraps its content instead of spanning the
-        // window.
+        // before centering its child — Flutter says so explicitly in its own
+        // docs — which is what left a slab of empty sheet below any content
+        // shorter than that cap. `heightFactor` pins Center's height to the
+        // child's instead. Width is left alone: expanding-then-capping via
+        // the `ConstrainedBox` below is exactly what centers it, and a
+        // `Row` here (tried first) does the capping wrong — a Row hands
+        // non-flex children an *unbounded* main axis, so the ConstrainedBox
+        // renders at its full maxWidth and overflows on anything narrower.
         child: Center(
           heightFactor: 1.0,
-          widthFactor: 1.0,
           child: ConstrainedBox(
-            constraints: BoxConstraints(
-              // A floor equal to the ceiling is clamped to the window by the
-              // parent's maximum, which is how a narrow window gets the full
-              // width.
-              minWidth: narrow || lazy ? kSheetMaxWidth : _sheetMinWidth,
-              maxWidth: kSheetMaxWidth,
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 8, 0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: MaterialLocalizations.of(context)
+                            .closeButtonLabel,
+                        onPressed: close,
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                    ],
+                  ),
+                ),
+                if (description != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+                    child: Text(
+                      description,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                Flexible(
+                  child: itemBuilder == null
+                      ? SingleChildScrollView(
+                          padding: _bodyPadding,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: children,
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: _bodyPadding,
+                          shrinkWrap: true,
+                          itemCount: itemCount,
+                          itemBuilder: itemBuilder!,
+                        ),
+                ),
+                if (footer != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+                    child: footer,
+                  ),
+              ],
             ),
-            child: lazy ? column : IntrinsicWidth(child: column),
           ),
         ),
       ),

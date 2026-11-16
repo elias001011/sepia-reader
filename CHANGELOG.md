@@ -3,7 +3,7 @@
 ## 2.6.0 — 2026-11-16
 
 - Padroniza todas as janelas em um único componente, o mesmo painel dos marcadores: criação e renomeação de pastas e documentos, exclusão, mover para, seleção de cor, tema, idioma, fonte, paleta de leitura, voz, provedor remoto, formato, layout e capítulos de edição. Não sobram `AlertDialog`, `showDialog`, `PopupMenuButton` nem `DropdownButton` no app.
-- Ajusta a largura dos painéis ao conteúdo, igual no celular e no desktop: piso de 360 px, teto de 560 px, centralizados com as margens do recorte da câmera reservadas dos dois lados. Em janelas com menos de 520 px ocupam a largura toda, como no celular em pé. Mantém a apresentação inferior e passa a crescer acima do teclado em vez de esconder os campos atrás dele.
+- Painéis em largura total na base da janela, com cantos arredondados e barra de arrastar maior, como no Musify; só o conteúdo tem limite (880 px), então em telas largas e em paisagem não sobra uma coluna estreita no meio. Passa a crescer acima do teclado em vez de esconder os campos atrás dele.
 - Fecha painéis com Esc no desktop e mantém as ações alcançáveis em janelas baixas e com texto ampliado.
 - Corrige o seletor de cor: um valor hexadecimal inválido agora bloqueia o botão de aplicar em vez de aplicar a cor anterior sem avisar.
 - Formulários de nome passam a ser donos do próprio controller, liberado junto com a janela.
